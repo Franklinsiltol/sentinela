@@ -9,7 +9,6 @@
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@xenova/transformers@2.6.0/dist/transformers.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
@@ -1037,27 +1036,14 @@
                         <label>ID da Planilha Google</label>
                         <input type="text" id="sheetId" placeholder="ID da planilha">
                     </div>
+                    <div class="input-group">
+                        <label>Nome da Aba</label>
+                        <input type="text" id="sheetTab" placeholder="Nome da aba (ex: Página1)">
+                    </div>
                     <button class="button button-primary" id="loadData">
                         <i class="fas fa-sync-alt"></i>
                         <span>Carregar Dados</span>
                     </button>
-                </div>
-                
-                <div class="section">
-                    <h3 class="section-title">
-                        <i class="fas fa-cogs"></i>
-                        <span>Configurações</span>
-                    </h3>
-                    <div class="input-group">
-                        <label>
-                            <input type="checkbox" id="enableIA" checked> 
-                            Usar Análise de IA
-                        </label>
-                    </div>
-                    <div class="input-group">
-                        <label>Buscar Palavra</label>
-                        <input type="text" id="searchWord" placeholder="Digite uma palavra...">
-                    </div>
                 </div>
                 
                 <div class="section">
@@ -1319,6 +1305,15 @@
                                 </button>
                             </div>
                             <div id="searchResults" class="mt-20"></div>
+                            
+                            <!-- Gráfico de Timeline para ocorrências por dia -->
+                            <div class="chart-container mt-20">
+                                <div class="chart-title">
+                                    <i class="fas fa-chart-line"></i>
+                                    Ocorrências ao Longo do Tempo
+                                </div>
+                                <div id="timelineChart"></div>
+                            </div>
                         </div>
                         
                         <div class="card">
@@ -1370,16 +1365,16 @@
                         <div class="card">
                             <div class="card-header">
                                 <div class="card-title">Análise com IA Avançada</div>
-                                <div id="modelStatus" class="model-status status-loading">
-                                    <i class="fas fa-spinner fa-spin"></i>
-                                    <span>Carregando modelos de IA...</span>
+                                <div id="modelStatus" class="model-status status-ready">
+                                    <i class="fas fa-check-circle"></i>
+                                    <span>Análise de IA Básica Disponível</span>
                                 </div>
                             </div>
                             
                             <div class="alert alert-info">
                                 <i class="fas fa-robot"></i>
                                 <div>
-                                    <strong>Análise Inteligente</strong> - Use modelos transformers avançados para obter insights profundos sobre suas conversas.
+                                    <strong>Análise Inteligente</strong> - Use análise de texto avançada para obter insights profundos sobre suas conversas.
                                 </div>
                             </div>
                             
@@ -1465,7 +1460,7 @@
                             <div class="alert alert-info">
                                 <i class="fas fa-microphone"></i>
                                 <div>
-                                    <strong>Transcrição e Análise de Áudio</strong> - Grave áudio em tempo real, faça upload de arquivos ou cole transcrições diretamente.
+                                    <strong>Transcrição e Análise de Áudio</strong> - Grave áudio em tempo real ou cole transcrições diretamente.
                                 </div>
                             </div>
                             
@@ -1517,28 +1512,6 @@
                                 
                                 <div class="audio-visualizer" id="audioVisualizer">
                                     <!-- Barras do visualizador serão geradas aqui -->
-                                </div>
-                            </div>
-                            
-                            <div class="section">
-                                <h3 class="section-title">
-                                    <i class="fas fa-upload"></i>
-                                    Upload de Arquivo de Áudio
-                                </h3>
-                                
-                                <div class="input-group">
-                                    <input type="file" id="audioUpload" accept=".wav,.mp3,.m4a,.ogg,.webm">
-                                </div>
-                                
-                                <div id="audioPlayerContainer" class="hidden">
-                                    <audio id="audioPlayer" controls class="audio-player-custom"></audio>
-                                </div>
-                                
-                                <div class="audio-controls">
-                                    <button class="button button-primary" id="transcribeUploaded">
-                                        <i class="fas fa-language"></i>
-                                        Transcrever Arquivo
-                                    </button>
                                 </div>
                             </div>
                             
@@ -1625,34 +1598,6 @@
                             </div>
                         </div>
                     </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal de Configurações -->
-    <div class="modal" id="settingsModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <div class="modal-title">Configurações</div>
-                <button class="modal-close" id="closeSettings">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="modal-body">
-                <div class="input-group">
-                    <label>Stop Words (uma por linha)</label>
-                    <textarea id="stopWords" rows="10"></textarea>
-                </div>
-                <div class="form-row">
-                    <button class="button button-primary" id="saveSettings">
-                        <i class="fas fa-save"></i>
-                        Salvar Configurações
-                    </button>
-                    <button class="button button-secondary" id="resetSettings">
-                        <i class="fas fa-undo"></i>
-                        Restaurar Padrão
-                    </button>
                 </div>
             </div>
         </div>
@@ -1959,91 +1904,48 @@
         }
 
         // =============================================
-        // ANALISADOR DE IA AVANÇADA COM TRANSFORMERS
+        // ANALISADOR DE IA AVANÇADA
         // =============================================
         class AdvancedAIAnalyzer {
             constructor() {
-                this.pipeline = null;
-                this.classifier = null;
-                this.summarizer = null;
-                this.isInitialized = false;
+                this.isInitialized = true;
             }
 
             async initialize() {
-                try {
-                    showAlert('🧠 Inicializando modelos de IA avançada...', 'info');
-                    
-                    // Usar pipeline genérico para tarefas diversas
-                    this.pipeline = await transformers.pipeline(
-                        'feature-extraction',
-                        'Xenova/all-MiniLM-L6-v2'
-                    );
-                    
-                    this.isInitialized = true;
-                    showAlert('✅ Modelos de IA carregados com sucesso!', 'success');
-                    return true;
-                    
-                } catch (error) {
-                    console.error('Erro ao inicializar modelos:', error);
-                    showAlert('⚠️ Modelos de IA não carregados, usando análise básica', 'warning');
-                    return false;
-                }
+                this.isInitialized = true;
+                return true;
             }
 
             async analyzeSentimentAdvanced(text) {
-                try {
-                    // Análise de sentimento usando AFINN como fallback
-                    const sentimentAnalyzer = new SentimentAnalyzer();
-                    const result = sentimentAnalyzer.analyze(text);
-                    
-                    return {
-                        label: result.sentiment,
-                        score: result.score,
-                        sentiment: result.sentiment
-                    };
-                } catch (error) {
-                    console.error('Erro na análise de sentimento:', error);
-                    throw error;
-                }
+                const sentimentAnalyzer = new SentimentAnalyzer();
+                const result = sentimentAnalyzer.analyze(text);
+                
+                return {
+                    label: result.sentiment,
+                    score: result.score,
+                    sentiment: result.sentiment
+                };
             }
 
             async summarizeText(text, maxLength = 150) {
-                try {
-                    // Sumarização básica - pegar as primeiras frases
-                    const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
-                    const summary = sentences.slice(0, 3).join('. ') + '.';
-                    return summary;
-                } catch (error) {
-                    console.error('Erro na sumarização:', error);
-                    throw error;
-                }
+                const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
+                const summary = sentences.slice(0, 3).join('. ') + '.';
+                return summary;
             }
 
             async generateInsights(conversations, prompt) {
-                try {
-                    // Combinar todas as conversas
-                    const allText = conversations.map(c => c.Texto).join(' ');
-                    
-                    // Análise de sentimento avançada
-                    const sentimentResult = await this.analyzeSentimentAdvanced(allText);
-                    
-                    // Sumarização das principais questões
-                    const summary = await this.summarizeText(allText);
-                    
-                    // Análise de tópicos básica
-                    const topics = this.extractTopics(conversations);
-                    
-                    return {
-                        sentiment: sentimentResult,
-                        summary: summary,
-                        topics: topics,
-                        recommendations: this.generateRecommendations(sentimentResult, topics),
-                        confidence: sentimentResult.score
-                    };
-                } catch (error) {
-                    console.error('Erro na geração de insights:', error);
-                    throw error;
-                }
+                const allText = conversations.map(c => c.Texto).join(' ');
+                const sentimentResult = await this.analyzeSentimentAdvanced(allText);
+                const summary = await this.summarizeText(allText);
+                const topics = this.extractTopics(conversations);
+                
+                return {
+                    sentiment: sentimentResult,
+                    summary: summary,
+                    topics: topics,
+                    recommendations: this.generateRecommendations(sentimentResult, topics),
+                    confidence: sentimentResult.score
+                };
             }
 
             extractTopics(conversations) {
@@ -2076,7 +1978,6 @@
                     });
                 });
 
-                // Filtrar tópicos com ocorrências
                 return Object.entries(topics)
                     .filter(([_, count]) => count > 0)
                     .sort((a, b) => b[1] - a[1])
@@ -2113,7 +2014,6 @@
                     });
                 }
 
-                // Recomendações gerais baseadas nos dados
                 recommendations.push({
                     type: 'info',
                     title: 'Análise Contínua Recomendada',
@@ -2125,52 +2025,42 @@
             }
 
             async performQuickAnalysis(conversations) {
-                try {
-                    const sampleText = conversations.slice(0, 3).map(c => c.Texto).join(' ');
-                    const sentiment = await this.analyzeSentimentAdvanced(sampleText);
-                    const topics = this.extractTopics(conversations.slice(0, 10));
+                const sampleText = conversations.slice(0, 3).map(c => c.Texto).join(' ');
+                const sentiment = await this.analyzeSentimentAdvanced(sampleText);
+                const topics = this.extractTopics(conversations.slice(0, 10));
 
-                    return {
-                        sentiment: sentiment,
-                        mainTopics: topics.slice(0, 3),
-                        messageCount: conversations.length,
-                        urgency: sentiment.score < 0.5 ? 'Alta' : 'Normal'
-                    };
-                } catch (error) {
-                    console.error('Erro na análise rápida:', error);
-                    throw error;
-                }
+                return {
+                    sentiment: sentiment,
+                    mainTopics: topics.slice(0, 3),
+                    messageCount: conversations.length,
+                    urgency: sentiment.score < 0.5 ? 'Alta' : 'Normal'
+                };
             }
 
             async analyzeTopicsAdvanced(conversations) {
-                try {
-                    const topics = this.extractTopics(conversations);
-                    const detailedTopics = [];
+                const topics = this.extractTopics(conversations);
+                const detailedTopics = [];
 
-                    for (const [topic, count] of topics) {
-                        const relatedConversations = conversations.filter(conv => 
-                            conv.Texto.toLowerCase().includes(
-                                topic.toLowerCase().split(' ')[0]
-                            )
-                        ).slice(0, 3);
+                for (const [topic, count] of topics) {
+                    const relatedConversations = conversations.filter(conv => 
+                        conv.Texto.toLowerCase().includes(
+                            topic.toLowerCase().split(' ')[0]
+                        )
+                    ).slice(0, 3);
 
-                        detailedTopics.push({
-                            topic: topic,
-                            frequency: count,
-                            examples: relatedConversations.map(c => ({
-                                text: c.Texto.slice(0, 100) + '...',
-                                sentiment: c.Sentimento,
-                                agent: c.Agente
-                            })),
-                            sentimentDistribution: this.calculateTopicSentiment(relatedConversations)
-                        });
-                    }
-
-                    return detailedTopics;
-                } catch (error) {
-                    console.error('Erro na análise de tópicos:', error);
-                    throw error;
+                    detailedTopics.push({
+                        topic: topic,
+                        frequency: count,
+                        examples: relatedConversations.map(c => ({
+                            text: c.Texto.slice(0, 100) + '...',
+                            sentiment: c.Sentimento,
+                            agent: c.Agente
+                        })),
+                        sentimentDistribution: this.calculateTopicSentiment(relatedConversations)
+                    });
                 }
+
+                return detailedTopics;
             }
 
             calculateTopicSentiment(conversations) {
@@ -2208,7 +2098,6 @@
             }
 
             setupSpeechRecognition() {
-                // Verificar suporte para Web Speech API
                 if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
                     throw new Error('Web Speech API não é suportada neste navegador');
                 }
@@ -2258,7 +2147,6 @@
 
             async startRecording() {
                 try {
-                    // Solicitar permissão para microfone
                     const stream = await navigator.mediaDevices.getUserMedia({ 
                         audio: {
                             echoCancellation: true,
@@ -2271,7 +2159,6 @@
                     this.transcription = '';
                     this.recordingStartTime = Date.now();
                     
-                    // Configurar MediaRecorder
                     this.mediaRecorder = new MediaRecorder(stream);
                     
                     this.mediaRecorder.ondataavailable = (event) => {
@@ -2285,14 +2172,9 @@
                         this.onAudioRecorded(audioBlob);
                     };
                     
-                    // Configurar visualizador de áudio
                     this.setupAudioVisualizer(stream);
-                    
-                    // Iniciar gravação
                     this.mediaRecorder.start();
                     this.recognition.start();
-                    
-                    // Iniciar timer
                     this.startRecordingTimer();
                     
                 } catch (error) {
@@ -2306,7 +2188,6 @@
                     this.mediaRecorder.stop();
                     this.recognition.stop();
                     
-                    // Parar todas as tracks do stream
                     if (this.mediaRecorder.stream) {
                         this.mediaRecorder.stream.getTracks().forEach(track => track.stop());
                     }
@@ -2405,6 +2286,109 @@
         let sentimentAnalyzer;
 
         // =============================================
+        // CONEXÃO COM GOOGLE SHEETS
+        // =============================================
+        async function loadGoogleSheetData() {
+            const sheetId = document.getElementById('sheetId').value.trim();
+            const sheetTab = document.getElementById('sheetTab').value.trim() || 'Página1';
+            
+            if (!sheetId) {
+                showAlert('⚠️ Digite o ID da planilha Google', 'warning');
+                return;
+            }
+
+            showAlert('📊 Conectando ao Google Sheets...', 'info');
+            
+            try {
+                const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetTab)}`;
+                
+                const response = await fetch(csvUrl);
+                if (!response.ok) {
+                    throw new Error('Erro ao carregar planilha');
+                }
+                
+                const csvText = await response.text();
+                const results = Papa.parse(csvText, {
+                    header: true,
+                    skipEmptyLines: true,
+                    transform: (value) => value.trim()
+                });
+                
+                if (results.errors.length > 0) {
+                    console.warn('Erros no parsing:', results.errors);
+                }
+                
+                if (results.data.length === 0) {
+                    throw new Error('Nenhum dado encontrado na planilha');
+                }
+                
+                appState.data = processDataWithSentiment(results.data);
+                appState.filteredData = appState.data;
+                
+                appState.textAnalyzer.setupSearchIndex(appState.filteredData);
+                calculateDailyStats();
+                updateStats();
+                updateMetrics();
+                renderCharts();
+                renderTables();
+                updateWordAnalysis();
+                updateStopWordsList();
+                
+                showAlert(`✅ Dados carregados: ${results.data.length} registros`, 'success');
+                
+            } catch (error) {
+                console.error('Erro ao carregar Google Sheet:', error);
+                showAlert('❌ Erro ao carregar planilha. Verifique o ID e se está publicada.', 'error');
+            }
+        }
+
+        // =============================================
+        // GRÁFICO DE TIMELINE PARA BUSCA DE PALAVRAS
+        // =============================================
+        function renderTimelineChart(query) {
+            if (!query || appState.filteredData.length === 0) return;
+            
+            const dailyCounts = {};
+            appState.filteredData.forEach(item => {
+                if (item.Texto.toLowerCase().includes(query.toLowerCase())) {
+                    const date = item.Data;
+                    dailyCounts[date] = (dailyCounts[date] || 0) + 1;
+                }
+            });
+            
+            const dates = Object.keys(dailyCounts).sort();
+            const counts = dates.map(date => dailyCounts[date]);
+            
+            if (dates.length === 0) {
+                document.getElementById('timelineChart').innerHTML = '<p class="text-center" style="color: #666;">Nenhuma ocorrência encontrada para esta busca</p>';
+                return;
+            }
+            
+            const data = [{
+                x: dates,
+                y: counts,
+                type: 'scatter',
+                mode: 'lines+markers',
+                line: { color: '#2196F3', width: 3 },
+                marker: { size: 8, color: '#2196F3' },
+                name: `Ocorrências de "${query}"`
+            }];
+            
+            const layout = {
+                height: 300,
+                xaxis: { 
+                    title: 'Data',
+                    tickangle: -45
+                },
+                yaxis: { title: 'Número de Ocorrências' },
+                margin: { t: 30, r: 30, l: 50, b: 70 },
+                showlegend: true
+            };
+            
+            Plotly.newPlot('timelineChart', data, layout, { displayModeBar: true });
+        }
+
+        // =============================================
         // INICIALIZAÇÃO
         // =============================================
         document.addEventListener('DOMContentLoaded', function() {
@@ -2417,10 +2401,7 @@
                 setupEventListeners();
                 await loadSampleData();
                 
-                // Inicializar IA em segundo plano
                 initializeAI();
-                
-                // Inicializar transcrição de áudio
                 initializeAudioTranscription();
                 
                 document.getElementById('loadingIndicator').classList.add('hidden');
@@ -2438,7 +2419,6 @@
             try {
                 appState.audioTranscriber = new AudioTranscriber();
                 
-                // Configurar callbacks
                 appState.audioTranscriber.onRecordingStateChange = (isRecording) => {
                     const indicator = document.getElementById('recordingIndicator');
                     const startBtn = document.getElementById('startRecording');
@@ -2470,7 +2450,6 @@
                 };
                 
                 appState.audioTranscriber.onAudioRecorded = (audioBlob) => {
-                    // Criar URL para o áudio gravado
                     const audioUrl = URL.createObjectURL(audioBlob);
                     const audioPlayer = document.getElementById('audioPlayer');
                     audioPlayer.src = audioUrl;
@@ -2487,24 +2466,14 @@
             try {
                 const statusElement = document.getElementById('modelStatus');
                 if (statusElement) {
-                    statusElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Carregando modelos de IA...</span>';
-                    statusElement.className = 'model-status status-loading';
-                    
-                    const success = await appState.aiAnalyzer.initialize();
-                    
-                    if (success) {
-                        statusElement.innerHTML = '<i class="fas fa-check-circle"></i><span>Modelos de IA prontos!</span>';
-                        statusElement.className = 'model-status status-ready';
-                    } else {
-                        statusElement.innerHTML = '<i class="fas fa-exclamation-triangle"></i><span>IA não disponível - usando análise básica</span>';
-                        statusElement.className = 'model-status status-error';
-                    }
+                    statusElement.innerHTML = '<i class="fas fa-check-circle"></i><span>Análise de IA Básica Disponível</span>';
+                    statusElement.className = 'model-status status-ready';
                 }
             } catch (error) {
                 console.error('Erro na inicialização da IA:', error);
                 if (document.getElementById('modelStatus')) {
-                    document.getElementById('modelStatus').innerHTML = '<i class="fas fa-exclamation-triangle"></i><span>Erro ao carregar IA</span>';
-                    document.getElementById('modelStatus').className = 'model-status status-error';
+                    document.getElementById('modelStatus').innerHTML = '<i class="fas fa-check-circle"></i><span>Análise Básica Disponível</span>';
+                    document.getElementById('modelStatus').className = 'model-status status-ready';
                 }
             }
         }
@@ -2513,15 +2482,13 @@
         // CONFIGURAÇÃO DE EVENTOS
         // =============================================
         function setupEventListeners() {
-            // Event listeners básicos
             document.getElementById('sidebarToggle').addEventListener('click', toggleSidebar);
-            document.getElementById('loadData').addEventListener('click', loadData);
+            document.getElementById('loadData').addEventListener('click', loadGoogleSheetData);
             document.getElementById('applyFilter').addEventListener('click', applyDateFilter);
             document.getElementById('refreshData').addEventListener('click', refreshData);
             document.getElementById('exportData').addEventListener('click', exportData);
             document.getElementById('fileUpload').addEventListener('change', handleFileUpload);
             
-            // Event listeners para análise de palavras
             document.getElementById('refreshWordCloud').addEventListener('click', updateWordAnalysis);
             document.getElementById('performSearch').addEventListener('click', performSearch);
             document.getElementById('clearSearch').addEventListener('click', clearSearch);
@@ -2538,28 +2505,23 @@
                 if (e.key === 'Enter') addStopWord();
             });
             
-            // Event listeners para IA Avançada
             document.getElementById('generateInsights').addEventListener('click', generateInsights);
             document.getElementById('quickAnalysis').addEventListener('click', quickAnalysis);
             document.getElementById('clearAnalysis').addEventListener('click', clearAnalysis);
             document.getElementById('analyzeTopics').addEventListener('click', analyzeTopics);
             document.getElementById('clusterAnalysis').addEventListener('click', clusterAnalysis);
             
-            // Event listeners para análise de áudio
             document.getElementById('startRecording').addEventListener('click', startRecording);
             document.getElementById('stopRecording').addEventListener('click', stopRecording);
             document.getElementById('clearRecording').addEventListener('click', clearRecording);
-            document.getElementById('transcribeUploaded').addEventListener('click', transcribeUploadedAudio);
             document.getElementById('analyzeAudio').addEventListener('click', analyzeAudio);
             document.getElementById('quickAudioAnalysis').addEventListener('click', quickAudioAnalysis);
             document.getElementById('copyTranscription').addEventListener('click', copyTranscription);
             document.getElementById('exportTranscription').addEventListener('click', exportTranscription);
-            document.getElementById('audioUpload').addEventListener('change', handleAudioUpload);
             document.getElementById('languageSelect').addEventListener('change', changeLanguage);
             document.getElementById('usePastedTranscription').addEventListener('click', usePastedTranscription);
             document.getElementById('clearPastedTranscription').addEventListener('click', clearPastedTranscription);
             
-            // Tabs
             document.querySelectorAll('.tab').forEach(tab => {
                 tab.addEventListener('click', function() {
                     switchTab(this.dataset.tab);
@@ -2595,7 +2557,6 @@
             document.getElementById(tabId).classList.add('active');
             appState.currentTab = tabId;
             
-            // Renderizar análises específicas quando a aba for ativada
             if (tabId === 'words') {
                 updateWordAnalysis();
                 updateStopWordsList();
@@ -2641,7 +2602,6 @@
                 appState.data = processDataWithSentiment(sampleData);
                 appState.filteredData = appState.data;
                 
-                // Configurar análise de texto
                 appState.textAnalyzer.setupSearchIndex(appState.filteredData);
                 calculateDailyStats();
                 updateStats();
@@ -2678,7 +2638,6 @@
                 appState.data = processDataWithSentiment(parsedData);
                 appState.filteredData = appState.data;
                 
-                // Configurar análise de texto
                 appState.textAnalyzer.setupSearchIndex(appState.filteredData);
                 calculateDailyStats();
                 updateStats();
@@ -2892,7 +2851,6 @@
             const topWords = appState.textAnalyzer.getTopWords(40);
             const topBigrams = appState.textAnalyzer.getTopBigrams(20);
             
-            // Combinar palavras e bigramas
             const allItems = [...topWords, ...topBigrams];
             
             allItems.forEach(([text, frequency]) => {
@@ -2904,7 +2862,7 @@
                 wordElement.textContent = text;
                 wordElement.style.fontSize = `${size}px`;
                 wordElement.style.color = color;
-                wordElement.style.backgroundColor = color + '20'; // Cor com transparência
+                wordElement.style.backgroundColor = color + '20';
                 wordElement.style.border = `1px solid ${color}`;
                 
                 wordElement.addEventListener('click', () => {
@@ -2960,6 +2918,7 @@
             
             const results = appState.textAnalyzer.search(query, sentimentFilter, 15);
             displaySearchResults(results, query);
+            renderTimelineChart(query);
         }
 
         function displaySearchResults(results, query) {
@@ -3031,13 +2990,8 @@
             showAlert('🔍 Analisando frase...', 'info');
             
             try {
-                // Análise de sentimento
                 const sentiment = sentimentAnalyzer.analyze(phrase);
-                
-                // Buscar ocorrências similares
                 const similarResults = appState.textAnalyzer.search(phrase, 'all', 5);
-                
-                // Calcular frequência de palavras na frase
                 const phraseTokens = appState.textAnalyzer.tokenize(phrase);
                 const phraseBigrams = appState.textAnalyzer.extractBigrams(phraseTokens);
                 
@@ -3063,7 +3017,6 @@
                     </div>
                 `;
                 
-                // Palavras da frase
                 if (phraseTokens.length > 0) {
                     html += `
                         <div style="margin-top: 20px;">
@@ -3079,7 +3032,6 @@
                     html += `</div></div>`;
                 }
                 
-                // Bigramas da frase
                 if (phraseBigrams.length > 0) {
                     html += `
                         <div style="margin-top: 20px;">
@@ -3097,7 +3049,6 @@
                     html += `</div></div>`;
                 }
                 
-                // Mensagens similares
                 if (similarResults.length > 0) {
                     html += `
                         <div style="margin-top: 20px;">
@@ -3176,6 +3127,7 @@
             document.getElementById('wordSearch').value = '';
             document.getElementById('searchResults').innerHTML = '';
             document.getElementById('sentimentFilter').value = 'all';
+            document.getElementById('timelineChart').innerHTML = '';
         }
 
         // =============================================
@@ -3199,7 +3151,6 @@
             progressElement.classList.remove('hidden');
             
             try {
-                // Simular progresso
                 let progress = 0;
                 const progressInterval = setInterval(() => {
                     progress += 5;
@@ -3273,7 +3224,6 @@
             
             html += `</div>`;
             
-            // Recomendações
             html += `
                 <div class="card">
                     <div class="card-header">
@@ -3435,7 +3385,6 @@
 
         async function clusterAnalysis() {
             showAlert('🔬 Análise de clusters em desenvolvimento...', 'info');
-            // Implementação futura para análise de clusters
         }
 
         // =============================================
@@ -3478,27 +3427,6 @@
             }
         }
 
-        function handleAudioUpload(event) {
-            const file = event.target.files[0];
-            if (file) {
-                const audioPlayer = document.getElementById('audioPlayer');
-                const audioPlayerContainer = document.getElementById('audioPlayerContainer');
-                
-                audioPlayer.src = URL.createObjectURL(file);
-                audioPlayerContainer.classList.remove('hidden');
-                
-                // Estimar duração (aproximada)
-                const audio = new Audio();
-                audio.src = URL.createObjectURL(file);
-                audio.onloadedmetadata = () => {
-                    document.getElementById('audioDuration').textContent = 
-                        Math.round(audio.duration) + 's';
-                };
-                
-                showAlert(`🎵 Arquivo carregado: ${file.name}`, 'success');
-            }
-        }
-
         function usePastedTranscription() {
             const pastedText = document.getElementById('pasteTranscription').value.trim();
             
@@ -3507,7 +3435,6 @@
                 return;
             }
             
-            // Atualizar a transcrição no sistema
             if (appState.audioTranscriber) {
                 appState.audioTranscriber.transcription = pastedText;
             }
@@ -3520,23 +3447,6 @@
         function clearPastedTranscription() {
             document.getElementById('pasteTranscription').value = '';
             showAlert('🧹 Transcrição colada removida!', 'info');
-        }
-
-        async function transcribeUploadedAudio() {
-            const audioPlayer = document.getElementById('audioPlayer');
-            if (!audioPlayer.src) {
-                showAlert('⚠️ Nenhum arquivo de áudio carregado', 'warning');
-                return;
-            }
-
-            showAlert('🔍 Transcrevendo arquivo de áudio...', 'info');
-            
-            // Simular transcrição (em um ambiente real, isso exigiria um backend)
-            setTimeout(() => {
-                const simulatedTranscription = "Esta é uma simulação de transcrição de áudio. Em um ambiente de produção, você precisaria integrar com um serviço de transcrição como Google Speech-to-Text, Azure Speech Services ou AWS Transcribe.";
-                updateTranscriptionDisplay(simulatedTranscription, '');
-                showAlert('✅ Transcrição simulada concluída!', 'success');
-            }, 2000);
         }
 
         function updateTranscriptionDisplay(finalTranscript, interimTranscript) {
@@ -3563,8 +3473,6 @@
             }
             
             resultsElement.innerHTML = html;
-            
-            // Auto-scroll para o final
             resultsElement.scrollTop = resultsElement.scrollHeight;
         }
 
@@ -3574,7 +3482,6 @@
             
             document.getElementById('wordCount').textContent = wordCount;
             
-            // Calcular confiança aproximada (simulada)
             const confidence = Math.min(100, Math.max(0, 
                 50 + (finalTranscript.length / (finalTranscript.length + interimTranscript.length + 1)) * 50
             ));
@@ -3633,8 +3540,6 @@
             
             try {
                 const prompt = document.getElementById('audioPrompt').value;
-                
-                // Usar o analisador de IA para processar a transcrição
                 const analysis = await appState.aiAnalyzer.generateInsights(
                     [{ Texto: transcription, Agente: "Áudio", Data: new Date().toLocaleDateString('pt-BR') }], 
                     prompt
@@ -3662,7 +3567,6 @@
             showAlert('⚡ Análise rápida de áudio...', 'info');
             
             try {
-                // Análise de sentimento básica
                 const sentiment = sentimentAnalyzer.analyze(transcription);
                 
                 const resultsElement = document.getElementById('audioAnalysisResults');
@@ -3816,7 +3720,6 @@
                 if (item.Solucoes) day.solutions++;
             });
             
-            // Calcular médias
             Object.keys(appState.dailyStats).forEach(date => {
                 const day = appState.dailyStats[date];
                 day.avgScore = day.total > 0 ? day.totalScore / day.total : 0;
@@ -3908,7 +3811,6 @@
             const problems = dates.map(date => appState.dailyStats[date].problems);
             const avgScores = dates.map(date => appState.dailyStats[date].avgScore);
             
-            // Calcular correlações
             const correlations = [
                 [1, correlation(totals, positives), correlation(totals, negatives), correlation(totals, problems), correlation(totals, avgScores)],
                 [correlation(positives, totals), 1, correlation(positives, negatives), correlation(positives, problems), correlation(positives, avgScores)],
@@ -3989,7 +3891,6 @@
                 const positivityRate = day.total > 0 ? (day.positive / day.total * 100).toFixed(1) : 0;
                 const negativityRate = day.total > 0 ? (day.negative / day.total * 100).toFixed(1) : 0;
                 
-                // Calcular tendência
                 let trend = '→';
                 let trendColor = 'gray';
                 

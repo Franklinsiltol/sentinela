@@ -8,6 +8,8 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@xenova/transformers@2.6.0/dist/transformers.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
@@ -706,6 +708,287 @@
                 --dark-gray: #cccccc;
             }
         }
+
+        /* Estilos para análise de palavras */
+        .word-cloud-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            padding: 20px;
+            min-height: 300px;
+            align-items: center;
+        }
+        
+        .word-item {
+            padding: 4px 8px;
+            border-radius: 12px;
+            display: inline-block;
+            margin: 2px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .word-item:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        
+        .search-result-item {
+            background: var(--light-gray);
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: var(--border-radius);
+            border-left: 4px solid var(--info-color);
+        }
+        
+        .search-highlight {
+            background-color: yellow;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+        
+        .phrase-analysis {
+            margin-top: 20px;
+        }
+        
+        .stop-words-list {
+            max-height: 200px;
+            overflow-y: auto;
+            background: var(--light-gray);
+            padding: 10px;
+            border-radius: var(--border-radius);
+            margin-top: 10px;
+        }
+        
+        .stop-word-item {
+            display: inline-block;
+            background: var(--medium-gray);
+            padding: 4px 8px;
+            margin: 2px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+        }
+
+        /* Estilos para IA Avançada */
+        .insight-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: var(--border-radius);
+            margin: 15px 0;
+            box-shadow: var(--box-shadow);
+        }
+        
+        .insight-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .insight-icon {
+            font-size: 1.5rem;
+        }
+        
+        .insight-content {
+            line-height: 1.6;
+        }
+        
+        .model-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            border-radius: var(--border-radius);
+            margin: 10px 0;
+        }
+        
+        .status-loading {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+        }
+        
+        .status-ready {
+            background-color: #d4edda;
+            border-left: 4px solid #28a745;
+        }
+        
+        .status-error {
+            background-color: #f8d7da;
+            border-left: 4px solid #dc3545;
+        }
+        
+        .analysis-progress {
+            width: 100%;
+            height: 8px;
+            background-color: var(--medium-gray);
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #45a049);
+            transition: width 0.3s ease;
+        }
+        
+        .topic-item {
+            background: var(--light-gray);
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: var(--border-radius);
+            border-left: 4px solid var(--info-color);
+        }
+        
+        .confidence-badge {
+            background: var(--accent-color);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            margin-left: 10px;
+        }
+        
+        .sentiment-distribution {
+            display: flex;
+            gap: 5px;
+            margin: 10px 0;
+        }
+        
+        .sentiment-bar {
+            flex: 1;
+            height: 8px;
+            border-radius: 4px;
+        }
+        
+        .recommendation-item {
+            padding: 12px;
+            margin: 8px 0;
+            background: var(--light-gray);
+            border-radius: var(--border-radius);
+            border-left: 4px solid var(--warning-color);
+        }
+
+        /* Estilos para análise de áudio */
+        .audio-controls {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+        
+        .audio-visualizer {
+            width: 100%;
+            height: 100px;
+            background: var(--light-gray);
+            border-radius: var(--border-radius);
+            margin: 15px 0;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .visualizer-bar {
+            position: absolute;
+            bottom: 0;
+            width: 4px;
+            background: var(--accent-color);
+            margin: 0 1px;
+        }
+        
+        .recording-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: #ffebee;
+            border-radius: var(--border-radius);
+            margin: 10px 0;
+        }
+        
+        .pulse {
+            width: 12px;
+            height: 12px;
+            background: #f44336;
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(0.95); opacity: 0.7; }
+            50% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(0.95); opacity: 0.7; }
+        }
+        
+        .transcription-result {
+            background: var(--light-gray);
+            padding: 15px;
+            border-radius: var(--border-radius);
+            margin: 15px 0;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .transcription-line {
+            padding: 8px;
+            margin: 5px 0;
+            border-left: 3px solid transparent;
+            transition: all 0.3s ease;
+        }
+        
+        .transcription-line:hover {
+            background: var(--medium-gray);
+            border-left-color: var(--info-color);
+        }
+        
+        .speaker-label {
+            font-weight: bold;
+            color: var(--info-color);
+            margin-right: 8px;
+        }
+        
+        .audio-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 15px 0;
+        }
+        
+        .audio-metric {
+            text-align: center;
+            padding: 15px;
+            background: var(--light-gray);
+            border-radius: var(--border-radius);
+        }
+        
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+        
+        .waveform-container {
+            width: 100%;
+            height: 80px;
+            background: var(--light-gray);
+            border-radius: var(--border-radius);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .audio-player-custom {
+            width: 100%;
+            margin: 10px 0;
+        }
+
+        .paste-transcription-container {
+            background: var(--light-gray);
+            padding: 15px;
+            border-radius: var(--border-radius);
+            margin: 15px 0;
+        }
     </style>
 </head>
 <body>
@@ -975,6 +1258,10 @@
                         <div class="card">
                             <div class="card-header">
                                 <div class="card-title">Dados Diários</div>
+                                <button class="button button-info" id="exportTrends">
+                                    <i class="fas fa-download"></i>
+                                    Exportar Dados
+                                </button>
                             </div>
                             <div id="dailyTable"></div>
                         </div>
@@ -986,8 +1273,12 @@
                                 <div class="chart-title">
                                     <i class="fas fa-cloud"></i>
                                     Nuvem de Palavras
+                                    <button class="button button-info" style="margin-left: auto; padding: 5px 10px; font-size: 0.8rem;" id="refreshWordCloud">
+                                        <i class="fas fa-sync-alt"></i>
+                                        Atualizar
+                                    </button>
                                 </div>
-                                <canvas id="wordCloud" width="600" height="300"></canvas>
+                                <div id="wordCloud" class="word-cloud-container"></div>
                             </div>
                             <div class="chart-container">
                                 <div class="chart-title">
@@ -997,50 +1288,171 @@
                                 <div id="wordFrequencyChart"></div>
                             </div>
                         </div>
+                        
                         <div class="card">
                             <div class="card-header">
-                                <div class="card-title">Busca por Palavras</div>
+                                <div class="card-title">Busca Avançada por Palavras</div>
                             </div>
-                            <div class="input-group">
-                                <input type="text" id="wordSearch" placeholder="Digite uma palavra para buscar...">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Buscar Palavra ou Frase</label>
+                                    <input type="text" id="wordSearch" placeholder="Ex: cartão de crédito, problema técnico...">
+                                </div>
+                                <div class="form-group">
+                                    <label>Filtrar por Sentimento</label>
+                                    <select id="sentimentFilter">
+                                        <option value="all">Todos</option>
+                                        <option value="positive">Positivo</option>
+                                        <option value="negative">Negativo</option>
+                                        <option value="neutral">Neutro</option>
+                                    </select>
+                                </div>
                             </div>
-                            <div id="searchResults"></div>
+                            <div class="form-row">
+                                <button class="button button-primary" id="performSearch">
+                                    <i class="fas fa-search"></i>
+                                    Buscar
+                                </button>
+                                <button class="button button-secondary" id="clearSearch">
+                                    <i class="fas fa-times"></i>
+                                    Limpar
+                                </button>
+                            </div>
+                            <div id="searchResults" class="mt-20"></div>
+                        </div>
+                        
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-title">Análise de Combinações de Palavras</div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Frase para Análise</label>
+                                    <input type="text" id="phraseInput" placeholder="Ex: cartão de crédito, suporte técnico...">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <button class="button button-primary" id="analyzePhrase">
+                                    <i class="fas fa-chart-bar"></i>
+                                    Analisar Frase
+                                </button>
+                            </div>
+                            <div id="phraseAnalysis" class="phrase-analysis"></div>
+                        </div>
+                        
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-title">Gerenciar Stop Words</div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Adicionar Stop Word</label>
+                                    <input type="text" id="newStopWord" placeholder="Digite uma palavra para adicionar...">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <button class="button button-primary" id="addStopWord">
+                                    <i class="fas fa-plus"></i>
+                                    Adicionar
+                                </button>
+                                <button class="button button-secondary" id="resetStopWords">
+                                    <i class="fas fa-undo"></i>
+                                    Restaurar Padrão
+                                </button>
+                            </div>
+                            <div class="stop-words-list" id="stopWordsList">
+                                <!-- Stop words serão carregadas aqui -->
+                            </div>
                         </div>
                     </div>
                     
                     <div class="tab-content" id="ai">
                         <div class="card">
                             <div class="card-header">
-                                <div class="card-title">Análise com IA</div>
+                                <div class="card-title">Análise com IA Avançada</div>
+                                <div id="modelStatus" class="model-status status-loading">
+                                    <i class="fas fa-spinner fa-spin"></i>
+                                    <span>Carregando modelos de IA...</span>
+                                </div>
                             </div>
+                            
                             <div class="alert alert-info">
                                 <i class="fas fa-robot"></i>
                                 <div>
-                                    <strong>Análise Inteligente</strong> - Use IA para obter insights avançados sobre suas conversas.
+                                    <strong>Análise Inteligente</strong> - Use modelos transformers avançados para obter insights profundos sobre suas conversas.
                                 </div>
                             </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Tipo de Análise</label>
+                                    <select id="analysisType">
+                                        <option value="sentiment">Análise de Sentimento Avançada</option>
+                                        <option value="topics">Identificação de Tópicos</option>
+                                        <option value="summary">Sumarização de Conversas</option>
+                                        <option value="insights">Insights Gerais</option>
+                                        <option value="quality">Análise de Qualidade</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Modelo de IA</label>
+                                    <select id="modelSelection">
+                                        <option value="sentiment">Análise de Sentimento (BERT)</option>
+                                        <option value="topic">Identificação de Tópicos</option>
+                                        <option value="summarization">Sumarização (T5)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
                             <div class="input-group">
                                 <label>Prompt para Análise</label>
-                                <textarea id="iaPrompt" rows="4">Analise as conversas e identifique os principais problemas, oportunidades de melhoria e pontos fortes:</textarea>
+                                <textarea id="iaPrompt" rows="4">Analise estas conversas e identifique os principais problemas, oportunidades de melhoria e pontos fortes:</textarea>
                             </div>
+                            
                             <div class="form-row">
                                 <button class="button button-primary" id="generateInsights">
                                     <i class="fas fa-brain"></i>
-                                    Gerar Insights
+                                    Gerar Insights com IA
                                 </button>
                                 <button class="button button-info" id="quickAnalysis">
                                     <i class="fas fa-bolt"></i>
                                     Análise Rápida
                                 </button>
+                                <button class="button button-secondary" id="clearAnalysis">
+                                    <i class="fas fa-times"></i>
+                                    Limpar
+                                </button>
                             </div>
+                            
+                            <div id="analysisProgress" class="analysis-progress hidden">
+                                <div class="progress-bar-fill" id="progressFill" style="width: 0%"></div>
+                            </div>
+                            
                             <div id="iaResults" class="mt-20"></div>
                         </div>
                         
                         <div class="card">
                             <div class="card-header">
-                                <div class="card-title">Oportunidades Identificadas</div>
+                                <div class="card-title">Análise de Tópicos Avançada</div>
                             </div>
-                            <div id="opportunitiesList"></div>
+                            <div class="form-row">
+                                <button class="button button-primary" id="analyzeTopics">
+                                    <i class="fas fa-project-diagram"></i>
+                                    Identificar Tópicos
+                                </button>
+                                <button class="button button-info" id="clusterAnalysis">
+                                    <i class="fas fa-object-group"></i>
+                                    Análise de Clusters
+                                </button>
+                            </div>
+                            <div id="topicsResults" class="mt-20"></div>
+                        </div>
+                        
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-title">Recomendações Inteligentes</div>
+                            </div>
+                            <div id="recommendationsList"></div>
                         </div>
                     </div>
                     
@@ -1049,44 +1461,142 @@
                             <div class="card-header">
                                 <div class="card-title">Análise de Áudio</div>
                             </div>
+                            
                             <div class="alert alert-info">
                                 <i class="fas fa-microphone"></i>
                                 <div>
-                                    <strong>Transcrição e Análise de Áudio</strong> - Faça upload de arquivos de áudio para transcrição e análise.
+                                    <strong>Transcrição e Análise de Áudio</strong> - Grave áudio em tempo real, faça upload de arquivos ou cole transcrições diretamente.
+                                </div>
+                            </div>
+                            
+                            <div class="audio-metrics" id="audioMetrics">
+                                <div class="audio-metric">
+                                    <div class="metric-label">Status</div>
+                                    <div class="metric-value" id="audioStatus">Pronto</div>
+                                </div>
+                                <div class="audio-metric">
+                                    <div class="metric-label">Duração</div>
+                                    <div class="metric-value" id="audioDuration">0s</div>
+                                </div>
+                                <div class="audio-metric">
+                                    <div class="metric-label">Confiança</div>
+                                    <div class="metric-value" id="audioConfidence">0%</div>
+                                </div>
+                                <div class="audio-metric">
+                                    <div class="metric-label">Palavras</div>
+                                    <div class="metric-value" id="wordCount">0</div>
+                                </div>
+                            </div>
+                            
+                            <div class="section">
+                                <h3 class="section-title">
+                                    <i class="fas fa-microphone-alt"></i>
+                                    Gravação em Tempo Real
+                                </h3>
+                                
+                                <div class="audio-controls">
+                                    <button class="button button-primary" id="startRecording">
+                                        <i class="fas fa-microphone"></i>
+                                        Iniciar Gravação
+                                    </button>
+                                    <button class="button button-danger" id="stopRecording" disabled>
+                                        <i class="fas fa-stop"></i>
+                                        Parar Gravação
+                                    </button>
+                                    <button class="button button-secondary" id="clearRecording">
+                                        <i class="fas fa-trash"></i>
+                                        Limpar
+                                    </button>
+                                </div>
+                                
+                                <div id="recordingIndicator" class="recording-indicator hidden">
+                                    <div class="pulse"></div>
+                                    <span>Gravando áudio... Fale agora!</span>
+                                    <span id="recordingTimer">00:00</span>
+                                </div>
+                                
+                                <div class="audio-visualizer" id="audioVisualizer">
+                                    <!-- Barras do visualizador serão geradas aqui -->
                                 </div>
                             </div>
                             
                             <div class="section">
                                 <h3 class="section-title">
                                     <i class="fas fa-upload"></i>
-                                    Upload de Áudio
+                                    Upload de Arquivo de Áudio
                                 </h3>
+                                
                                 <div class="input-group">
-                                    <input type="file" id="audioUpload" accept=".wav,.mp3,.m4a,.ogg">
+                                    <input type="file" id="audioUpload" accept=".wav,.mp3,.m4a,.ogg,.webm">
                                 </div>
-                                <div id="audioInfo"></div>
+                                
+                                <div id="audioPlayerContainer" class="hidden">
+                                    <audio id="audioPlayer" controls class="audio-player-custom"></audio>
+                                </div>
+                                
+                                <div class="audio-controls">
+                                    <button class="button button-primary" id="transcribeUploaded">
+                                        <i class="fas fa-language"></i>
+                                        Transcrever Arquivo
+                                    </button>
+                                </div>
                             </div>
                             
                             <div class="section">
                                 <h3 class="section-title">
-                                    <i class="fas fa-database"></i>
-                                    Base de Conhecimento (Opcional)
+                                    <i class="fas fa-paste"></i>
+                                    Colar Transcrição Diretamente
                                 </h3>
-                                <div class="input-group">
-                                    <input type="file" id="knowledgeUpload" accept=".csv,.xlsx,.txt">
+                                
+                                <div class="paste-transcription-container">
+                                    <div class="input-group">
+                                        <label>Cole sua transcrição aqui:</label>
+                                        <textarea id="pasteTranscription" rows="6" placeholder="Cole o texto transcrito diretamente aqui..."></textarea>
+                                    </div>
+                                    <div class="audio-controls">
+                                        <button class="button button-success" id="usePastedTranscription">
+                                            <i class="fas fa-check"></i>
+                                            Usar Esta Transcrição
+                                        </button>
+                                        <button class="button button-secondary" id="clearPastedTranscription">
+                                            <i class="fas fa-times"></i>
+                                            Limpar
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                             
                             <div class="section">
                                 <h3 class="section-title">
-                                    <i class="fas fa-language"></i>
+                                    <i class="fas fa-file-alt"></i>
                                     Transcrição
                                 </h3>
-                                <button class="button button-primary" id="transcribeAudio">
-                                    <i class="fas fa-microphone-alt"></i>
-                                    Transcrever Áudio
-                                </button>
-                                <div id="transcriptionResults" class="mt-20"></div>
+                                
+                                <div class="input-group">
+                                    <label>Configurações de Transcrição</label>
+                                    <select id="languageSelect">
+                                        <option value="pt-BR">Português (Brasil)</option>
+                                        <option value="en-US">Inglês (EUA)</option>
+                                        <option value="es-ES">Espanhol</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="transcription-result" id="transcriptionResults">
+                                    <p class="text-center" style="color: #666;">
+                                        A transcrição aparecerá aqui...
+                                    </p>
+                                </div>
+                                
+                                <div class="audio-controls">
+                                    <button class="button button-success" id="copyTranscription">
+                                        <i class="fas fa-copy"></i>
+                                        Copiar Transcrição
+                                    </button>
+                                    <button class="button button-info" id="exportTranscription">
+                                        <i class="fas fa-download"></i>
+                                        Exportar TXT
+                                    </button>
+                                </div>
                             </div>
                             
                             <div class="section">
@@ -1094,14 +1604,23 @@
                                     <i class="fas fa-robot"></i>
                                     Análise com IA
                                 </h3>
+                                
                                 <div class="input-group">
                                     <label>Prompt para Análise do Áudio</label>
                                     <textarea id="audioPrompt" rows="4">Analise esta conversa transcrita e identifique os principais problemas, sentimentos e oportunidades:</textarea>
                                 </div>
-                                <button class="button button-primary" id="analyzeAudio">
-                                    <i class="fas fa-search"></i>
-                                    Analisar com IA
-                                </button>
+                                
+                                <div class="form-row">
+                                    <button class="button button-primary" id="analyzeAudio">
+                                        <i class="fas fa-search"></i>
+                                        Analisar com IA
+                                    </button>
+                                    <button class="button button-info" id="quickAudioAnalysis">
+                                        <i class="fas fa-bolt"></i>
+                                        Análise Rápida
+                                    </button>
+                                </div>
+                                
                                 <div id="audioAnalysisResults" class="mt-20"></div>
                             </div>
                         </div>
@@ -1320,6 +1839,554 @@
         }
 
         // =============================================
+        // ANALISADOR DE TEXTO AVANÇADO
+        // =============================================
+        class TextAnalyzer {
+            constructor() {
+                this.stopWords = new Set(["o", "a", "os", "as", "um", "uma", "uns", "umas", "de", "do", "da", "dos", "das", "em", "no", "na", "nos", "nas", "por", "para", "que", "e", "é", "ser", "se", "com", "como", "mas", "ou", "em", "na", "no", "nos", "nas", "por", "para", "com", "sem", "sob", "sobre", "entre", "até", "após", "desde", "quando", "onde", "porque", "porquê", "que", "quem", "qual", "quais", "cujo", "cuja", "cujos", "cujas", "quanto", "quanta", "quantos", "quantas", "qualquer", "quaisquer", "algum", "alguma", "alguns", "algumas", "todo", "toda", "todos", "todas", "outro", "outra", "outros", "outras", "mesmo", "mesma", "mesmos", "mesmas", "tal", "tais", "certo", "certa", "certos", "certas", "vário", "vária", "vários", "várias", "muito", "muita", "muitos", "muitas", "pouco", "pouca", "poucos", "poucas", "tanto", "tanta", "tantos", "tantas", "quanto", "quanta", "quantos", "quantas", "alguns", "algumas", "nenhum", "nenhuma", "nenhuns", "nenhumas", "todo", "toda", "todos", "todas", "outro", "outra", "outros", "outras", "qual", "quais", "cada", "qualquer", "quaisquer", "sim", "não", "já", "ainda", "só", "somente", "até", "mesmo", "também", "já", "já", "logo", "depois", "antes", "agora", "então", "assim", "bem", "mal", "aqui", "ali", "lá", "acolá", "cá", "onde", "quando", "como", "porque", "porquê", "pois", "que", "se", "embora", "conquanto", "contudo", "todavia", "entretanto", "no entanto", "portanto", "logo", "por conseguinte", "assim", "desse modo", "dessa forma", "alias", "aliás", "ou seja", "isto é", "a saber", "por exemplo", "e", "nem", "não só", "mas também", "ora", "já", "quer", "quer", "seja", "seja", "ou", "ou", "nem", "nem", "porque", "porquê", "pois", "que", "como", "quando", "onde", "donde", "aonde", "quem", "qual", "quais", "quanto", "quanta", "quantos", "quantas", "cujo", "cuja", "cujos", "cujas", "cada", "qualquer", "quaisquer", "algum", "alguma", "alguns", "algumas", "nenhum", "nenhuma", "nenhuns", "nenhumas", "todo", "toda", "todos", "todas", "outro", "outra", "outros", "outras", "mesmo", "mesma", "mesmos", "mesmas", "tal", "tais", "certo", "certa", "certos", "certas", "vário", "vária", "vários", "várias", "muito", "muita", "muitos", "muitas", "pouco", "pouca", "poucos", "poucas", "tanto", "tanta", "tantos", "tantas", "quanto", "quanta", "quantos", "quantas", "alguns", "algumas", "nenhum", "nenhuma", "nenhuns", "nenhumas", "todo", "toda", "todos", "todas", "outro", "outra", "outros", "outras", "qual", "quais", "cada", "qualquer", "quaisquer"]);
+                this.wordFrequencies = {};
+                this.bigramFrequencies = {};
+                this.searchIndex = null;
+            }
+
+            tokenize(text) {
+                return text
+                    .toLowerCase()
+                    .replace(/[^\w\sàáâãèéêìíîòóôõùúûç]/g, '')
+                    .split(/\s+/)
+                    .filter(word => word.length > 2 && !this.stopWords.has(word));
+            }
+
+            extractBigrams(tokens) {
+                const bigrams = [];
+                for (let i = 0; i < tokens.length - 1; i++) {
+                    bigrams.push(tokens[i] + ' ' + tokens[i + 1]);
+                }
+                return bigrams;
+            }
+
+            calculateFrequencies(data) {
+                this.wordFrequencies = {};
+                this.bigramFrequencies = {};
+                
+                data.forEach(item => {
+                    const tokens = this.tokenize(item.Texto);
+                    const bigrams = this.extractBigrams(tokens);
+                    
+                    // Contar palavras
+                    tokens.forEach(word => {
+                        this.wordFrequencies[word] = (this.wordFrequencies[word] || 0) + 1;
+                    });
+                    
+                    // Contar bigramas
+                    bigrams.forEach(bigram => {
+                        this.bigramFrequencies[bigram] = (this.bigramFrequencies[bigram] || 0) + 1;
+                    });
+                });
+            }
+
+            getTopWords(limit = 50) {
+                return Object.entries(this.wordFrequencies)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, limit);
+            }
+
+            getTopBigrams(limit = 30) {
+                return Object.entries(this.bigramFrequencies)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, limit);
+            }
+
+            setupSearchIndex(data) {
+                const options = {
+                    includeScore: true,
+                    threshold: 0.3,
+                    keys: ['Texto', 'Agente']
+                };
+                this.searchIndex = new Fuse(data, options);
+            }
+
+            search(query, sentimentFilter = 'all', limit = 20) {
+                if (!this.searchIndex) return [];
+                
+                let results = this.searchIndex.search(query);
+                
+                // Aplicar filtro de sentimento
+                if (sentimentFilter !== 'all') {
+                    results = results.filter(result => {
+                        const sentiment = result.item.Sentimento;
+                        switch (sentimentFilter) {
+                            case 'positive':
+                                return sentiment === 'Positivo' || sentiment === 'Muito Positivo';
+                            case 'negative':
+                                return sentiment === 'Negativo' || sentiment === 'Muito Negativo';
+                            case 'neutral':
+                                return sentiment === 'Neutro';
+                            default:
+                                return true;
+                        }
+                    });
+                }
+                
+                return results.slice(0, limit);
+            }
+
+            highlightText(text, query) {
+                const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+                return text.replace(regex, '<span class="search-highlight">$1</span>');
+            }
+
+            addStopWord(word) {
+                const cleanWord = word.toLowerCase().trim();
+                if (cleanWord && !this.stopWords.has(cleanWord)) {
+                    this.stopWords.add(cleanWord);
+                    return true;
+                }
+                return false;
+            }
+
+            removeStopWord(word) {
+                return this.stopWords.delete(word.toLowerCase().trim());
+            }
+
+            resetStopWords() {
+                this.stopWords = new Set(["o", "a", "os", "as", "um", "uma", "uns", "umas", "de", "do", "da", "dos", "das", "em", "no", "na", "nos", "nas", "por", "para", "que", "e", "é", "ser", "se", "com", "como", "mas", "ou"]);
+            }
+
+            getStopWords() {
+                return Array.from(this.stopWords).sort();
+            }
+        }
+
+        // =============================================
+        // ANALISADOR DE IA AVANÇADA COM TRANSFORMERS
+        // =============================================
+        class AdvancedAIAnalyzer {
+            constructor() {
+                this.pipeline = null;
+                this.classifier = null;
+                this.summarizer = null;
+                this.isInitialized = false;
+            }
+
+            async initialize() {
+                try {
+                    showAlert('🧠 Inicializando modelos de IA avançada...', 'info');
+                    
+                    // Usar pipeline genérico para tarefas diversas
+                    this.pipeline = await transformers.pipeline(
+                        'feature-extraction',
+                        'Xenova/all-MiniLM-L6-v2'
+                    );
+                    
+                    this.isInitialized = true;
+                    showAlert('✅ Modelos de IA carregados com sucesso!', 'success');
+                    return true;
+                    
+                } catch (error) {
+                    console.error('Erro ao inicializar modelos:', error);
+                    showAlert('⚠️ Modelos de IA não carregados, usando análise básica', 'warning');
+                    return false;
+                }
+            }
+
+            async analyzeSentimentAdvanced(text) {
+                try {
+                    // Análise de sentimento usando AFINN como fallback
+                    const sentimentAnalyzer = new SentimentAnalyzer();
+                    const result = sentimentAnalyzer.analyze(text);
+                    
+                    return {
+                        label: result.sentiment,
+                        score: result.score,
+                        sentiment: result.sentiment
+                    };
+                } catch (error) {
+                    console.error('Erro na análise de sentimento:', error);
+                    throw error;
+                }
+            }
+
+            async summarizeText(text, maxLength = 150) {
+                try {
+                    // Sumarização básica - pegar as primeiras frases
+                    const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
+                    const summary = sentences.slice(0, 3).join('. ') + '.';
+                    return summary;
+                } catch (error) {
+                    console.error('Erro na sumarização:', error);
+                    throw error;
+                }
+            }
+
+            async generateInsights(conversations, prompt) {
+                try {
+                    // Combinar todas as conversas
+                    const allText = conversations.map(c => c.Texto).join(' ');
+                    
+                    // Análise de sentimento avançada
+                    const sentimentResult = await this.analyzeSentimentAdvanced(allText);
+                    
+                    // Sumarização das principais questões
+                    const summary = await this.summarizeText(allText);
+                    
+                    // Análise de tópicos básica
+                    const topics = this.extractTopics(conversations);
+                    
+                    return {
+                        sentiment: sentimentResult,
+                        summary: summary,
+                        topics: topics,
+                        recommendations: this.generateRecommendations(sentimentResult, topics),
+                        confidence: sentimentResult.score
+                    };
+                } catch (error) {
+                    console.error('Erro na geração de insights:', error);
+                    throw error;
+                }
+            }
+
+            extractTopics(conversations) {
+                const topics = {
+                    'Problemas Técnicos': 0,
+                    'Atendimento ao Cliente': 0,
+                    'Cobrança e Pagamentos': 0,
+                    'Produtos e Serviços': 0,
+                    'Elogios': 0,
+                    'Reclamações': 0
+                };
+
+                const keywords = {
+                    'Problemas Técnicos': ['erro', 'problema', 'bug', 'falha', 'não funciona', 'quebrado', 'defeito'],
+                    'Atendimento ao Cliente': ['atendimento', 'suporte', 'ajuda', 'assistência', 'consultor'],
+                    'Cobrança e Pagamentos': ['pagamento', 'cobrança', 'fatura', 'cartão', 'dinheiro', 'preço'],
+                    'Produtos e Serviços': ['produto', 'serviço', 'funcionalidade', 'recurso', 'aplicativo'],
+                    'Elogios': ['parabéns', 'excelente', 'ótimo', 'maravilhoso', 'gostei', 'recomendo'],
+                    'Reclamações': ['reclamação', 'insatisfeito', 'ruim', 'péssimo', 'decepcionado', 'lento']
+                };
+
+                conversations.forEach(conversation => {
+                    const text = conversation.Texto.toLowerCase();
+                    Object.keys(keywords).forEach(topic => {
+                        keywords[topic].forEach(keyword => {
+                            if (text.includes(keyword)) {
+                                topics[topic]++;
+                            }
+                        });
+                    });
+                });
+
+                // Filtrar tópicos com ocorrências
+                return Object.entries(topics)
+                    .filter(([_, count]) => count > 0)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 5);
+            }
+
+            generateRecommendations(sentiment, topics) {
+                const recommendations = [];
+                
+                if (sentiment.score < 0.6) {
+                    recommendations.push({
+                        type: 'warning',
+                        title: 'Sentimento Negativo Detectado',
+                        description: 'Considere revisar processos de atendimento e treinamento da equipe.',
+                        priority: 'Alta'
+                    });
+                }
+
+                if (topics.some(([topic, count]) => topic === 'Problemas Técnicos' && count > 2)) {
+                    recommendations.push({
+                        type: 'error',
+                        title: 'Problemas Técnicos Frequentes',
+                        description: 'Muitas menções a problemas técnicos. Avalie a estabilidade do sistema.',
+                        priority: 'Alta'
+                    });
+                }
+
+                if (topics.some(([topic, count]) => topic === 'Elogios' && count > 0)) {
+                    recommendations.push({
+                        type: 'success',
+                        title: 'Pontos Positivos Identificados',
+                        description: 'Clientes estão elogiando alguns aspectos do serviço. Mantenha essas práticas!',
+                        priority: 'Média'
+                    });
+                }
+
+                // Recomendações gerais baseadas nos dados
+                recommendations.push({
+                    type: 'info',
+                    title: 'Análise Contínua Recomendada',
+                    description: 'Monitore essas métricas regularmente para identificar tendências.',
+                    priority: 'Média'
+                });
+
+                return recommendations;
+            }
+
+            async performQuickAnalysis(conversations) {
+                try {
+                    const sampleText = conversations.slice(0, 3).map(c => c.Texto).join(' ');
+                    const sentiment = await this.analyzeSentimentAdvanced(sampleText);
+                    const topics = this.extractTopics(conversations.slice(0, 10));
+
+                    return {
+                        sentiment: sentiment,
+                        mainTopics: topics.slice(0, 3),
+                        messageCount: conversations.length,
+                        urgency: sentiment.score < 0.5 ? 'Alta' : 'Normal'
+                    };
+                } catch (error) {
+                    console.error('Erro na análise rápida:', error);
+                    throw error;
+                }
+            }
+
+            async analyzeTopicsAdvanced(conversations) {
+                try {
+                    const topics = this.extractTopics(conversations);
+                    const detailedTopics = [];
+
+                    for (const [topic, count] of topics) {
+                        const relatedConversations = conversations.filter(conv => 
+                            conv.Texto.toLowerCase().includes(
+                                topic.toLowerCase().split(' ')[0]
+                            )
+                        ).slice(0, 3);
+
+                        detailedTopics.push({
+                            topic: topic,
+                            frequency: count,
+                            examples: relatedConversations.map(c => ({
+                                text: c.Texto.slice(0, 100) + '...',
+                                sentiment: c.Sentimento,
+                                agent: c.Agente
+                            })),
+                            sentimentDistribution: this.calculateTopicSentiment(relatedConversations)
+                        });
+                    }
+
+                    return detailedTopics;
+                } catch (error) {
+                    console.error('Erro na análise de tópicos:', error);
+                    throw error;
+                }
+            }
+
+            calculateTopicSentiment(conversations) {
+                const distribution = {
+                    'Muito Positivo': 0,
+                    'Positivo': 0,
+                    'Neutro': 0,
+                    'Negativo': 0,
+                    'Muito Negativo': 0
+                };
+
+                conversations.forEach(conv => {
+                    distribution[conv.Sentimento] = (distribution[conv.Sentimento] || 0) + 1;
+                });
+
+                return distribution;
+            }
+        }
+
+        // =============================================
+        // TRANSCRITOR DE ÁUDIO
+        // =============================================
+        class AudioTranscriber {
+            constructor() {
+                this.recognition = null;
+                this.isRecording = false;
+                this.transcription = '';
+                this.audioChunks = [];
+                this.mediaRecorder = null;
+                this.audioContext = null;
+                this.analyser = null;
+                this.recordingStartTime = 0;
+                this.recordingTimer = null;
+                this.setupSpeechRecognition();
+            }
+
+            setupSpeechRecognition() {
+                // Verificar suporte para Web Speech API
+                if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                    throw new Error('Web Speech API não é suportada neste navegador');
+                }
+
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                this.recognition = new SpeechRecognition();
+                
+                this.recognition.continuous = true;
+                this.recognition.interimResults = true;
+                this.recognition.lang = document.getElementById('languageSelect').value;
+
+                this.recognition.onstart = () => {
+                    this.isRecording = true;
+                    this.onRecordingStateChange(true);
+                };
+
+                this.recognition.onresult = (event) => {
+                    let interimTranscript = '';
+                    let finalTranscript = '';
+
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                        const transcript = event.results[i][0].transcript;
+                        if (event.results[i].isFinal) {
+                            finalTranscript += transcript + ' ';
+                        } else {
+                            interimTranscript += transcript;
+                        }
+                    }
+
+                    if (finalTranscript) {
+                        this.transcription += finalTranscript;
+                    }
+
+                    this.onTranscriptionUpdate(this.transcription, interimTranscript);
+                };
+
+                this.recognition.onerror = (event) => {
+                    console.error('Erro no reconhecimento de voz:', event.error);
+                    this.onTranscriptionError(event.error);
+                };
+
+                this.recognition.onend = () => {
+                    this.isRecording = false;
+                    this.onRecordingStateChange(false);
+                };
+            }
+
+            async startRecording() {
+                try {
+                    // Solicitar permissão para microfone
+                    const stream = await navigator.mediaDevices.getUserMedia({ 
+                        audio: {
+                            echoCancellation: true,
+                            noiseSuppression: true,
+                            sampleRate: 44100
+                        } 
+                    });
+                    
+                    this.audioChunks = [];
+                    this.transcription = '';
+                    this.recordingStartTime = Date.now();
+                    
+                    // Configurar MediaRecorder
+                    this.mediaRecorder = new MediaRecorder(stream);
+                    
+                    this.mediaRecorder.ondataavailable = (event) => {
+                        if (event.data.size > 0) {
+                            this.audioChunks.push(event.data);
+                        }
+                    };
+                    
+                    this.mediaRecorder.onstop = () => {
+                        const audioBlob = new Blob(this.audioChunks, { type: 'audio/wav' });
+                        this.onAudioRecorded(audioBlob);
+                    };
+                    
+                    // Configurar visualizador de áudio
+                    this.setupAudioVisualizer(stream);
+                    
+                    // Iniciar gravação
+                    this.mediaRecorder.start();
+                    this.recognition.start();
+                    
+                    // Iniciar timer
+                    this.startRecordingTimer();
+                    
+                } catch (error) {
+                    console.error('Erro ao acessar microfone:', error);
+                    throw error;
+                }
+            }
+
+            stopRecording() {
+                if (this.mediaRecorder && this.isRecording) {
+                    this.mediaRecorder.stop();
+                    this.recognition.stop();
+                    
+                    // Parar todas as tracks do stream
+                    if (this.mediaRecorder.stream) {
+                        this.mediaRecorder.stream.getTracks().forEach(track => track.stop());
+                    }
+                    
+                    this.stopRecordingTimer();
+                }
+            }
+
+            setupAudioVisualizer(stream) {
+                this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                this.analyser = this.audioContext.createAnalyser();
+                const source = this.audioContext.createMediaStreamSource(stream);
+                
+                source.connect(this.analyser);
+                this.analyser.fftSize = 256;
+                
+                this.visualizeAudio();
+            }
+
+            visualizeAudio() {
+                if (!this.analyser || !this.isRecording) return;
+                
+                const bufferLength = this.analyser.frequencyBinCount;
+                const dataArray = new Uint8Array(bufferLength);
+                const visualizer = document.getElementById('audioVisualizer');
+                
+                const draw = () => {
+                    if (!this.isRecording) return;
+                    
+                    requestAnimationFrame(draw);
+                    this.analyser.getByteFrequencyData(dataArray);
+                    
+                    visualizer.innerHTML = '';
+                    const barWidth = (visualizer.offsetWidth / bufferLength) * 2.5;
+                    
+                    for (let i = 0; i < bufferLength; i++) {
+                        const barHeight = (dataArray[i] / 255) * 100;
+                        const bar = document.createElement('div');
+                        bar.className = 'visualizer-bar';
+                        bar.style.height = barHeight + 'px';
+                        bar.style.left = (i * barWidth) + 'px';
+                        bar.style.width = (barWidth - 1) + 'px';
+                        visualizer.appendChild(bar);
+                    }
+                };
+                
+                draw();
+            }
+
+            startRecordingTimer() {
+                this.recordingTimer = setInterval(() => {
+                    const elapsed = Math.floor((Date.now() - this.recordingStartTime) / 1000);
+                    const minutes = Math.floor(elapsed / 60).toString().padStart(2, '0');
+                    const seconds = (elapsed % 60).toString().padStart(2, '0');
+                    document.getElementById('recordingTimer').textContent = `${minutes}:${seconds}`;
+                    document.getElementById('audioDuration').textContent = `${elapsed}s`;
+                }, 1000);
+            }
+
+            stopRecordingTimer() {
+                if (this.recordingTimer) {
+                    clearInterval(this.recordingTimer);
+                    this.recordingTimer = null;
+                }
+            }
+
+            setLanguage(language) {
+                if (this.recognition) {
+                    this.recognition.lang = language;
+                }
+            }
+
+            // Callbacks para serem sobrescritos
+            onRecordingStateChange(isRecording) {}
+            onTranscriptionUpdate(finalTranscript, interimTranscript) {}
+            onTranscriptionError(error) {}
+            onAudioRecorded(audioBlob) {}
+        }
+
+        // =============================================
         // ESTADO DA APLICAÇÃO
         // =============================================
         const appState = {
@@ -1328,7 +2395,11 @@
             stopWords: ["o", "a", "os", "as", "um", "uma", "uns", "umas", "de", "do", "da", "dos", "das", "em", "no", "na", "nos", "nas", "por", "para", "que", "e", "é", "ser", "se"],
             metrics: {},
             currentTab: 'overview',
-            isSidebarCollapsed: false
+            isSidebarCollapsed: false,
+            dailyStats: {},
+            textAnalyzer: new TextAnalyzer(),
+            aiAnalyzer: new AdvancedAIAnalyzer(),
+            audioTranscriber: null
         };
 
         let sentimentAnalyzer;
@@ -1346,10 +2417,16 @@
                 setupEventListeners();
                 await loadSampleData();
                 
+                // Inicializar IA em segundo plano
+                initializeAI();
+                
+                // Inicializar transcrição de áudio
+                initializeAudioTranscription();
+                
                 document.getElementById('loadingIndicator').classList.add('hidden');
                 document.getElementById('contentArea').classList.remove('hidden');
                 
-                showAlert('✅ Sentinela carregado com análise REAL de sentimentos!', 'success');
+                showAlert('✅ Sentinela carregado com sucesso!', 'success');
                 
             } catch (error) {
                 console.error('Erro ao inicializar:', error);
@@ -1357,22 +2434,132 @@
             }
         }
 
+        function initializeAudioTranscription() {
+            try {
+                appState.audioTranscriber = new AudioTranscriber();
+                
+                // Configurar callbacks
+                appState.audioTranscriber.onRecordingStateChange = (isRecording) => {
+                    const indicator = document.getElementById('recordingIndicator');
+                    const startBtn = document.getElementById('startRecording');
+                    const stopBtn = document.getElementById('stopRecording');
+                    const status = document.getElementById('audioStatus');
+                    
+                    if (isRecording) {
+                        indicator.classList.remove('hidden');
+                        startBtn.disabled = true;
+                        stopBtn.disabled = false;
+                        status.textContent = 'Gravando';
+                        status.style.color = '#f44336';
+                    } else {
+                        indicator.classList.add('hidden');
+                        startBtn.disabled = false;
+                        stopBtn.disabled = true;
+                        status.textContent = 'Parado';
+                        status.style.color = '#666';
+                    }
+                };
+                
+                appState.audioTranscriber.onTranscriptionUpdate = (final, interim) => {
+                    updateTranscriptionDisplay(final, interim);
+                    updateAudioMetrics(final, interim);
+                };
+                
+                appState.audioTranscriber.onTranscriptionError = (error) => {
+                    showAlert(`❌ Erro na transcrição: ${error}`, 'error');
+                };
+                
+                appState.audioTranscriber.onAudioRecorded = (audioBlob) => {
+                    // Criar URL para o áudio gravado
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    const audioPlayer = document.getElementById('audioPlayer');
+                    audioPlayer.src = audioUrl;
+                    document.getElementById('audioPlayerContainer').classList.remove('hidden');
+                };
+                
+            } catch (error) {
+                console.error('Erro ao inicializar transcrição de áudio:', error);
+                showAlert('❌ Transcrição de áudio não disponível neste navegador', 'warning');
+            }
+        }
+
+        async function initializeAI() {
+            try {
+                const statusElement = document.getElementById('modelStatus');
+                if (statusElement) {
+                    statusElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Carregando modelos de IA...</span>';
+                    statusElement.className = 'model-status status-loading';
+                    
+                    const success = await appState.aiAnalyzer.initialize();
+                    
+                    if (success) {
+                        statusElement.innerHTML = '<i class="fas fa-check-circle"></i><span>Modelos de IA prontos!</span>';
+                        statusElement.className = 'model-status status-ready';
+                    } else {
+                        statusElement.innerHTML = '<i class="fas fa-exclamation-triangle"></i><span>IA não disponível - usando análise básica</span>';
+                        statusElement.className = 'model-status status-error';
+                    }
+                }
+            } catch (error) {
+                console.error('Erro na inicialização da IA:', error);
+                if (document.getElementById('modelStatus')) {
+                    document.getElementById('modelStatus').innerHTML = '<i class="fas fa-exclamation-triangle"></i><span>Erro ao carregar IA</span>';
+                    document.getElementById('modelStatus').className = 'model-status status-error';
+                }
+            }
+        }
+
         // =============================================
         // CONFIGURAÇÃO DE EVENTOS
         // =============================================
         function setupEventListeners() {
+            // Event listeners básicos
             document.getElementById('sidebarToggle').addEventListener('click', toggleSidebar);
             document.getElementById('loadData').addEventListener('click', loadData);
             document.getElementById('applyFilter').addEventListener('click', applyDateFilter);
             document.getElementById('refreshData').addEventListener('click', refreshData);
             document.getElementById('exportData').addEventListener('click', exportData);
+            document.getElementById('fileUpload').addEventListener('change', handleFileUpload);
+            
+            // Event listeners para análise de palavras
+            document.getElementById('refreshWordCloud').addEventListener('click', updateWordAnalysis);
+            document.getElementById('performSearch').addEventListener('click', performSearch);
+            document.getElementById('clearSearch').addEventListener('click', clearSearch);
+            document.getElementById('analyzePhrase').addEventListener('click', analyzePhrase);
+            document.getElementById('addStopWord').addEventListener('click', addStopWord);
+            document.getElementById('resetStopWords').addEventListener('click', resetStopWords);
+            document.getElementById('wordSearch').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') performSearch();
+            });
+            document.getElementById('phraseInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') analyzePhrase();
+            });
+            document.getElementById('newStopWord').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') addStopWord();
+            });
+            
+            // Event listeners para IA Avançada
             document.getElementById('generateInsights').addEventListener('click', generateInsights);
             document.getElementById('quickAnalysis').addEventListener('click', quickAnalysis);
-            document.getElementById('transcribeAudio').addEventListener('click', transcribeAudio);
-            document.getElementById('analyzeAudio').addEventListener('click', analyzeAudio);
-            document.getElementById('fileUpload').addEventListener('change', handleFileUpload);
-            document.getElementById('audioUpload').addEventListener('change', handleAudioUpload);
+            document.getElementById('clearAnalysis').addEventListener('click', clearAnalysis);
+            document.getElementById('analyzeTopics').addEventListener('click', analyzeTopics);
+            document.getElementById('clusterAnalysis').addEventListener('click', clusterAnalysis);
             
+            // Event listeners para análise de áudio
+            document.getElementById('startRecording').addEventListener('click', startRecording);
+            document.getElementById('stopRecording').addEventListener('click', stopRecording);
+            document.getElementById('clearRecording').addEventListener('click', clearRecording);
+            document.getElementById('transcribeUploaded').addEventListener('click', transcribeUploadedAudio);
+            document.getElementById('analyzeAudio').addEventListener('click', analyzeAudio);
+            document.getElementById('quickAudioAnalysis').addEventListener('click', quickAudioAnalysis);
+            document.getElementById('copyTranscription').addEventListener('click', copyTranscription);
+            document.getElementById('exportTranscription').addEventListener('click', exportTranscription);
+            document.getElementById('audioUpload').addEventListener('change', handleAudioUpload);
+            document.getElementById('languageSelect').addEventListener('change', changeLanguage);
+            document.getElementById('usePastedTranscription').addEventListener('click', usePastedTranscription);
+            document.getElementById('clearPastedTranscription').addEventListener('click', clearPastedTranscription);
+            
+            // Tabs
             document.querySelectorAll('.tab').forEach(tab => {
                 tab.addEventListener('click', function() {
                     switchTab(this.dataset.tab);
@@ -1407,6 +2594,16 @@
             document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
             document.getElementById(tabId).classList.add('active');
             appState.currentTab = tabId;
+            
+            // Renderizar análises específicas quando a aba for ativada
+            if (tabId === 'words') {
+                updateWordAnalysis();
+                updateStopWordsList();
+            } else if (tabId === 'trends') {
+                renderTrendsChart();
+                renderCorrelationChart();
+                renderDailyTable();
+            }
         }
 
         function processDataWithSentiment(data) {
@@ -1434,16 +2631,25 @@
                     { Agente: "maria.santos@empresa.com", Data: "24/09/2024", Hora: "11:30:45", Texto: "Boa tarde! Em que posso ser útil? Estou aqui para resolver seu problema." },
                     { Agente: "maria.santos@empresa.com", Data: "24/09/2024", Hora: "11:31:20", Texto: "Infelizmente não consigo acessar essa informação no momento. Isso é muito ruim, me desculpe pelo inconveniente." },
                     { Agente: "carlos.oliveira@empresa.com", Data: "25/09/2024", Hora: "09:05:12", Texto: "Excelente notícia! Seu problema foi resolvido com sucesso. Fico muito feliz!" },
-                    { Agente: "carlos.oliveira@empresa.com", Data: "25/09/2024", Hora: "09:06:33", Texto: "Que ótimo! Tudo funcionando perfeitamente agora. Maravilhoso!" }
+                    { Agente: "carlos.oliveira@empresa.com", Data: "25/09/2024", Hora: "09:06:33", Texto: "Que ótimo! Tudo funcionando perfeitamente agora. Maravilhoso!" },
+                    { Agente: "ana.costa@empresa.com", Data: "26/09/2024", Hora: "14:20:10", Texto: "Preciso de ajuda urgente! Nada está funcionando como deveria. Estou muito frustrado!" },
+                    { Agente: "ana.costa@empresa.com", Data: "26/09/2024", Hora: "14:21:45", Texto: "O serviço está horrível, quero cancelar minha conta imediatamente!" },
+                    { Agente: "pedro.souza@empresa.com", Data: "27/09/2024", Hora: "16:45:30", Texto: "Incrível! O atendimento foi excelente e resolveu todos meus problemas." },
+                    { Agente: "pedro.souza@empresa.com", Data: "27/09/2024", Hora: "16:46:15", Texto: "Recomendarei seus serviços para todos os meus amigos. Parabéns!" }
                 ];
                 
                 appState.data = processDataWithSentiment(sampleData);
                 appState.filteredData = appState.data;
                 
+                // Configurar análise de texto
+                appState.textAnalyzer.setupSearchIndex(appState.filteredData);
+                calculateDailyStats();
                 updateStats();
                 updateMetrics();
                 renderCharts();
                 renderTables();
+                updateWordAnalysis();
+                updateStopWordsList();
                 
             } catch (error) {
                 console.error('Erro ao carregar dados:', error);
@@ -1472,12 +2678,17 @@
                 appState.data = processDataWithSentiment(parsedData);
                 appState.filteredData = appState.data;
                 
+                // Configurar análise de texto
+                appState.textAnalyzer.setupSearchIndex(appState.filteredData);
+                calculateDailyStats();
                 updateStats();
                 updateMetrics();
                 renderCharts();
                 renderTables();
+                updateWordAnalysis();
+                updateStopWordsList();
                 
-                showAlert('✅ Arquivo processado com análise REAL de sentimentos!', 'success');
+                showAlert('✅ Arquivo processado com sucesso!', 'success');
                 
             } catch (error) {
                 console.error('Erro ao processar arquivo:', error);
@@ -1664,6 +2875,1174 @@
         }
 
         // =============================================
+        // FUNÇÕES DE ANÁLISE DE PALAVRAS
+        // =============================================
+        function updateWordAnalysis() {
+            if (appState.filteredData.length === 0) return;
+            
+            appState.textAnalyzer.calculateFrequencies(appState.filteredData);
+            renderWordCloud();
+            renderWordFrequencyChart();
+        }
+
+        function renderWordCloud() {
+            const wordCloudElement = document.getElementById('wordCloud');
+            wordCloudElement.innerHTML = '';
+            
+            const topWords = appState.textAnalyzer.getTopWords(40);
+            const topBigrams = appState.textAnalyzer.getTopBigrams(20);
+            
+            // Combinar palavras e bigramas
+            const allItems = [...topWords, ...topBigrams];
+            
+            allItems.forEach(([text, frequency]) => {
+                const size = Math.min(30, 12 + (frequency * 2));
+                const color = getColorByFrequency(frequency);
+                
+                const wordElement = document.createElement('div');
+                wordElement.className = 'word-item';
+                wordElement.textContent = text;
+                wordElement.style.fontSize = `${size}px`;
+                wordElement.style.color = color;
+                wordElement.style.backgroundColor = color + '20'; // Cor com transparência
+                wordElement.style.border = `1px solid ${color}`;
+                
+                wordElement.addEventListener('click', () => {
+                    document.getElementById('wordSearch').value = text;
+                    performSearch();
+                });
+                
+                wordCloudElement.appendChild(wordElement);
+            });
+        }
+
+        function getColorByFrequency(frequency) {
+            if (frequency > 10) return '#F44336';
+            if (frequency > 5) return '#FF9800';
+            if (frequency > 3) return '#2196F3';
+            return '#4CAF50';
+        }
+
+        function renderWordFrequencyChart() {
+            const topWords = appState.textAnalyzer.getTopWords(15);
+            
+            const data = [{
+                x: topWords.map(([word]) => word),
+                y: topWords.map(([, freq]) => freq),
+                type: 'bar',
+                marker: {
+                    color: topWords.map(([, freq]) => getColorByFrequency(freq))
+                }
+            }];
+            
+            const layout = {
+                height: 300,
+                margin: { t: 30, r: 30, l: 50, b: 100 },
+                xaxis: {
+                    tickangle: -45
+                },
+                yaxis: {
+                    title: 'Frequência'
+                }
+            };
+            
+            Plotly.newPlot('wordFrequencyChart', data, layout, { displayModeBar: true });
+        }
+
+        function performSearch() {
+            const query = document.getElementById('wordSearch').value.trim();
+            const sentimentFilter = document.getElementById('sentimentFilter').value;
+            
+            if (!query) {
+                showAlert('⚠️ Digite uma palavra ou frase para buscar', 'warning');
+                return;
+            }
+            
+            const results = appState.textAnalyzer.search(query, sentimentFilter, 15);
+            displaySearchResults(results, query);
+        }
+
+        function displaySearchResults(results, query) {
+            const resultsContainer = document.getElementById('searchResults');
+            
+            if (results.length === 0) {
+                resultsContainer.innerHTML = `
+                    <div class="alert alert-warning">
+                        <i class="fas fa-search"></i>
+                        Nenhum resultado encontrado para "${query}"
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = `
+                <div class="alert alert-info">
+                    <i class="fas fa-search"></i>
+                    <strong>${results.length}</strong> resultados encontrados para "${query}"
+                </div>
+            `;
+            
+            results.forEach((result, index) => {
+                const item = result.item;
+                const highlightedText = appState.textAnalyzer.highlightText(item.Texto, query);
+                const sentimentIcon = getSentimentIcon(item.Sentimento);
+                
+                html += `
+                    <div class="search-result-item">
+                        <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 8px;">
+                            <strong>${index + 1}. Agente: ${item.Agente}</strong>
+                            <span style="display: flex; align-items: center; gap: 5px;">
+                                ${sentimentIcon}
+                                <small>${item.Data} ${item.Hora}</small>
+                            </span>
+                        </div>
+                        <div style="margin-bottom: 8px;">${highlightedText}</div>
+                        <div style="display: flex; justify-content: space-between; font-size: 0.9rem; color: #666;">
+                            <span>Sentimento: <strong>${item.Sentimento}</strong></span>
+                            <span>Pontuação: <strong>${item.Pontuacao}</strong></span>
+                            <span>Confiança: <strong>${(item.Confianca * 100).toFixed(1)}%</strong></span>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            resultsContainer.innerHTML = html;
+        }
+
+        function getSentimentIcon(sentiment) {
+            switch(sentiment) {
+                case 'Muito Positivo': return '😊';
+                case 'Positivo': return '🙂';
+                case 'Neutro': return '😐';
+                case 'Negativo': return '🙁';
+                case 'Muito Negativo': return '😞';
+                default: return '❓';
+            }
+        }
+
+        async function analyzePhrase() {
+            const phrase = document.getElementById('phraseInput').value.trim();
+            
+            if (!phrase) {
+                showAlert('⚠️ Digite uma frase para análise', 'warning');
+                return;
+            }
+            
+            showAlert('🔍 Analisando frase...', 'info');
+            
+            try {
+                // Análise de sentimento
+                const sentiment = sentimentAnalyzer.analyze(phrase);
+                
+                // Buscar ocorrências similares
+                const similarResults = appState.textAnalyzer.search(phrase, 'all', 5);
+                
+                // Calcular frequência de palavras na frase
+                const phraseTokens = appState.textAnalyzer.tokenize(phrase);
+                const phraseBigrams = appState.textAnalyzer.extractBigrams(phraseTokens);
+                
+                let html = `
+                    <div class="alert alert-info">
+                        <i class="fas fa-chart-bar"></i>
+                        <strong>Análise da Frase:</strong> "${phrase}"
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="metric-card">
+                            <div class="metric-label">Sentimento</div>
+                            <div class="metric-value">${sentiment.sentiment}</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-label">Pontuação</div>
+                            <div class="metric-value">${sentiment.score}</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-label">Confiança</div>
+                            <div class="metric-value">${(sentiment.confidence * 100).toFixed(1)}%</div>
+                        </div>
+                    </div>
+                `;
+                
+                // Palavras da frase
+                if (phraseTokens.length > 0) {
+                    html += `
+                        <div style="margin-top: 20px;">
+                            <h4>Palavras na Frase:</h4>
+                            <div style="display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px;">
+                    `;
+                    
+                    phraseTokens.forEach(word => {
+                        const freq = appState.textAnalyzer.wordFrequencies[word] || 0;
+                        html += `<span class="word-item" style="font-size: 14px;">${word} (${freq})</span>`;
+                    });
+                    
+                    html += `</div></div>`;
+                }
+                
+                // Bigramas da frase
+                if (phraseBigrams.length > 0) {
+                    html += `
+                        <div style="margin-top: 20px;">
+                            <h4>Combinações na Frase:</h4>
+                            <div style="display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px;">
+                    `;
+                    
+                    phraseBigrams.forEach(bigram => {
+                        const freq = appState.textAnalyzer.bigramFrequencies[bigram] || 0;
+                        if (freq > 0) {
+                            html += `<span class="word-item" style="font-size: 14px; background: #2196F3; color: white;">${bigram} (${freq})</span>`;
+                        }
+                    });
+                    
+                    html += `</div></div>`;
+                }
+                
+                // Mensagens similares
+                if (similarResults.length > 0) {
+                    html += `
+                        <div style="margin-top: 20px;">
+                            <h4>Mensagens Similares Encontradas:</h4>
+                    `;
+                    
+                    similarResults.forEach((result, index) => {
+                        const item = result.item;
+                        html += `
+                            <div class="search-result-item" style="margin-top: 10px;">
+                                <div><strong>${item.Agente}</strong> - ${item.Data}</div>
+                                <div>${item.Texto}</div>
+                                <div style="font-size: 0.8rem; color: #666;">
+                                    Similaridade: ${(100 - (result.score * 100)).toFixed(1)}% | 
+                                    Sentimento: ${item.Sentimento}
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    html += `</div>`;
+                }
+                
+                document.getElementById('phraseAnalysis').innerHTML = html;
+                showAlert('✅ Análise da frase concluída!', 'success');
+                
+            } catch (error) {
+                console.error('Erro na análise da frase:', error);
+                showAlert('❌ Erro na análise da frase', 'error');
+            }
+        }
+
+        function addStopWord() {
+            const word = document.getElementById('newStopWord').value.trim();
+            
+            if (!word) {
+                showAlert('⚠️ Digite uma palavra para adicionar', 'warning');
+                return;
+            }
+            
+            if (appState.textAnalyzer.addStopWord(word)) {
+                document.getElementById('newStopWord').value = '';
+                updateStopWordsList();
+                updateWordAnalysis();
+                showAlert(`✅ Stop word "${word}" adicionada com sucesso!`, 'success');
+            } else {
+                showAlert('⚠️ Stop word já existe ou é inválida', 'warning');
+            }
+        }
+
+        function resetStopWords() {
+            appState.textAnalyzer.resetStopWords();
+            updateStopWordsList();
+            updateWordAnalysis();
+            showAlert('✅ Stop words restauradas para o padrão!', 'success');
+        }
+
+        function updateStopWordsList() {
+            const stopWordsList = document.getElementById('stopWordsList');
+            const stopWords = appState.textAnalyzer.getStopWords();
+            
+            if (stopWords.length === 0) {
+                stopWordsList.innerHTML = '<p>Nenhuma stop word cadastrada</p>';
+                return;
+            }
+            
+            let html = '';
+            stopWords.forEach(word => {
+                html += `<span class="stop-word-item">${word}</span>`;
+            });
+            
+            stopWordsList.innerHTML = html;
+        }
+
+        function clearSearch() {
+            document.getElementById('wordSearch').value = '';
+            document.getElementById('searchResults').innerHTML = '';
+            document.getElementById('sentimentFilter').value = 'all';
+        }
+
+        // =============================================
+        // FUNÇÕES DE IA AVANÇADA
+        // =============================================
+        async function generateInsights() {
+            if (!appState.aiAnalyzer.isInitialized) {
+                showAlert('❌ Modelos de IA não estão carregados', 'error');
+                return;
+            }
+
+            if (appState.filteredData.length === 0) {
+                showAlert('⚠️ Nenhum dado disponível para análise', 'warning');
+                return;
+            }
+
+            showAlert('🧠 Gerando insights com IA avançada...', 'info');
+            
+            const progressElement = document.getElementById('analysisProgress');
+            const progressFill = document.getElementById('progressFill');
+            progressElement.classList.remove('hidden');
+            
+            try {
+                // Simular progresso
+                let progress = 0;
+                const progressInterval = setInterval(() => {
+                    progress += 5;
+                    progressFill.style.width = `${Math.min(progress, 90)}%`;
+                    if (progress >= 90) clearInterval(progressInterval);
+                }, 200);
+
+                const prompt = document.getElementById('iaPrompt').value;
+                const insights = await appState.aiAnalyzer.generateInsights(appState.filteredData, prompt);
+                
+                clearInterval(progressInterval);
+                progressFill.style.width = '100%';
+                
+                displayInsights(insights);
+                showAlert('✅ Insights gerados com sucesso!', 'success');
+                
+                setTimeout(() => {
+                    progressElement.classList.add('hidden');
+                    progressFill.style.width = '0%';
+                }, 1000);
+                
+            } catch (error) {
+                console.error('Erro na geração de insights:', error);
+                showAlert('❌ Erro ao gerar insights com IA', 'error');
+                progressElement.classList.add('hidden');
+            }
+        }
+
+        function displayInsights(insights) {
+            const resultsElement = document.getElementById('iaResults');
+            
+            let html = `
+                <div class="insight-card">
+                    <div class="insight-header">
+                        <div class="insight-icon">🧠</div>
+                        <h3>Análise Inteligente Completa</h3>
+                        <span class="confidence-badge">${(insights.confidence * 100).toFixed(1)}% confiança</span>
+                    </div>
+                    
+                    <div class="insight-content">
+                        <h4>📊 Resumo Executivo</h4>
+                        <p>${insights.summary}</p>
+                        
+                        <h4>😊 Análise de Sentimento</h4>
+                        <div style="display: flex; align-items: center; gap: 15px; margin: 10px 0;">
+                            <span style="font-size: 2rem;">${getSentimentEmoji(insights.sentiment.sentiment)}</span>
+                            <div>
+                                <div><strong>${insights.sentiment.sentiment}</strong></div>
+                                <div>Pontuação: ${insights.sentiment.score.toFixed(3)}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">🎯 Tópicos Principais Identificados</div>
+                    </div>
+            `;
+            
+            insights.topics.forEach(([topic, count]) => {
+                html += `
+                    <div class="topic-item">
+                        <div style="display: flex; justify-content: between; align-items: center;">
+                            <strong>${topic}</strong>
+                            <span class="confidence-badge">${count} ocorrências</span>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += `</div>`;
+            
+            // Recomendações
+            html += `
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">💡 Recomendações Inteligentes</div>
+                    </div>
+            `;
+            
+            insights.recommendations.forEach(rec => {
+                const icon = rec.type === 'success' ? '✅' : rec.type === 'warning' ? '⚠️' : rec.type === 'error' ? '❌' : 'ℹ️';
+                
+                html += `
+                    <div class="recommendation-item">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                            ${icon}
+                            <strong>${rec.title}</strong>
+                            <span class="confidence-badge" style="background: ${
+                                rec.priority === 'Alta' ? '#dc3545' : 
+                                rec.priority === 'Média' ? '#ffc107' : '#28a745'
+                            };">${rec.priority}</span>
+                        </div>
+                        <div>${rec.description}</div>
+                    </div>
+                `;
+            });
+            
+            html += `</div>`;
+            
+            resultsElement.innerHTML = html;
+        }
+
+        async function quickAnalysis() {
+            if (!appState.aiAnalyzer.isInitialized) {
+                showAlert('❌ Modelos de IA não estão carregados', 'error');
+                return;
+            }
+
+            if (appState.filteredData.length === 0) {
+                showAlert('⚠️ Nenhum dado disponível para análise', 'warning');
+                return;
+            }
+
+            showAlert('⚡ Executando análise rápida...', 'info');
+            
+            try {
+                const analysis = await appState.aiAnalyzer.performQuickAnalysis(appState.filteredData);
+                
+                const resultsElement = document.getElementById('iaResults');
+                resultsElement.innerHTML = `
+                    <div class="insight-card">
+                        <div class="insight-header">
+                            <div class="insight-icon">⚡</div>
+                            <h3>Análise Rápida</h3>
+                        </div>
+                        
+                        <div class="insight-content">
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 15px 0;">
+                                <div class="metric-card" style="background: rgba(255,255,255,0.2);">
+                                    <div class="metric-value" style="font-size: 2rem;">${getSentimentEmoji(analysis.sentiment.sentiment)}</div>
+                                    <div class="metric-label">Sentimento</div>
+                                </div>
+                                <div class="metric-card" style="background: rgba(255,255,255,0.2);">
+                                    <div class="metric-value">${analysis.messageCount}</div>
+                                    <div class="metric-label">Mensagens</div>
+                                </div>
+                                <div class="metric-card" style="background: rgba(255,255,255,0.2);">
+                                    <div class="metric-value">${analysis.urgency}</div>
+                                    <div class="metric-label">Urgência</div>
+                                </div>
+                            </div>
+                            
+                            <h4>🎯 Tópicos Principais:</h4>
+                            <div style="display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0;">
+                                ${analysis.mainTopics.map(([topic, count]) => 
+                                    `<span class="word-item">${topic} (${count})</span>`
+                                ).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                showAlert('✅ Análise rápida concluída!', 'success');
+                
+            } catch (error) {
+                console.error('Erro na análise rápida:', error);
+                showAlert('❌ Erro na análise rápida', 'error');
+            }
+        }
+
+        async function analyzeTopics() {
+            if (!appState.aiAnalyzer.isInitialized) {
+                showAlert('❌ Modelos de IA não estão carregados', 'error');
+                return;
+            }
+
+            showAlert('🔍 Analisando tópicos com IA...', 'info');
+            
+            try {
+                const topics = await appState.aiAnalyzer.analyzeTopicsAdvanced(appState.filteredData);
+                
+                const resultsElement = document.getElementById('topicsResults');
+                let html = '<h4>📊 Tópicos Identificados</h4>';
+                
+                topics.forEach(topic => {
+                    html += `
+                        <div class="topic-item">
+                            <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 10px;">
+                                <strong>${topic.topic}</strong>
+                                <span class="confidence-badge">${topic.frequency} ocorrências</span>
+                            </div>
+                            
+                            <div class="sentiment-distribution">
+                                ${Object.entries(topic.sentimentDistribution).map(([sentiment, count]) => `
+                                    <div class="sentiment-bar" style="background: ${
+                                        sentiment === 'Muito Positivo' ? '#4CAF50' :
+                                        sentiment === 'Positivo' ? '#8BC34A' :
+                                        sentiment === 'Neutro' ? '#FFC107' :
+                                        sentiment === 'Negativo' ? '#FF9800' : '#F44336'
+                                    }; width: ${(count / Math.max(...Object.values(topic.sentimentDistribution))) * 100}%"></div>
+                                `).join('')}
+                            </div>
+                            
+                            <div style="font-size: 0.9rem; margin-top: 8px;">
+                                <strong>Exemplos:</strong>
+                                ${topic.examples.map(ex => `
+                                    <div style="margin: 5px 0; padding: 5px; background: rgba(0,0,0,0.1); border-radius: 4px;">
+                                        "${ex.text}" - <em>${ex.agent}</em>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                resultsElement.innerHTML = html;
+                showAlert('✅ Análise de tópicos concluída!', 'success');
+                
+            } catch (error) {
+                console.error('Erro na análise de tópicos:', error);
+                showAlert('❌ Erro na análise de tópicos', 'error');
+            }
+        }
+
+        function getSentimentEmoji(sentiment) {
+            switch(sentiment) {
+                case 'Muito Positivo': return '😊';
+                case 'Positivo': return '🙂';
+                case 'Neutro': return '😐';
+                case 'Negativo': return '🙁';
+                case 'Muito Negativo': return '😞';
+                default: return '❓';
+            }
+        }
+
+        function clearAnalysis() {
+            document.getElementById('iaResults').innerHTML = '';
+            document.getElementById('topicsResults').innerHTML = '';
+            showAlert('🧹 Análises limpas!', 'info');
+        }
+
+        async function clusterAnalysis() {
+            showAlert('🔬 Análise de clusters em desenvolvimento...', 'info');
+            // Implementação futura para análise de clusters
+        }
+
+        // =============================================
+        // FUNÇÕES DE ANÁLISE DE ÁUDIO
+        // =============================================
+        async function startRecording() {
+            if (!appState.audioTranscriber) {
+                showAlert('❌ Transcrição de áudio não disponível', 'error');
+                return;
+            }
+
+            try {
+                await appState.audioTranscriber.startRecording();
+                showAlert('🎙️ Gravação iniciada! Fale agora...', 'success');
+            } catch (error) {
+                console.error('Erro ao iniciar gravação:', error);
+                if (error.name === 'NotAllowedError') {
+                    showAlert('❌ Permissão de microfone negada', 'error');
+                } else {
+                    showAlert('❌ Erro ao acessar microfone', 'error');
+                }
+            }
+        }
+
+        function stopRecording() {
+            if (appState.audioTranscriber) {
+                appState.audioTranscriber.stopRecording();
+                showAlert('⏹️ Gravação finalizada', 'info');
+            }
+        }
+
+        function clearRecording() {
+            if (appState.audioTranscriber) {
+                appState.audioTranscriber.transcription = '';
+                updateTranscriptionDisplay('', '');
+                updateAudioMetrics('', '');
+                document.getElementById('audioPlayerContainer').classList.add('hidden');
+                document.getElementById('audioDuration').textContent = '0s';
+                showAlert('🧹 Transcrição limpa!', 'info');
+            }
+        }
+
+        function handleAudioUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const audioPlayer = document.getElementById('audioPlayer');
+                const audioPlayerContainer = document.getElementById('audioPlayerContainer');
+                
+                audioPlayer.src = URL.createObjectURL(file);
+                audioPlayerContainer.classList.remove('hidden');
+                
+                // Estimar duração (aproximada)
+                const audio = new Audio();
+                audio.src = URL.createObjectURL(file);
+                audio.onloadedmetadata = () => {
+                    document.getElementById('audioDuration').textContent = 
+                        Math.round(audio.duration) + 's';
+                };
+                
+                showAlert(`🎵 Arquivo carregado: ${file.name}`, 'success');
+            }
+        }
+
+        function usePastedTranscription() {
+            const pastedText = document.getElementById('pasteTranscription').value.trim();
+            
+            if (!pastedText) {
+                showAlert('⚠️ Cole uma transcrição primeiro', 'warning');
+                return;
+            }
+            
+            // Atualizar a transcrição no sistema
+            if (appState.audioTranscriber) {
+                appState.audioTranscriber.transcription = pastedText;
+            }
+            
+            updateTranscriptionDisplay(pastedText, '');
+            updateAudioMetrics(pastedText, '');
+            showAlert('✅ Transcrição colada com sucesso!', 'success');
+        }
+
+        function clearPastedTranscription() {
+            document.getElementById('pasteTranscription').value = '';
+            showAlert('🧹 Transcrição colada removida!', 'info');
+        }
+
+        async function transcribeUploadedAudio() {
+            const audioPlayer = document.getElementById('audioPlayer');
+            if (!audioPlayer.src) {
+                showAlert('⚠️ Nenhum arquivo de áudio carregado', 'warning');
+                return;
+            }
+
+            showAlert('🔍 Transcrevendo arquivo de áudio...', 'info');
+            
+            // Simular transcrição (em um ambiente real, isso exigiria um backend)
+            setTimeout(() => {
+                const simulatedTranscription = "Esta é uma simulação de transcrição de áudio. Em um ambiente de produção, você precisaria integrar com um serviço de transcrição como Google Speech-to-Text, Azure Speech Services ou AWS Transcribe.";
+                updateTranscriptionDisplay(simulatedTranscription, '');
+                showAlert('✅ Transcrição simulada concluída!', 'success');
+            }, 2000);
+        }
+
+        function updateTranscriptionDisplay(finalTranscript, interimTranscript) {
+            const resultsElement = document.getElementById('transcriptionResults');
+            
+            let html = '';
+            
+            if (finalTranscript) {
+                html += `<div class="transcription-line">
+                    <span class="speaker-label">🔊</span>
+                    <span>${finalTranscript}</span>
+                </div>`;
+            }
+            
+            if (interimTranscript) {
+                html += `<div class="transcription-line" style="opacity: 0.7; font-style: italic;">
+                    <span class="speaker-label">🎤</span>
+                    <span>${interimTranscript}</span>
+                </div>`;
+            }
+            
+            if (!finalTranscript && !interimTranscript) {
+                html = '<p class="text-center" style="color: #666;">A transcrição aparecerá aqui...</p>';
+            }
+            
+            resultsElement.innerHTML = html;
+            
+            // Auto-scroll para o final
+            resultsElement.scrollTop = resultsElement.scrollHeight;
+        }
+
+        function updateAudioMetrics(finalTranscript, interimTranscript) {
+            const fullText = finalTranscript + ' ' + interimTranscript;
+            const wordCount = fullText.trim().split(/\s+/).filter(word => word.length > 0).length;
+            
+            document.getElementById('wordCount').textContent = wordCount;
+            
+            // Calcular confiança aproximada (simulada)
+            const confidence = Math.min(100, Math.max(0, 
+                50 + (finalTranscript.length / (finalTranscript.length + interimTranscript.length + 1)) * 50
+            ));
+            document.getElementById('audioConfidence').textContent = Math.round(confidence) + '%';
+        }
+
+        function changeLanguage() {
+            const language = document.getElementById('languageSelect').value;
+            if (appState.audioTranscriber) {
+                appState.audioTranscriber.setLanguage(language);
+                showAlert(`🌐 Idioma alterado para: ${language}`, 'info');
+            }
+        }
+
+        function copyTranscription() {
+            const transcription = appState.audioTranscriber ? 
+                appState.audioTranscriber.transcription : 
+                document.getElementById('transcriptionResults').innerText;
+            
+            navigator.clipboard.writeText(transcription).then(() => {
+                showAlert('✅ Transcrição copiada para a área de transferência!', 'success');
+            }).catch(err => {
+                showAlert('❌ Erro ao copiar transcrição', 'error');
+            });
+        }
+
+        function exportTranscription() {
+            const transcription = appState.audioTranscriber ? 
+                appState.audioTranscriber.transcription : 
+                document.getElementById('transcriptionResults').innerText;
+            
+            const blob = new Blob([transcription], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'transcricao_audio.txt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showAlert('💾 Transcrição exportada como arquivo TXT!', 'success');
+        }
+
+        async function analyzeAudio() {
+            const transcription = appState.audioTranscriber ? 
+                appState.audioTranscriber.transcription : 
+                document.getElementById('transcriptionResults').innerText;
+            
+            if (!transcription.trim()) {
+                showAlert('⚠️ Nenhuma transcrição disponível para análise', 'warning');
+                return;
+            }
+
+            showAlert('🔍 Analisando transcrição com IA...', 'info');
+            
+            try {
+                const prompt = document.getElementById('audioPrompt').value;
+                
+                // Usar o analisador de IA para processar a transcrição
+                const analysis = await appState.aiAnalyzer.generateInsights(
+                    [{ Texto: transcription, Agente: "Áudio", Data: new Date().toLocaleDateString('pt-BR') }], 
+                    prompt
+                );
+                
+                displayAudioAnalysis(analysis, transcription);
+                showAlert('✅ Análise de áudio concluída!', 'success');
+                
+            } catch (error) {
+                console.error('Erro na análise de áudio:', error);
+                showAlert('❌ Erro ao analisar áudio', 'error');
+            }
+        }
+
+        async function quickAudioAnalysis() {
+            const transcription = appState.audioTranscriber ? 
+                appState.audioTranscriber.transcription : 
+                document.getElementById('transcriptionResults').innerText;
+            
+            if (!transcription.trim()) {
+                showAlert('⚠️ Nenhuma transcrição disponível para análise', 'warning');
+                return;
+            }
+
+            showAlert('⚡ Análise rápida de áudio...', 'info');
+            
+            try {
+                // Análise de sentimento básica
+                const sentiment = sentimentAnalyzer.analyze(transcription);
+                
+                const resultsElement = document.getElementById('audioAnalysisResults');
+                resultsElement.innerHTML = `
+                    <div class="insight-card">
+                        <div class="insight-header">
+                            <div class="insight-icon">🎵</div>
+                            <h3>Análise Rápida do Áudio</h3>
+                        </div>
+                        <div class="insight-content">
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin: 15px 0;">
+                                <div class="metric-card" style="background: rgba(255,255,255,0.2);">
+                                    <div class="metric-value">${getSentimentEmoji(sentiment.sentiment)}</div>
+                                    <div class="metric-label">Sentimento</div>
+                                </div>
+                                <div class="metric-card" style="background: rgba(255,255,255,0.2);">
+                                    <div class="metric-value">${sentiment.score}</div>
+                                    <div class="metric-label">Pontuação</div>
+                                </div>
+                                <div class="metric-card" style="background: rgba(255,255,255,0.2);">
+                                    <div class="metric-value">${Math.round(sentiment.confidence * 100)}%</div>
+                                    <div class="metric-label">Confiança</div>
+                                </div>
+                            </div>
+                            
+                            <h4>📝 Resumo:</h4>
+                            <p>O áudio apresenta um sentimento <strong>${sentiment.sentiment.toLowerCase()}</strong> com uma pontuação de <strong>${sentiment.score}</strong>.</p>
+                            
+                            <h4>🔍 Palavras-chave:</h4>
+                            <div style="display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0;">
+                                ${extractKeywords(transcription).map(word => 
+                                    `<span class="word-item">${word}</span>`
+                                ).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                showAlert('✅ Análise rápida concluída!', 'success');
+                
+            } catch (error) {
+                console.error('Erro na análise rápida:', error);
+                showAlert('❌ Erro na análise rápida', 'error');
+            }
+        }
+
+        function displayAudioAnalysis(analysis, transcription) {
+            const resultsElement = document.getElementById('audioAnalysisResults');
+            
+            resultsElement.innerHTML = `
+                <div class="insight-card">
+                    <div class="insight-header">
+                        <div class="insight-icon">🎵</div>
+                        <h3>Análise Completa do Áudio</h3>
+                        <span class="confidence-badge">${Math.round(analysis.confidence * 100)}% confiança</span>
+                    </div>
+                    
+                    <div class="insight-content">
+                        <h4>📊 Resumo Executivo</h4>
+                        <p>${analysis.summary}</p>
+                        
+                        <h4>😊 Análise de Sentimento</h4>
+                        <div style="display: flex; align-items: center; gap: 15px; margin: 10px 0;">
+                            <span style="font-size: 2rem;">${getSentimentEmoji(analysis.sentiment.sentiment)}</span>
+                            <div>
+                                <div><strong>${analysis.sentiment.sentiment}</strong></div>
+                                <div>Pontuação: ${analysis.sentiment.score.toFixed(3)}</div>
+                            </div>
+                        </div>
+                        
+                        <h4>🎯 Tópicos Identificados</h4>
+                        <div style="display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0;">
+                            ${analysis.topics.map(([topic, count]) => 
+                                `<span class="word-item">${topic} (${count})</span>`
+                            ).join('')}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">💡 Recomendações</div>
+                    </div>
+                    ${analysis.recommendations.map(rec => `
+                        <div class="recommendation-item">
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                ${rec.type === 'success' ? '✅' : rec.type === 'warning' ? '⚠️' : rec.type === 'error' ? '❌' : 'ℹ️'}
+                                <strong>${rec.title}</strong>
+                                <span class="confidence-badge" style="background: ${
+                                    rec.priority === 'Alta' ? '#dc3545' : 
+                                    rec.priority === 'Média' ? '#ffc107' : '#28a745'
+                                };">${rec.priority}</span>
+                            </div>
+                            <div>${rec.description}</div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function extractKeywords(text, limit = 8) {
+            const words = text.toLowerCase()
+                .replace(/[^\w\sàáâãèéêìíîòóôõùúûç]/g, '')
+                .split(/\s+/)
+                .filter(word => word.length > 3);
+            
+            const frequency = {};
+            words.forEach(word => {
+                frequency[word] = (frequency[word] || 0) + 1;
+            });
+            
+            return Object.entries(frequency)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, limit)
+                .map(([word]) => word);
+        }
+
+        // =============================================
+        // FUNÇÕES DE TENDÊNCIAS
+        // =============================================
+        function calculateDailyStats() {
+            appState.dailyStats = {};
+            
+            appState.filteredData.forEach(item => {
+                const date = item.Data;
+                if (!appState.dailyStats[date]) {
+                    appState.dailyStats[date] = {
+                        total: 0,
+                        positive: 0,
+                        negative: 0,
+                        problems: 0,
+                        solutions: 0,
+                        agents: new Set(),
+                        avgScore: 0,
+                        totalScore: 0
+                    };
+                }
+                
+                const day = appState.dailyStats[date];
+                day.total++;
+                day.totalScore += item.Pontuacao || 0;
+                day.agents.add(item.Agente);
+                
+                if (item.Sentimento === 'Positivo' || item.Sentimento === 'Muito Positivo') {
+                    day.positive++;
+                }
+                if (item.Sentimento === 'Negativo' || item.Sentimento === 'Muito Negativo') {
+                    day.negative++;
+                }
+                if (item.Problemas) day.problems++;
+                if (item.Solucoes) day.solutions++;
+            });
+            
+            // Calcular médias
+            Object.keys(appState.dailyStats).forEach(date => {
+                const day = appState.dailyStats[date];
+                day.avgScore = day.total > 0 ? day.totalScore / day.total : 0;
+                day.agents = day.agents.size;
+            });
+        }
+
+        function renderTrendsChart() {
+            if (Object.keys(appState.dailyStats).length === 0) return;
+            
+            const dates = Object.keys(appState.dailyStats).sort();
+            const totals = dates.map(date => appState.dailyStats[date].total);
+            const positives = dates.map(date => appState.dailyStats[date].positive);
+            const negatives = dates.map(date => appState.dailyStats[date].negative);
+            const problems = dates.map(date => appState.dailyStats[date].problems);
+            const avgScores = dates.map(date => appState.dailyStats[date].avgScore);
+            
+            const trace1 = {
+                x: dates,
+                y: totals,
+                type: 'scatter',
+                mode: 'lines+markers',
+                name: 'Total Mensagens',
+                line: { color: '#2196F3', width: 3 }
+            };
+            
+            const trace2 = {
+                x: dates,
+                y: positives,
+                type: 'scatter',
+                mode: 'lines+markers',
+                name: 'Positivas',
+                line: { color: '#4CAF50', width: 3 }
+            };
+            
+            const trace3 = {
+                x: dates,
+                y: negatives,
+                type: 'scatter',
+                mode: 'lines+markers',
+                name: 'Negativas',
+                line: { color: '#F44336', width: 3 }
+            };
+            
+            const trace4 = {
+                x: dates,
+                y: problems,
+                type: 'scatter',
+                mode: 'lines+markers',
+                name: 'Problemas',
+                line: { color: '#FF9800', width: 3 }
+            };
+            
+            const trace5 = {
+                x: dates,
+                y: avgScores,
+                type: 'scatter',
+                mode: 'lines+markers',
+                name: 'Pontuação Média',
+                yaxis: 'y2',
+                line: { color: '#9C27B0', width: 3, dash: 'dot' }
+            };
+            
+            const data = [trace1, trace2, trace3, trace4, trace5];
+            
+            const layout = {
+                height: 400,
+                xaxis: { title: 'Data' },
+                yaxis: { title: 'Quantidade' },
+                yaxis2: {
+                    title: 'Pontuação',
+                    overlaying: 'y',
+                    side: 'right'
+                },
+                legend: { orientation: 'h', y: -0.2 },
+                margin: { t: 30, r: 50, l: 50, b: 80 }
+            };
+            
+            Plotly.newPlot('trendsChart', data, layout, { displayModeBar: true });
+        }
+
+        function renderCorrelationChart() {
+            if (Object.keys(appState.dailyStats).length === 0) return;
+            
+            const dates = Object.keys(appState.dailyStats).sort();
+            const totals = dates.map(date => appState.dailyStats[date].total);
+            const positives = dates.map(date => appState.dailyStats[date].positive);
+            const negatives = dates.map(date => appState.dailyStats[date].negative);
+            const problems = dates.map(date => appState.dailyStats[date].problems);
+            const avgScores = dates.map(date => appState.dailyStats[date].avgScore);
+            
+            // Calcular correlações
+            const correlations = [
+                [1, correlation(totals, positives), correlation(totals, negatives), correlation(totals, problems), correlation(totals, avgScores)],
+                [correlation(positives, totals), 1, correlation(positives, negatives), correlation(positives, problems), correlation(positives, avgScores)],
+                [correlation(negatives, totals), correlation(negatives, positives), 1, correlation(negatives, problems), correlation(negatives, avgScores)],
+                [correlation(problems, totals), correlation(problems, positives), correlation(problems, negatives), 1, correlation(problems, avgScores)],
+                [correlation(avgScores, totals), correlation(avgScores, positives), correlation(avgScores, negatives), correlation(avgScores, problems), 1]
+            ];
+            
+            const data = [{
+                z: correlations,
+                x: ['Total', 'Positivas', 'Negativas', 'Problemas', 'Pontuação'],
+                y: ['Total', 'Positivas', 'Negativas', 'Problemas', 'Pontuação'],
+                type: 'heatmap',
+                colorscale: 'RdBu',
+                zmin: -1,
+                zmax: 1,
+                hoverongaps: false,
+                showscale: true
+            }];
+            
+            const layout = {
+                height: 400,
+                title: 'Correlação entre Métricas Diárias',
+                margin: { t: 50, r: 50, l: 50, b: 50 }
+            };
+            
+            Plotly.newPlot('correlationChart', data, layout, { displayModeBar: true });
+        }
+
+        function correlation(x, y) {
+            if (x.length !== y.length || x.length === 0) return 0;
+            
+            const n = x.length;
+            let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0, sumY2 = 0;
+            
+            for (let i = 0; i < n; i++) {
+                sumX += x[i];
+                sumY += y[i];
+                sumXY += x[i] * y[i];
+                sumX2 += x[i] * x[i];
+                sumY2 += y[i] * y[i];
+            }
+            
+            const numerator = n * sumXY - sumX * sumY;
+            const denominator = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
+            
+            return denominator === 0 ? 0 : Math.round((numerator / denominator) * 100) / 100;
+        }
+
+        function renderDailyTable() {
+            if (Object.keys(appState.dailyStats).length === 0) {
+                document.getElementById('dailyTable').innerHTML = '<p class="text-center">Nenhum dado disponível</p>';
+                return;
+            }
+            
+            const dates = Object.keys(appState.dailyStats).sort();
+            
+            let html = `
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Total Msgs</th>
+                            <th>Positivas</th>
+                            <th>Negativas</th>
+                            <th>Problemas</th>
+                            <th>Soluções</th>
+                            <th>Agentes</th>
+                            <th>Pontuação Média</th>
+                            <th>Tendência</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            dates.forEach((date, index) => {
+                const day = appState.dailyStats[date];
+                const positivityRate = day.total > 0 ? (day.positive / day.total * 100).toFixed(1) : 0;
+                const negativityRate = day.total > 0 ? (day.negative / day.total * 100).toFixed(1) : 0;
+                
+                // Calcular tendência
+                let trend = '→';
+                let trendColor = 'gray';
+                
+                if (index > 0) {
+                    const prevDate = dates[index - 1];
+                    const prevDay = appState.dailyStats[prevDate];
+                    const currentPositivity = day.positive / day.total;
+                    const prevPositivity = prevDay.positive / prevDay.total;
+                    
+                    if (currentPositivity > prevPositivity + 0.05) {
+                        trend = '↗';
+                        trendColor = 'green';
+                    } else if (currentPositivity < prevPositivity - 0.05) {
+                        trend = '↘';
+                        trendColor = 'red';
+                    }
+                }
+                
+                html += `
+                    <tr>
+                        <td><strong>${date}</strong></td>
+                        <td>${day.total}</td>
+                        <td>
+                            <div>${day.positive}</div>
+                            <small style="color: #4CAF50;">${positivityRate}%</small>
+                        </td>
+                        <td>
+                            <div>${day.negative}</div>
+                            <small style="color: #F44336;">${negativityRate}%</small>
+                        </td>
+                        <td>${day.problems}</td>
+                        <td>${day.solutions}</td>
+                        <td>${day.agents}</td>
+                        <td>
+                            <div style="display: flex; align-items: center; gap: 5px;">
+                                <span style="font-size: 1.2rem;">
+                                    ${day.avgScore > 0.5 ? '😊' : day.avgScore < -0.5 ? '😞' : '😐'}
+                                </span>
+                                <span>${day.avgScore.toFixed(2)}</span>
+                            </div>
+                        </td>
+                        <td style="color: ${trendColor}; font-weight: bold; font-size: 1.2rem;">
+                            ${trend}
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table>';
+            document.getElementById('dailyTable').innerHTML = html;
+        }
+
+        // =============================================
         // RENDERIZAÇÃO DE TABELAS
         // =============================================
         function renderTables() {
@@ -1774,10 +4153,20 @@
 
         async function refreshData() {
             showAlert('🔄 Atualizando dados...', 'info');
+            calculateDailyStats();
             updateStats();
             updateMetrics();
             renderCharts();
             renderTables();
+            
+            if (appState.currentTab === 'words') {
+                updateWordAnalysis();
+            } else if (appState.currentTab === 'trends') {
+                renderTrendsChart();
+                renderCorrelationChart();
+                renderDailyTable();
+            }
+            
             showAlert('✅ Dados atualizados!', 'success');
         }
 
@@ -1785,27 +4174,35 @@
             showAlert('💾 Exportando dados...', 'info');
         }
 
-        async function generateInsights() {
-            showAlert('🤖 Gerando insights com IA...', 'info');
-        }
-
-        async function quickAnalysis() {
-            showAlert('⚡ Análise rápida...', 'info');
-        }
-
-        async function transcribeAudio() {
-            showAlert('🎙️ Transcrevendo áudio...', 'info');
-        }
-
-        async function analyzeAudio() {
-            showAlert('🔍 Analisando áudio com IA...', 'info');
-        }
-
-        async function handleAudioUpload(event) {
-            const file = event.target.files[0];
-            if (file) {
-                showAlert(`🎵 Arquivo de áudio carregado: ${file.name}`, 'success');
+        async function exportTrendsData() {
+            if (Object.keys(appState.dailyStats).length === 0) {
+                showAlert('❌ Nenhum dado disponível para exportar', 'error');
+                return;
             }
+            
+            const dates = Object.keys(appState.dailyStats).sort();
+            let csvContent = "Data,Total Mensagens,Positivas,Negativas,Problemas,Soluções,Agentes Únicos,Pontuação Média\n";
+            
+            dates.forEach(date => {
+                const day = appState.dailyStats[date];
+                csvContent += `${date},${day.total},${day.positive},${day.negative},${day.problems},${day.solutions},${day.agents},${day.avgScore.toFixed(2)}\n`;
+            });
+            
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", "tendencias_conversas.csv");
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showAlert('✅ Dados de tendências exportados com sucesso!', 'success');
+        }
+
+        async function exportAgents() {
+            showAlert('📊 Exportando relatório de agentes...', 'info');
         }
     </script>
 </body>

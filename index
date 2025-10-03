@@ -1,0 +1,2414 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sentinela - Análise Inteligente de Conversas</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #000000;
+            --secondary-color: #FFFFFF;
+            --accent-color: #4CAF50;
+            --warning-color: #FFC107;
+            --danger-color: #F44336;
+            --info-color: #2196F3;
+            --light-gray: #f5f7fa;
+            --medium-gray: #e4e7ed;
+            --dark-gray: #333333;
+            --sidebar-width: 300px;
+            --header-height: 70px;
+            --border-radius: 8px;
+            --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--light-gray);
+            color: var(--primary-color);
+            line-height: 1.6;
+        }
+
+        .container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            height: var(--header-height);
+            background-color: var(--secondary-color);
+            box-shadow: var(--box-shadow);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            position: fixed;
+            top: 0;
+            left: var(--sidebar-width);
+            right: 0;
+            z-index: 100;
+            transition: var(--transition);
+        }
+
+        .header.collapsed {
+            left: 70px;
+        }
+
+        .header-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .header-actions {
+            margin-left: auto;
+            display: flex;
+            gap: 15px;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: var(--sidebar-width);
+            background-color: var(--secondary-color);
+            box-shadow: var(--box-shadow);
+            padding: 20px;
+            overflow-y: auto;
+            position: fixed;
+            height: 100vh;
+            z-index: 100;
+            transition: var(--transition);
+        }
+
+        .sidebar.collapsed {
+            width: 70px;
+            overflow: hidden;
+        }
+
+        .sidebar.collapsed .sidebar-content {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .sidebar-toggle {
+            position: absolute;
+            top: 20px;
+            right: 10px;
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            color: var(--primary-color);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--medium-gray);
+        }
+
+        .logo-icon {
+            font-size: 2rem;
+            margin-right: 10px;
+        }
+
+        .logo-text {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .sidebar.collapsed .logo-text {
+            display: none;
+        }
+
+        .main-content {
+            margin-left: var(--sidebar-width);
+            padding: 90px 20px 20px 20px;
+            width: calc(100% - var(--sidebar-width));
+            transition: var(--transition);
+        }
+
+        .main-content.expanded {
+            margin-left: 70px;
+            width: calc(100% - 70px);
+        }
+
+        .section {
+            margin-bottom: 25px;
+        }
+
+        .section-title {
+            font-weight: bold;
+            margin-bottom: 15px;
+            padding-left: 10px;
+            border-left: 4px solid var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-title i {
+            font-size: 1.2rem;
+        }
+
+        .sidebar.collapsed .section-title span {
+            display: none;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .input-group input,
+        .input-group textarea,
+        .input-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--medium-gray);
+            border-radius: var(--border-radius);
+            background-color: var(--secondary-color);
+            color: var(--primary-color);
+            transition: var(--transition);
+        }
+
+        .input-group input:focus,
+        .input-group textarea:focus,
+        .input-group select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
+        }
+
+        .input-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .button {
+            background-color: var(--primary-color);
+            color: var(--secondary-color);
+            border: 2px solid var(--primary-color);
+            padding: 10px 15px;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-weight: 600;
+            transition: var(--transition);
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .button:hover {
+            background-color: var(--dark-gray);
+            border-color: var(--dark-gray);
+        }
+
+        .button-primary {
+            background-color: var(--primary-color);
+            color: var(--secondary-color);
+        }
+
+        .button-secondary {
+            background-color: transparent;
+            color: var(--primary-color);
+        }
+
+        .button-success {
+            background-color: var(--accent-color);
+            border-color: var(--accent-color);
+            color: white;
+        }
+
+        .button-warning {
+            background-color: var(--warning-color);
+            border-color: var(--warning-color);
+            color: black;
+        }
+
+        .button-danger {
+            background-color: var(--danger-color);
+            border-color: var(--danger-color);
+            color: white;
+        }
+
+        .button-info {
+            background-color: var(--info-color);
+            border-color: var(--info-color);
+            color: white;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+
+        .status-success {
+            background-color: var(--accent-color);
+        }
+
+        .status-error {
+            background-color: var(--danger-color);
+        }
+
+        .status-warning {
+            background-color: var(--warning-color);
+        }
+
+        /* Dashboard */
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .dashboard-title {
+            font-size: 1.8rem;
+            font-weight: bold;
+        }
+
+        .dashboard-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .metric-card {
+            background-color: var(--secondary-color);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            box-shadow: var(--box-shadow);
+            transition: var(--transition);
+        }
+
+        .metric-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .metric-icon {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+            color: var(--primary-color);
+        }
+
+        .metric-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .metric-label {
+            font-size: 0.9rem;
+            color: var(--dark-gray);
+        }
+
+        .metric-trend {
+            display: flex;
+            align-items: center;
+            font-size: 0.8rem;
+            margin-top: 5px;
+        }
+
+        .trend-up {
+            color: var(--accent-color);
+        }
+
+        .trend-down {
+            color: var(--danger-color);
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid var(--medium-gray);
+            margin-bottom: 20px;
+            overflow-x: auto;
+        }
+
+        .tab {
+            padding: 12px 20px;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            white-space: nowrap;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tab:hover {
+            background-color: var(--light-gray);
+        }
+
+        .tab.active {
+            border-bottom: 3px solid var(--primary-color);
+            font-weight: bold;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Charts */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .chart-container {
+            background-color: var(--secondary-color);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            box-shadow: var(--box-shadow);
+        }
+
+        .chart-title {
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Tables */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--medium-gray);
+        }
+
+        .data-table th {
+            background-color: var(--light-gray);
+            font-weight: 600;
+        }
+
+        .data-table tr:hover {
+            background-color: var(--light-gray);
+        }
+
+        /* Chat bubbles */
+        .chat-container {
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 10px;
+            background-color: var(--light-gray);
+            border-radius: var(--border-radius);
+        }
+
+        .chat-agent {
+            background-color: var(--secondary-color);
+            padding: 12px 15px;
+            border-radius: 18px 18px 18px 0;
+            margin: 8px 0;
+            border-left: 4px solid var(--accent-color);
+            max-width: 80%;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+
+        .chat-client {
+            background-color: #e3f2fd;
+            padding: 12px 15px;
+            border-radius: 18px 18px 0 18px;
+            margin: 8px 0 8px auto;
+            border-left: 4px solid var(--info-color);
+            max-width: 80%;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+
+        .chat-sender {
+            font-weight: bold;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+        }
+
+        /* Alertas */
+        .alert {
+            padding: 15px;
+            border-radius: var(--border-radius);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .alert i {
+            font-size: 1.2rem;
+        }
+
+        .alert-info {
+            background-color: #e3f2fd;
+            border-left: 4px solid var(--info-color);
+        }
+
+        .alert-warning {
+            background-color: #fff3cd;
+            border-left: 4px solid var(--warning-color);
+        }
+
+        .alert-success {
+            background-color: #e8f5e9;
+            border-left: 4px solid var(--accent-color);
+        }
+
+        .alert-error {
+            background-color: #ffebee;
+            border-left: 4px solid var(--danger-color);
+        }
+
+        /* Progress bars */
+        .progress-bar {
+            height: 8px;
+            background-color: var(--medium-gray);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background-color: var(--accent-color);
+            border-radius: 4px;
+        }
+
+        /* Cards */
+        .card {
+            background-color: var(--secondary-color);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            box-shadow: var(--box-shadow);
+            margin-bottom: 20px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .card-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        /* Forms */
+        .form-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .form-group {
+            flex: 1;
+        }
+
+        /* Responsividade */
+        @media (max-width: 1200px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                transform: translateX(-100%);
+                z-index: 1000;
+            }
+            
+            .sidebar.active {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-left: 0;
+                width: 100%;
+                padding: 70px 15px 15px 15px;
+            }
+            
+            .header {
+                left: 0;
+            }
+            
+            .metrics-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .form-row {
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .metrics-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .dashboard-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+            
+            .dashboard-actions {
+                width: 100%;
+                justify-content: space-between;
+            }
+        }
+
+        /* Loading spinner */
+        .spinner {
+            border: 3px solid var(--medium-gray);
+            border-top: 3px solid var(--primary-color);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background-color: var(--secondary-color);
+            border-radius: var(--border-radius);
+            padding: 30px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--dark-gray);
+        }
+
+        /* Utilities */
+        .text-center {
+            text-align: center;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .mb-0 {
+            margin-bottom: 0;
+        }
+
+        .mt-20 {
+            margin-top: 20px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        /* Dark mode support */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --primary-color: #FFFFFF;
+                --secondary-color: #1a1a1a;
+                --light-gray: #2d2d2d;
+                --medium-gray: #3d3d3d;
+                --dark-gray: #cccccc;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        <div class="sidebar" id="sidebar">
+            <button class="sidebar-toggle" id="sidebarToggle">
+                <i class="fas fa-bars"></i>
+            </button>
+            
+            <div class="logo">
+                <div class="logo-icon">🛡️</div>
+                <div class="logo-text">Sentinela</div>
+            </div>
+            
+            <div class="sidebar-content">
+                <div class="section">
+                    <h3 class="section-title">
+                        <i class="fas fa-tachometer-alt"></i>
+                        <span>Dashboard</span>
+                    </h3>
+                    <div class="input-group">
+                        <label>Data Inicial</label>
+                        <input type="date" id="startDate">
+                    </div>
+                    <div class="input-group">
+                        <label>Data Final</label>
+                        <input type="date" id="endDate">
+                    </div>
+                    <button class="button button-primary" id="applyFilter">
+                        <i class="fas fa-filter"></i>
+                        <span>Aplicar Filtro</span>
+                    </button>
+                </div>
+                
+                <div class="section">
+                    <h3 class="section-title">
+                        <i class="fas fa-database"></i>
+                        <span>Fontes de Dados</span>
+                    </h3>
+                    <div class="input-group">
+                        <label>Upload de Arquivo</label>
+                        <input type="file" id="fileUpload" accept=".csv,.xlsx,.xls">
+                    </div>
+                    <div class="input-group">
+                        <label>ID da Planilha Google</label>
+                        <input type="text" id="sheetId" placeholder="ID da planilha">
+                    </div>
+                    <button class="button button-primary" id="loadData">
+                        <i class="fas fa-sync-alt"></i>
+                        <span>Carregar Dados</span>
+                    </button>
+                </div>
+                
+                <div class="section">
+                    <h3 class="section-title">
+                        <i class="fas fa-cogs"></i>
+                        <span>Configurações</span>
+                    </h3>
+                    <div class="input-group">
+                        <label>
+                            <input type="checkbox" id="enableIA" checked> 
+                            Usar Análise de IA
+                        </label>
+                    </div>
+                    <div class="input-group">
+                        <label>Buscar Palavra</label>
+                        <input type="text" id="searchWord" placeholder="Digite uma palavra...">
+                    </div>
+                </div>
+                
+                <div class="section">
+                    <h3 class="section-title">
+                        <i class="fas fa-chart-pie"></i>
+                        <span>Estatísticas</span>
+                    </h3>
+                    <div id="statsContainer">
+                        <div class="metric-card">
+                            <div class="metric-label">Total de Interações</div>
+                            <div class="metric-value" id="statInteractions">0</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-label">Total de Mensagens</div>
+                            <div class="metric-value" id="statMessages">0</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-label">Agentes Únicos</div>
+                            <div class="metric-value" id="statAgents">0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Header -->
+        <div class="header" id="header">
+            <div class="header-title">Painel de Análise</div>
+            <div class="header-actions">
+                <button class="button button-info" id="exportData">
+                    <i class="fas fa-download"></i>
+                    Exportar
+                </button>
+                <button class="button button-primary" id="refreshData">
+                    <i class="fas fa-redo"></i>
+                    Atualizar
+                </button>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="main-content" id="mainContent">
+            <!-- Alertas -->
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i>
+                <div>
+                    <strong>Bem-vindo ao Sentinela!</strong> Carregue seus dados para começar a análise.
+                </div>
+            </div>
+            
+            <!-- Métricas Principais -->
+            <div class="metrics-grid" id="metricsGrid">
+                <div class="metric-card">
+                    <div class="metric-icon">🛡️</div>
+                    <div class="metric-value" id="metricInteractions">0</div>
+                    <div class="metric-label">Interações</div>
+                    <div class="metric-trend trend-up">
+                        <i class="fas fa-arrow-up"></i>
+                        <span>12% vs período anterior</span>
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-icon">💬</div>
+                    <div class="metric-value" id="metricMessages">0</div>
+                    <div class="metric-label">Mensagens</div>
+                    <div class="metric-trend trend-up">
+                        <i class="fas fa-arrow-up"></i>
+                        <span>8% vs período anterior</span>
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-icon">✅</div>
+                    <div class="metric-value" id="metricPositive">0</div>
+                    <div class="metric-label">Positivas</div>
+                    <div class="metric-trend trend-up">
+                        <i class="fas fa-arrow-up"></i>
+                        <span>5% vs período anterior</span>
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-icon">⚠️</div>
+                    <div class="metric-value" id="metricNegative">0</div>
+                    <div class="metric-label">Negativas</div>
+                    <div class="metric-trend trend-down">
+                        <i class="fas fa-arrow-down"></i>
+                        <span>3% vs período anterior</span>
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-icon">🔍</div>
+                    <div class="metric-value" id="metricProblems">0</div>
+                    <div class="metric-label">Problemas</div>
+                    <div class="metric-trend trend-down">
+                        <i class="fas fa-arrow-down"></i>
+                        <span>7% vs período anterior</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Abas -->
+            <div class="tabs">
+                <div class="tab active" data-tab="overview">
+                    <i class="fas fa-chart-bar"></i>
+                    Visão Geral
+                </div>
+                <div class="tab" data-tab="agents">
+                    <i class="fas fa-users"></i>
+                    Agentes
+                </div>
+                <div class="tab" data-tab="trends">
+                    <i class="fas fa-chart-line"></i>
+                    Tendências
+                </div>
+                <div class="tab" data-tab="words">
+                    <i class="fas fa-font"></i>
+                    Análise de Texto
+                </div>
+                <div class="tab" data-tab="ai">
+                    <i class="fas fa-robot"></i>
+                    IA Avançada
+                </div>
+                <div class="tab" data-tab="audio">
+                    <i class="fas fa-microphone"></i>
+                    Análise de Áudio
+                </div>
+            </div>
+            
+            <!-- Conteúdo das Abas -->
+            <div class="tab-content active" id="overview">
+                <div class="charts-grid">
+                    <div class="chart-container">
+                        <div class="chart-title">
+                            <i class="fas fa-smile"></i>
+                            Distribuição de Sentimento
+                        </div>
+                        <div id="sentimentChart"></div>
+                    </div>
+                    <div class="chart-container">
+                        <div class="chart-title">
+                            <i class="fas fa-users"></i>
+                            Agentes com Mais Atendimentos
+                        </div>
+                        <div id="agentsChart"></div>
+                    </div>
+                    <div class="chart-container">
+                        <div class="chart-title">
+                            <i class="fas fa-chart-pie"></i>
+                            Análise de Conteúdo
+                        </div>
+                        <div id="contentChart"></div>
+                    </div>
+                    <div class="chart-container">
+                        <div class="chart-title">
+                            <i class="fas fa-calendar-alt"></i>
+                            Evolução Temporal
+                        </div>
+                        <div id="temporalChart"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="tab-content" id="agents">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Desempenho por Agente</div>
+                        <button class="button button-info" id="exportAgents">
+                            <i class="fas fa-download"></i>
+                            Exportar Relatório
+                        </button>
+                    </div>
+                    <div id="agentsTable"></div>
+                </div>
+            </div>
+            
+            <div class="tab-content" id="trends">
+                <div class="charts-grid">
+                    <div class="chart-container">
+                        <div class="chart-title">
+                            <i class="fas fa-chart-line"></i>
+                            Métricas ao Longo do Tempo
+                        </div>
+                        <div id="trendsChart"></div>
+                    </div>
+                    <div class="chart-container">
+                        <div class="chart-title">
+                            <i class="fas fa-project-diagram"></i>
+                            Correlação entre Métricas
+                        </div>
+                        <div id="correlationChart"></div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Dados Diários</div>
+                    </div>
+                    <div id="dailyTable"></div>
+                </div>
+            </div>
+            
+            <div class="tab-content" id="words">
+                <div class="charts-grid">
+                    <div class="chart-container">
+                        <div class="chart-title">
+                            <i class="fas fa-cloud"></i>
+                            Nuvem de Palavras
+                        </div>
+                        <canvas id="wordCloud" width="600" height="300"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <div class="chart-title">
+                            <i class="fas fa-chart-bar"></i>
+                            Palavras Mais Frequentes
+                        </div>
+                        <div id="wordFrequencyChart"></div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Busca por Palavras</div>
+                    </div>
+                    <div class="input-group">
+                        <input type="text" id="wordSearch" placeholder="Digite uma palavra para buscar...">
+                    </div>
+                    <div id="searchResults"></div>
+                </div>
+            </div>
+            
+            <div class="tab-content" id="ai">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Análise com IA</div>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="fas fa-robot"></i>
+                        <div>
+                            <strong>Análise Inteligente</strong> - Use IA para obter insights avançados sobre suas conversas.
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label>Prompt para Análise</label>
+                        <textarea id="iaPrompt" rows="4">Analise as conversas e identifique os principais problemas, oportunidades de melhoria e pontos fortes:</textarea>
+                    </div>
+                    <div class="form-row">
+                        <button class="button button-primary" id="generateInsights">
+                            <i class="fas fa-brain"></i>
+                            Gerar Insights
+                        </button>
+                        <button class="button button-info" id="quickAnalysis">
+                            <i class="fas fa-bolt"></i>
+                            Análise Rápida
+                        </button>
+                    </div>
+                    <div id="iaResults" class="mt-20"></div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Oportunidades Identificadas</div>
+                    </div>
+                    <div id="opportunitiesList"></div>
+                </div>
+            </div>
+            
+            <div class="tab-content" id="audio">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Análise de Áudio</div>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="fas fa-microphone"></i>
+                        <div>
+                            <strong>Transcrição e Análise de Áudio</strong> - Faça upload de arquivos de áudio para transcrição e análise.
+                        </div>
+                    </div>
+                    
+                    <div class="section">
+                        <h3 class="section-title">
+                            <i class="fas fa-upload"></i>
+                            Upload de Áudio
+                        </h3>
+                        <div class="input-group">
+                            <input type="file" id="audioUpload" accept=".wav,.mp3,.m4a,.ogg">
+                        </div>
+                        <div id="audioInfo"></div>
+                    </div>
+                    
+                    <div class="section">
+                        <h3 class="section-title">
+                            <i class="fas fa-database"></i>
+                            Base de Conhecimento (Opcional)
+                        </h3>
+                        <div class="input-group">
+                            <input type="file" id="knowledgeUpload" accept=".csv,.xlsx,.txt">
+                        </div>
+                    </div>
+                    
+                    <div class="section">
+                        <h3 class="section-title">
+                            <i class="fas fa-language"></i>
+                            Transcrição
+                        </h3>
+                        <button class="button button-primary" id="transcribeAudio">
+                            <i class="fas fa-microphone-alt"></i>
+                            Transcrever Áudio
+                        </button>
+                        <div id="transcriptionResults" class="mt-20"></div>
+                    </div>
+                    
+                    <div class="section">
+                        <h3 class="section-title">
+                            <i class="fas fa-robot"></i>
+                            Análise com IA
+                        </h3>
+                        <div class="input-group">
+                            <label>Prompt para Análise do Áudio</label>
+                            <textarea id="audioPrompt" rows="4">Analise esta conversa transcrita e identifique os principais problemas, sentimentos e oportunidades:</textarea>
+                        </div>
+                        <button class="button button-primary" id="analyzeAudio">
+                            <i class="fas fa-search"></i>
+                            Analisar com IA
+                        </button>
+                        <div id="audioAnalysisResults" class="mt-20"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Configurações -->
+    <div class="modal" id="settingsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Configurações</div>
+                <button class="modal-close" id="closeSettings">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="input-group">
+                <label>Stop Words (uma por linha)</label>
+                <textarea id="stopWords" rows="10"></textarea>
+            </div>
+            <div class="form-row">
+                <button class="button button-primary" id="saveSettings">
+                    <i class="fas fa-save"></i>
+                    Salvar Configurações
+                </button>
+                <button class="button button-secondary" id="resetSettings">
+                    <i class="fas fa-undo"></i>
+                    Restaurar Padrão
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Dados de exemplo para demonstração
+        const sampleData = [
+            { Agente: "joao.silva@empresa.com", Data: "24/09/2024", Hora: "10:15:23", Texto: "Olá, bom dia! Como posso ajudá-lo hoje?" },
+            { Agente: "joao.silva@empresa.com", Data: "24/09/2024", Hora: "10:16:05", Texto: "Entendo seu problema com o acesso à conta. Vou verificar isso para você imediatamente." },
+            { Agente: "maria.santos@empresa.com", Data: "24/09/2024", Hora: "11:30:45", Texto: "Boa tarde! Em que posso ser útil?" },
+            { Agente: "maria.santos@empresa.com", Data: "24/09/2024", Hora: "11:31:20", Texto: "Infelizmente não consigo acessar essa informação no momento. Vou escalar para nossa equipe técnica." },
+            { Agente: "carlos.oliveira@empresa.com", Data: "25/09/2024", Hora: "09:05:12", Texto: "Obrigado por entrar em contato! Como está o seu dia?" },
+            { Agente: "carlos.oliveira@empresa.com", Data: "25/09/2024", Hora: "09:06:33", Texto: "Vou resolver isso imediatamente para você. Pode tentar acessar agora?" },
+            { Agente: "ana.pereira@empresa.com", Data: "25/09/2024", Hora: "14:22:18", Texto: "Desculpe pelo inconveniente, vamos corrigir esse problema o mais rápido possível." },
+            { Agente: "ana.pereira@empresa.com", Data: "25/09/2024", Hora: "14:23:05", Texto: "Sua solicitação foi processada com sucesso! Alguma outra coisa que possamos ajudar?" },
+            { Agente: "pedro.costa@empresa.com", Data: "26/09/2024", Hora: "16:45:30", Texto: "Preciso de mais informações para poder ajudá-lo melhor. Pode me fornecer mais detalhes?" },
+            { Agente: "pedro.costa@empresa.com", Data: "26/09/2024", Hora: "16:46:15", Texto: "Encontrei a solução para o seu problema. Vou guiá-lo através dos passos necessários." },
+            { Agente: "joao.silva@empresa.com", Data: "26/09/2024", Hora: "17:20:10", Texto: "Estou verificando o status do seu pedido. Só um momento por favor." },
+            { Agente: "maria.santos@empresa.com", Data: "27/09/2024", Hora: "08:45:22", Texto: "Bom dia! Notei que você teve um problema ontem. Está tudo resolvido agora?" },
+            { Agente: "carlos.oliveira@empresa.com", Data: "27/09/2024", Hora: "10:30:15", Texto: "Excelente! Fico feliz que tenha funcionado. Precisa de mais alguma coisa?" },
+            { Agente: "ana.pereira@empresa.com", Data: "27/09/2024", Hora: "13:15:40", Texto: "Vou transferir você para um especialista que pode ajudar melhor com essa questão." },
+            { Agente: "pedro.costa@empresa.com", Data: "27/09/2024", Hora: "15:50:05", Texto: "Obrigado pela paciência. Estou resolvendo isso para você agora." }
+        ];
+
+        // Estado da aplicação
+        const appState = {
+            data: [],
+            filteredData: [],
+            stopWords: ["o", "a", "os", "as", "um", "uma", "uns", "umas", "de", "do", "da", "dos", "das", "em", "no", "na", "nos", "nas", "por", "para", "que", "e", "é", "ser", "se", "como", "mas", "ou", "com", "nao", "sim", "ate", "porque"],
+            metrics: {},
+            currentTab: 'overview',
+            isSidebarCollapsed: false
+        };
+
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', function() {
+            // Carregar dados de exemplo
+            appState.data = sampleData;
+            appState.filteredData = sampleData;
+            
+            // Inicializar interface
+            initializeUI();
+            updateStats();
+            updateMetrics();
+            renderCharts();
+            renderTables();
+            
+            // Configurar event listeners
+            setupEventListeners();
+            
+            // Preencher datas padrão
+            setDefaultDates();
+        });
+
+        // Inicializar UI
+        function initializeUI() {
+            // Preencher stop words
+            document.getElementById('stopWords').value = appState.stopWords.join('\n');
+            
+            // Inicializar gráficos vazios
+            initializeEmptyCharts();
+        }
+
+        // Configurar event listeners
+        function setupEventListeners() {
+            // Tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                    
+                    this.classList.add('active');
+                    document.getElementById(this.dataset.tab).classList.add('active');
+                    appState.currentTab = this.dataset.tab;
+                    
+                    // Renderizar gráficos específicos da aba se necessário
+                    if (appState.currentTab === 'words') {
+                        renderWordCloud();
+                    }
+                });
+            });
+            
+            // Sidebar toggle
+            document.getElementById('sidebarToggle').addEventListener('click', toggleSidebar);
+            
+            // Botões principais
+            document.getElementById('loadData').addEventListener('click', loadData);
+            document.getElementById('applyFilter').addEventListener('click', applyDateFilter);
+            document.getElementById('refreshData').addEventListener('click', refreshData);
+            document.getElementById('exportData').addEventListener('click', exportData);
+            document.getElementById('generateInsights').addEventListener('click', generateInsights);
+            document.getElementById('quickAnalysis').addEventListener('click', quickAnalysis);
+            document.getElementById('transcribeAudio').addEventListener('click', transcribeAudio);
+            document.getElementById('analyzeAudio').addEventListener('click', analyzeAudio);
+            document.getElementById('exportAgents').addEventListener('click', exportAgentsReport);
+            
+            // Upload de arquivos
+            document.getElementById('fileUpload').addEventListener('change', handleFileUpload);
+            document.getElementById('audioUpload').addEventListener('change', handleAudioUpload);
+            document.getElementById('knowledgeUpload').addEventListener('change', handleKnowledgeUpload);
+            
+            // Busca
+            document.getElementById('wordSearch').addEventListener('input', handleWordSearch);
+            document.getElementById('searchWord').addEventListener('input', handleGlobalSearch);
+            
+            // Configurações
+            document.getElementById('saveSettings').addEventListener('click', saveSettings);
+            document.getElementById('resetSettings').addEventListener('click', resetSettings);
+            document.getElementById('closeSettings').addEventListener('click', closeSettingsModal);
+            
+            // Modal de configurações
+            document.getElementById('enableIA').addEventListener('change', toggleIA);
+        }
+
+        // Alternar sidebar
+        function toggleSidebar() {
+            appState.isSidebarCollapsed = !appState.isSidebarCollapsed;
+            
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.getElementById('mainContent');
+            const header = document.getElementById('header');
+            
+            if (appState.isSidebarCollapsed) {
+                sidebar.classList.add('collapsed');
+                mainContent.classList.add('expanded');
+                header.classList.add('collapsed');
+            } else {
+                sidebar.classList.remove('collapsed');
+                mainContent.classList.remove('expanded');
+                header.classList.remove('collapsed');
+            }
+        }
+
+        // Carregar dados
+        function loadData() {
+            const sheetId = document.getElementById('sheetId').value;
+            const fileInput = document.getElementById('fileUpload');
+            
+            if (fileInput.files.length > 0) {
+                // Processar arquivo carregado
+                processFile(fileInput.files[0]);
+            } else if (sheetId) {
+                // Simular carregamento do Google Sheets
+                showAlert('🔗 Conectando ao Google Sheets...', 'info');
+                
+                setTimeout(() => {
+                    appState.data = sampleData;
+                    appState.filteredData = sampleData;
+                    updateStats();
+                    updateMetrics();
+                    renderCharts();
+                    renderTables();
+                    showAlert('✅ Dados carregados com sucesso!', 'success');
+                }, 1500);
+            } else {
+                showAlert('⚠️ Selecione uma fonte de dados', 'warning');
+            }
+        }
+
+        // Processar arquivo
+        function processFile(file) {
+            showAlert(`📁 Processando ${file.name}...`, 'info');
+            
+            const fileExtension = file.name.split('.').pop().toLowerCase();
+            
+            if (fileExtension === 'csv') {
+                Papa.parse(file, {
+                    complete: function(results) {
+                        if (results.data && results.data.length > 0) {
+                            // Converter para formato padrão
+                            const processedData = processCSVData(results.data);
+                            appState.data = processedData;
+                            appState.filteredData = processedData;
+                            updateStats();
+                            updateMetrics();
+                            renderCharts();
+                            renderTables();
+                            showAlert('✅ Arquivo CSV processado com sucesso!', 'success');
+                        } else {
+                            showAlert('❌ Erro ao processar arquivo CSV', 'error');
+                        }
+                    },
+                    header: true,
+                    skipEmptyLines: true
+                });
+            } else if (fileExtension === 'xlsx' || fileExtension === 'xls') {
+                // Processar Excel
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    // Obter primeira planilha
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+                    
+                    if (jsonData && jsonData.length > 0) {
+                        appState.data = jsonData;
+                        appState.filteredData = jsonData;
+                        updateStats();
+                        updateMetrics();
+                        renderCharts();
+                        renderTables();
+                        showAlert('✅ Arquivo Excel processado com sucesso!', 'success');
+                    } else {
+                        showAlert('❌ Erro ao processar arquivo Excel', 'error');
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            } else {
+                showAlert('❌ Formato de arquivo não suportado', 'error');
+            }
+        }
+
+        // Processar dados CSV
+        function processCSVData(csvData) {
+            // Verificar se tem cabeçalhos esperados
+            const headers = Object.keys(csvData[0]);
+            const requiredHeaders = ['Agente', 'Data', 'Hora', 'Texto'];
+            
+            const hasRequiredHeaders = requiredHeaders.every(header => 
+                headers.some(h => h.toLowerCase() === header.toLowerCase())
+            );
+            
+            if (!hasRequiredHeaders) {
+                showAlert('⚠️ Cabeçalhos não correspondem ao formato esperado', 'warning');
+            }
+            
+            return csvData.map(row => {
+                // Mapear cabeçalhos para formato padrão
+                const agentHeader = headers.find(h => h.toLowerCase() === 'agente');
+                const dateHeader = headers.find(h => h.toLowerCase() === 'data');
+                const timeHeader = headers.find(h => h.toLowerCase() === 'hora');
+                const textHeader = headers.find(h => h.toLowerCase() === 'texto');
+                
+                return {
+                    Agente: row[agentHeader] || 'N/A',
+                    Data: row[dateHeader] || 'N/A',
+                    Hora: row[timeHeader] || 'N/A',
+                    Texto: row[textHeader] || ''
+                };
+            });
+        }
+
+        // Aplicar filtro de data
+        function applyDateFilter() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            
+            if (startDate && endDate) {
+                // Converter datas para formato comparável
+                const start = new Date(startDate);
+                const end = new Date(endDate);
+                
+                // Filtrar dados
+                appState.filteredData = appState.data.filter(item => {
+                    const itemDate = new Date(convertDate(item.Data));
+                    return itemDate >= start && itemDate <= end;
+                });
+                
+                updateStats();
+                updateMetrics();
+                renderCharts();
+                renderTables();
+                showAlert(`📅 Filtro aplicado: ${formatDate(start)} a ${formatDate(end)}`, 'success');
+            } else {
+                showAlert('⚠️ Selecione as datas de início e fim', 'warning');
+            }
+        }
+
+        // Atualizar dados
+        function refreshData() {
+            showAlert('🔄 Atualizando dados...', 'info');
+            
+            // Simular atualização
+            setTimeout(() => {
+                updateStats();
+                updateMetrics();
+                renderCharts();
+                renderTables();
+                showAlert('✅ Dados atualizados com sucesso!', 'success');
+            }, 1000);
+        }
+
+        // Exportar dados
+        function exportData() {
+            showAlert('📊 Preparando exportação...', 'info');
+            
+            // Simular exportação
+            setTimeout(() => {
+                // Criar conteúdo CSV
+                const headers = ['Agente', 'Data', 'Hora', 'Texto', 'Sentimento', 'Problemas', 'Soluções'];
+                const csvContent = [
+                    headers.join(','),
+                    ...appState.filteredData.map(row => 
+                        headers.map(header => {
+                            const value = row[header] || '';
+                            return `"${value.toString().replace(/"/g, '""')}"`;
+                        }).join(',')
+                    )
+                ].join('\n');
+                
+                // Criar e baixar arquivo
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                const url = URL.createObjectURL(blob);
+                
+                link.setAttribute('href', url);
+                link.setAttribute('download', `sentinela_export_${new Date().toISOString().split('T')[0]}.csv`);
+                link.style.visibility = 'hidden';
+                
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                showAlert('✅ Dados exportados com sucesso!', 'success');
+            }, 1500);
+        }
+
+        // Gerar insights com IA
+        function generateInsights() {
+            if (!document.getElementById('enableIA').checked) {
+                showAlert('❌ Análise de IA está desativada', 'error');
+                return;
+            }
+            
+            if (appState.filteredData.length === 0) {
+                showAlert('⚠️ Carregue dados primeiro', 'warning');
+                return;
+            }
+            
+            showAlert('🤖 Analisando conversas com IA...', 'info');
+            
+            // Simular análise de IA
+            setTimeout(() => {
+                const insights = `
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle"></i>
+                        <strong>Análise concluída com sucesso!</strong>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">📋 Insights do Sentinela IA</div>
+                        </div>
+                        <div style="padding: 15px;">
+                            <h4>1. PRINCIPAIS PROBLEMAS IDENTIFICADOS:</h4>
+                            <ul>
+                                <li><strong>Acesso a informações:</strong> Agentes frequentemente não conseguem acessar dados necessários</li>
+                                <li><strong>Tempo de resposta:</strong> Clientes relatam espera por soluções</li>
+                                <li><strong>Comunicação técnica:</strong> Dificuldade em explicar problemas complexos</li>
+                            </ul>
+                            
+                            <h4>2. PONTOS FORTES DO ATENDIMENTO:</h4>
+                            <ul>
+                                <li><strong>Empatia:</strong> Agentes demonstram compreensão pelas situações dos clientes</li>
+                                <li><strong>Proatividade:</strong> Busca ativa por soluções para os problemas</li>
+                                <li><strong>Educação:</strong> Linguagem cordial e profissional</li>
+                            </ul>
+                            
+                            <h4>3. OPORTUNIDADES DE MELHORIA:</h4>
+                            <ul>
+                                <li><strong>Treinamento técnico:</strong> Ampliar conhecimento sobre sistemas internos</li>
+                                <li><strong>Padronização:</strong> Criar respostas padrão para problemas comuns</li>
+                                <li><strong>Comunicação:</strong> Melhorar explicações técnicas para clientes</li>
+                            </ul>
+                            
+                            <h4>4. RECOMENDAÇÕES:</h4>
+                            <ul>
+                                <li>Implementar base de conhecimento centralizada</li>
+                                <li>Criar fluxos de escalonamento mais eficientes</li>
+                                <li>Desenvolver treinamento em comunicação técnica</li>
+                            </ul>
+                        </div>
+                    </div>
+                `;
+                
+                document.getElementById('iaResults').innerHTML = insights;
+            }, 3000);
+        }
+
+        // Análise rápida
+        function quickAnalysis() {
+            if (!document.getElementById('enableIA').checked) {
+                showAlert('❌ Análise de IA está desativada', 'error');
+                return;
+            }
+            
+            showAlert('⚡ Realizando análise rápida...', 'info');
+            
+            // Simular análise rápida
+            setTimeout(() => {
+                const quickResult = `
+                    <div class="alert alert-info">
+                        <i class="fas fa-bolt"></i>
+                        <div>
+                            <strong>Análise Rápida Concluída</strong>
+                            <p>Conversas predominantemente positivas com boa resolução de problemas. Oportunidade identificada: melhorar acesso a informações para todos os agentes. Tempo médio de resposta dentro do esperado.</p>
+                        </div>
+                    </div>
+                `;
+                
+                document.getElementById('iaResults').innerHTML = quickResult;
+            }, 1000);
+        }
+
+        // Transcrever áudio
+        function transcribeAudio() {
+            const audioFile = document.getElementById('audioUpload').files[0];
+            if (!audioFile) {
+                showAlert('❌ Selecione um arquivo de áudio primeiro', 'error');
+                return;
+            }
+            
+            showAlert('🔊 Processando áudio... Isso pode levar alguns minutos', 'info');
+            
+            // Simular transcrição
+            setTimeout(() => {
+                const transcription = `
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle"></i>
+                        <strong>Transcrição concluída com sucesso!</strong>
+                    </div>
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <div class="metric-label">📝 Palavras</div>
+                            <div class="metric-value">147</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-label">😊 Sentimento</div>
+                            <div class="metric-value">Positivo</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-label">🔤 Caracteres</div>
+                            <div class="metric-value">892</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-label">🎯 Confiança</div>
+                            <div class="metric-value">87%</div>
+                        </div>
+                    </div>
+                    <div class="card mt-20">
+                        <div class="card-header">
+                            <div class="card-title">💬 Transcrição em Formato de Chat</div>
+                        </div>
+                        <div class="chat-container">
+                            <div class="chat-agent">
+                                <div class="chat-sender">🎯 Agente</div>
+                                Olá, bom dia! Em que posso ajudar?
+                            </div>
+                            <div class="chat-client">
+                                <div class="chat-sender">👤 Cliente</div>
+                                Bom dia! Estou com um problema para acessar minha conta.
+                            </div>
+                            <div class="chat-agent">
+                                <div class="chat-sender">🎯 Agente</div>
+                                Entendo, vou verificar isso para você. Pode me informar seu e-mail?
+                            </div>
+                            <div class="chat-client">
+                                <div class="chat-sender">👤 Cliente</div>
+                                Claro, é cliente@exemplo.com
+                            </div>
+                            <div class="chat-agent">
+                                <div class="chat-sender">🎯 Agente</div>
+                                Obrigado! Encontrei o problema e já está resolvido. Pode tentar acessar agora?
+                            </div>
+                            <div class="chat-client">
+                                <div class="chat-sender">👤 Cliente</div>
+                                Funcionou perfeitamente! Muito obrigado pela ajuda rápida.
+                            </div>
+                            <div class="chat-agent">
+                                <div class="chat-sender">🎯 Agente</div>
+                                Que ótimo! Fico feliz em ajudar. Precisa de mais alguma coisa?
+                            </div>
+                            <div class="chat-client">
+                                <div class="chat-sender">👤 Cliente</div>
+                                Não, isso foi tudo. Obrigado novamente!
+                            </div>
+                            <div class="chat-agent">
+                                <div class="chat-sender">🎯 Agente</div>
+                                Tenha um ótimo dia! Estamos à disposição.
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                document.getElementById('transcriptionResults').innerHTML = transcription;
+            }, 4000);
+        }
+
+        // Analisar áudio com IA
+        function analyzeAudio() {
+            if (!document.getElementById('enableIA').checked) {
+                showAlert('❌ Análise de IA está desativada', 'error');
+                return;
+            }
+            
+            showAlert('🤖 Analisando transcrição com IA...', 'info');
+            
+            // Simular análise
+            setTimeout(() => {
+                const analysis = `
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle"></i>
+                        <strong>Análise concluída com sucesso!</strong>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">📋 Resultado da Análise</div>
+                        </div>
+                        <div style="padding: 15px;">
+                            <h4>1. PRINCIPAIS PROBLEMAS MENCIONADOS:</h4>
+                            <ul>
+                                <li>Problema de acesso à conta do cliente</li>
+                            </ul>
+                            
+                            <h4>2. SENTIMENTO GERAL DA CONVERSA:</h4>
+                            <ul>
+                                <li><strong>Positivo</strong> - Cliente demonstrou satisfação com a solução</li>
+                                <li><strong>Resolutivo</strong> - Problema foi identificado e corrigido rapidamente</li>
+                                <li><strong>Empático</strong> - Agente mostrou compreensão e educação</li>
+                            </ul>
+                            
+                            <h4>3. OPORTUNIDADES DE MELHORIA:</h4>
+                            <ul>
+                                <li>Nenhuma oportunidade crítica identificada</li>
+                                <li>Manter o padrão de atendimento rápido e eficiente</li>
+                            </ul>
+                            
+                            <h4>4. SUGESTÕES PARA O ATENDIMENTO:</h4>
+                            <ul>
+                                <li>Continuar com a abordagem proativa para resolver problemas</li>
+                                <li>Manter a comunicação clara e educada</li>
+                                <li>Documentar solução para casos similares futuros</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="form-row mt-20">
+                        <button class="button button-success">
+                            <i class="fas fa-save"></i>
+                            Salvar Análise
+                        </button>
+                        <button class="button button-info">
+                            <i class="fas fa-database"></i>
+                            Incorporar à Base
+                        </button>
+                    </div>
+                `;
+                
+                document.getElementById('audioAnalysisResults').innerHTML = analysis;
+            }, 2500);
+        }
+
+        // Atualizar estatísticas
+        function updateStats() {
+            const interactions = new Set(appState.filteredData.map(item => item.Agente + '_' + item.Data)).size;
+            const messages = appState.filteredData.length;
+            const agents = new Set(appState.filteredData.map(item => item.Agente)).size;
+            
+            document.getElementById('statInteractions').textContent = interactions;
+            document.getElementById('statMessages').textContent = messages;
+            document.getElementById('statAgents').textContent = agents;
+        }
+
+        // Atualizar métricas
+        function updateMetrics() {
+            const interactions = new Set(appState.filteredData.map(item => item.Agente + '_' + item.Data)).size;
+            const messages = appState.filteredData.length;
+            
+            // Calcular métricas simuladas
+            const positive = Math.floor(messages * 0.65);
+            const negative = Math.floor(messages * 0.15);
+            const problems = Math.floor(messages * 0.35);
+            
+            // Atualizar métricas na UI
+            document.getElementById('metricInteractions').textContent = interactions;
+            document.getElementById('metricMessages').textContent = messages;
+            document.getElementById('metricPositive').textContent = positive;
+            document.getElementById('metricNegative').textContent = negative;
+            document.getElementById('metricProblems').textContent = problems;
+            
+            // Atualizar estado
+            appState.metrics = {
+                total_interacoes: interactions,
+                total_mensagens: messages,
+                positivas: positive,
+                negativas: negative,
+                total_problemas: problems,
+                total_solucoes: Math.floor(messages * 0.55),
+                total_oportunidades: Math.floor(messages * 0.1)
+            };
+        }
+
+        // Renderizar gráficos
+        function renderCharts() {
+            renderSentimentChart();
+            renderAgentsChart();
+            renderContentChart();
+            renderTemporalChart();
+            renderTrendsChart();
+            renderCorrelationChart();
+            renderWordFrequencyChart();
+            renderWordCloud();
+        }
+
+        // Inicializar gráficos vazios
+        function initializeEmptyCharts() {
+            const emptyData = [{
+                x: [],
+                y: [],
+                type: 'bar'
+            }];
+            
+            const emptyLayout = {
+                title: '',
+                height: 300,
+                xaxis: { title: '' },
+                yaxis: { title: '' }
+            };
+            
+            Plotly.newPlot('sentimentChart', emptyData, emptyLayout, { displayModeBar: false });
+            Plotly.newPlot('agentsChart', emptyData, emptyLayout, { displayModeBar: false });
+            Plotly.newPlot('contentChart', emptyData, emptyLayout, { displayModeBar: false });
+            Plotly.newPlot('temporalChart', emptyData, emptyLayout, { displayModeBar: false });
+            Plotly.newPlot('trendsChart', emptyData, emptyLayout, { displayModeBar: false });
+            Plotly.newPlot('correlationChart', emptyData, emptyLayout, { displayModeBar: false });
+            Plotly.newPlot('wordFrequencyChart', emptyData, emptyLayout, { displayModeBar: false });
+        }
+
+        // Gráfico de Sentimento
+        function renderSentimentChart() {
+            if (appState.filteredData.length === 0) return;
+            
+            const data = [{
+                values: [appState.metrics.positivas, appState.metrics.negativas, 
+                        appState.metrics.total_mensagens - appState.metrics.positivas - appState.metrics.negativas],
+                labels: ['Positivo', 'Negativo', 'Neutro'],
+                type: 'pie',
+                marker: {
+                    colors: ['#4CAF50', '#F44336', '#FFC107']
+                },
+                textinfo: 'label+percent',
+                insidetextorientation: 'radial'
+            }];
+            
+            const layout = {
+                height: 300,
+                showlegend: true,
+                margin: { t: 0, b: 0, l: 0, r: 0 }
+            };
+            
+            Plotly.newPlot('sentimentChart', data, layout, { displayModeBar: false });
+        }
+
+        // Gráfico de Agentes
+        function renderAgentsChart() {
+            if (appState.filteredData.length === 0) return;
+            
+            // Agrupar por agente
+            const agentCounts = {};
+            appState.filteredData.forEach(item => {
+                agentCounts[item.Agente] = (agentCounts[item.Agente] || 0) + 1;
+            });
+            
+            const agents = Object.keys(agentCounts);
+            const counts = Object.values(agentCounts);
+            
+            const data = [{
+                x: agents,
+                y: counts,
+                type: 'bar',
+                marker: {
+                    color: '#2196F3'
+                }
+            }];
+            
+            const layout = {
+                height: 300,
+                xaxis: {
+                    title: 'Agentes'
+                },
+                yaxis: {
+                    title: 'Mensagens'
+                },
+                margin: { t: 0, b: 50, l: 50, r: 0 }
+            };
+            
+            Plotly.newPlot('agentsChart', data, layout, { displayModeBar: false });
+        }
+
+        // Gráfico de Conteúdo
+        function renderContentChart() {
+            if (appState.filteredData.length === 0) return;
+            
+            const data = [{
+                x: ['Problemas', 'Soluções', 'Oportunidades'],
+                y: [appState.metrics.total_problemas, appState.metrics.total_solucoes, appState.metrics.total_oportunidades],
+                type: 'bar',
+                marker: {
+                    color: ['#F44336', '#4CAF50', '#2196F3']
+                }
+            }];
+            
+            const layout = {
+                height: 300,
+                margin: { t: 0, b: 50, l: 50, r: 0 }
+            };
+            
+            Plotly.newPlot('contentChart', data, layout, { displayModeBar: false });
+        }
+
+        // Gráfico Temporal
+        function renderTemporalChart() {
+            if (appState.filteredData.length === 0) return;
+            
+            // Agrupar por data (simulação)
+            const dates = ['24/09', '25/09', '26/09', '27/09'];
+            const positive = [70, 65, 75, 80];
+            const problems = [25, 30, 20, 15];
+            const solutions = [60, 55, 65, 70];
+            
+            const trace1 = {
+                x: dates,
+                y: positive,
+                type: 'scatter',
+                mode: 'lines+markers',
+                name: '% Positivo',
+                line: { color: 'green', width: 3 }
+            };
+            
+            const trace2 = {
+                x: dates,
+                y: problems,
+                type: 'scatter',
+                mode: 'lines+markers',
+                name: 'Problemas',
+                line: { color: 'red', width: 3 }
+            };
+            
+            const trace3 = {
+                x: dates,
+                y: solutions,
+                type: 'scatter',
+                mode: 'lines+markers',
+                name: 'Soluções',
+                line: { color: 'blue', width: 3 }
+            };
+            
+            const data = [trace1, trace2, trace3];
+            
+            const layout = {
+                height: 300,
+                margin: { t: 0, b: 50, l: 50, r: 0 },
+                legend: { orientation: 'h', y: -0.2 }
+            };
+            
+            Plotly.newPlot('temporalChart', data, layout, { displayModeBar: false });
+        }
+
+        // Gráfico de Tendências
+        function renderTrendsChart() {
+            if (appState.filteredData.length === 0) return;
+            
+            // Dados simulados
+            const dates = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
+            const satisfaction = [85, 82, 88, 90, 87];
+            const responseTime = [2.5, 3.1, 2.2, 1.8, 2.0];
+            const resolutionRate = [78, 75, 82, 85, 80];
+            
+            const trace1 = {
+                x: dates,
+                y: satisfaction,
+                type: 'scatter',
+                mode: 'lines+markers',
+                name: 'Satisfação (%)',
+                line: { color: '#4CAF50', width: 3 },
+                yaxis: 'y'
+            };
+            
+            const trace2 = {
+                x: dates,
+                y: responseTime,
+                type: 'scatter',
+                mode: 'lines+markers',
+                name: 'Tempo Resposta (min)',
+                line: { color: '#2196F3', width: 3 },
+                yaxis: 'y2'
+            };
+            
+            const trace3 = {
+                x: dates,
+                y: resolutionRate,
+                type: 'bar',
+                name: 'Taxa Resolução (%)',
+                marker: { color: '#FFC107' },
+                yaxis: 'y'
+            };
+            
+            const data = [trace1, trace2, trace3];
+            
+            const layout = {
+                height: 400,
+                margin: { t: 0, b: 50, l: 50, r: 50 },
+                legend: { orientation: 'h', y: -0.2 },
+                yaxis: {
+                    title: 'Porcentagem',
+                    side: 'left'
+                },
+                yaxis2: {
+                    title: 'Minutos',
+                    overlaying: 'y',
+                    side: 'right'
+                }
+            };
+            
+            Plotly.newPlot('trendsChart', data, layout, { displayModeBar: false });
+        }
+
+        // Gráfico de Correlação
+        function renderCorrelationChart() {
+            if (appState.filteredData.length === 0) return;
+            
+            const data = [{
+                z: [[1, 0.7, 0.3, -0.5, 0.2],
+                    [0.7, 1, 0.5, -0.3, 0.6],
+                    [0.3, 0.5, 1, -0.1, 0.4],
+                    [-0.5, -0.3, -0.1, 1, -0.2],
+                    [0.2, 0.6, 0.4, -0.2, 1]],
+                x: ['Satisfação', 'Problemas', 'Soluções', 'Tempo Resposta', 'Resolução'],
+                y: ['Satisfação', 'Problemas', 'Soluções', 'Tempo Resposta', 'Resolução'],
+                type: 'heatmap',
+                colorscale: 'RdBu',
+                reversescale: true,
+                showscale: true
+            }];
+            
+            const layout = {
+                height: 400,
+                margin: { t: 0, b: 50, l: 50, r: 0 }
+            };
+            
+            Plotly.newPlot('correlationChart', data, layout, { displayModeBar: false });
+        }
+
+        // Gráfico de Frequência de Palavras
+        function renderWordFrequencyChart() {
+            if (appState.filteredData.length === 0) return;
+            
+            // Palavras mais frequentes (simulação)
+            const words = ['problema', 'ajuda', 'conta', 'acesso', 'solução', 'obrigado', 'cliente', 'informação', 'erro', 'funcionando'];
+            const frequencies = [25, 20, 18, 15, 12, 10, 8, 7, 6, 5];
+            
+            const data = [{
+                x: words,
+                y: frequencies,
+                type: 'bar',
+                marker: {
+                    color: '#2196F3'
+                }
+            }];
+            
+            const layout = {
+                height: 300,
+                margin: { t: 0, b: 50, l: 50, r: 0 }
+            };
+            
+            Plotly.newPlot('wordFrequencyChart', data, layout, { displayModeBar: false });
+        }
+
+        // Nuvem de palavras
+        function renderWordCloud() {
+            if (appState.filteredData.length === 0) return;
+            
+            const canvas = document.getElementById('wordCloud');
+            const ctx = canvas.getContext('2d');
+            
+            // Limpar canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Palavras para a nuvem (simulação)
+            const words = [
+                { text: 'problema', size: 40 },
+                { text: 'ajuda', size: 35 },
+                { text: 'conta', size: 30 },
+                { text: 'acesso', size: 28 },
+                { text: 'solução', size: 25 },
+                { text: 'obrigado', size: 22 },
+                { text: 'cliente', size: 20 },
+                { text: 'informação', size: 18 },
+                { text: 'erro', size: 16 },
+                { text: 'funcionando', size: 14 },
+                { text: 'suporte', size: 12 },
+                { text: 'atendimento', size: 10 }
+            ];
+            
+            // Desenhar palavras
+            let x = 50, y = 50;
+            const maxWidth = canvas.width - 100;
+            
+            words.forEach(word => {
+                ctx.font = `${word.size}px Arial`;
+                ctx.fillStyle = getRandomColor();
+                ctx.fillText(word.text, x, y);
+                
+                x += ctx.measureText(word.text).width + 15;
+                
+                if (x > maxWidth) {
+                    x = 50;
+                    y += 40;
+                }
+            });
+        }
+
+        // Renderizar tabelas
+        function renderTables() {
+            renderAgentsTable();
+            renderDailyTable();
+            renderOpportunitiesList();
+        }
+
+        // Tabela de Agentes
+        function renderAgentsTable() {
+            if (appState.filteredData.length === 0) {
+                document.getElementById('agentsTable').innerHTML = '<p class="text-center">Nenhum dado disponível</p>';
+                return;
+            }
+            
+            // Agrupar por agente
+            const agentData = {};
+            appState.filteredData.forEach(item => {
+                if (!agentData[item.Agente]) {
+                    agentData[item.Agente] = {
+                        messages: 0,
+                        interactions: new Set(),
+                        positive: 0,
+                        problems: 0
+                    };
+                }
+                
+                agentData[item.Agente].messages++;
+                agentData[item.Agente].interactions.add(item.Agente + '_' + item.Data);
+                
+                // Simular análise de sentimento
+                if (Math.random() > 0.3) agentData[item.Agente].positive++;
+                if (Math.random() > 0.7) agentData[item.Agente].problems++;
+            });
+            
+            let html = `
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Agente</th>
+                            <th>Interações</th>
+                            <th>Mensagens</th>
+                            <th>Positividade</th>
+                            <th>Problemas</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            Object.keys(agentData).forEach(agent => {
+                const data = agentData[agent];
+                const positivity = ((data.positive / data.messages) * 100).toFixed(1);
+                
+                html += `
+                    <tr>
+                        <td>${agent}</td>
+                        <td>${data.interactions.size}</td>
+                        <td>${data.messages}</td>
+                        <td>
+                            <div>${positivity}%</div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: ${positivity}%"></div>
+                            </div>
+                        </td>
+                        <td>${data.problems}</td>
+                        <td>
+                            <button class="button button-info" onclick="viewAgentDetails('${agent}')">
+                                <i class="fas fa-eye"></i>
+                                Detalhes
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table>';
+            
+            document.getElementById('agentsTable').innerHTML = html;
+        }
+
+        // Tabela Diária
+        function renderDailyTable() {
+            if (appState.filteredData.length === 0) {
+                document.getElementById('dailyTable').innerHTML = '<p class="text-center">Nenhum dado disponível</p>';
+                return;
+            }
+            
+            // Dados simulados
+            const dailyData = [
+                { date: '24/09/2024', interactions: 4, messages: 12, positive: 65, problems: 5, solutions: 8 },
+                { date: '25/09/2024', interactions: 5, messages: 14, positive: 70, problems: 4, solutions: 10 },
+                { date: '26/09/2024', interactions: 3, messages: 10, positive: 75, problems: 3, solutions: 7 },
+                { date: '27/09/2024', interactions: 6, messages: 16, positive: 80, problems: 2, solutions: 14 }
+            ];
+            
+            let html = `
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Interações</th>
+                            <th>Mensagens</th>
+                            <th>Positividade</th>
+                            <th>Problemas</th>
+                            <th>Soluções</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            dailyData.forEach(day => {
+                html += `
+                    <tr>
+                        <td>${day.date}</td>
+                        <td>${day.interactions}</td>
+                        <td>${day.messages}</td>
+                        <td>${day.positive}%</td>
+                        <td>${day.problems}</td>
+                        <td>${day.solutions}</td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table>';
+            
+            document.getElementById('dailyTable').innerHTML = html;
+        }
+
+        // Lista de Oportunidades
+        function renderOpportunitiesList() {
+            const opportunities = [
+                { 
+                    title: "Melhorar acesso a informações", 
+                    description: "Agentes frequentemente não conseguem acessar dados necessários para resolver problemas",
+                    priority: "Alta",
+                    impact: "Alto",
+                    effort: "Médio"
+                },
+                { 
+                    title: "Padronizar respostas", 
+                    description: "Criar respostas padrão para problemas comuns para aumentar eficiência",
+                    priority: "Média",
+                    impact: "Médio",
+                    effort: "Baixo"
+                },
+                { 
+                    title: "Treinamento em comunicação", 
+                    description: "Melhorar habilidades de comunicação técnica dos agentes",
+                    priority: "Média",
+                    impact: "Alto",
+                    effort: "Alto"
+                }
+            ];
+            
+            let html = '';
+            
+            opportunities.forEach(opp => {
+                html += `
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">${opp.title}</div>
+                            <span class="button button-${opp.priority === 'Alta' ? 'danger' : opp.priority === 'Média' ? 'warning' : 'info'}">
+                                ${opp.priority}
+                            </span>
+                        </div>
+                        <div style="padding: 15px;">
+                            <p>${opp.description}</p>
+                            <div class="form-row">
+                                <div class="metric-card">
+                                    <div class="metric-label">Impacto</div>
+                                    <div class="metric-value">${opp.impact}</div>
+                                </div>
+                                <div class="metric-card">
+                                    <div class="metric-label">Esforço</div>
+                                    <div class="metric-value">${opp.effort}</div>
+                                </div>
+                            </div>
+                            <button class="button button-primary mt-20">
+                                <i class="fas fa-play-circle"></i>
+                                Implementar
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            document.getElementById('opportunitiesList').innerHTML = html;
+        }
+
+        // Exportar relatório de agentes
+        function exportAgentsReport() {
+            showAlert('📊 Preparando relatório de agentes...', 'info');
+            
+            // Simular exportação
+            setTimeout(() => {
+                showAlert('✅ Relatório exportado com sucesso!', 'success');
+            }, 1500);
+        }
+
+        // Manipular upload de áudio
+        function handleAudioUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const fileSize = (file.size / (1024 * 1024)).toFixed(2);
+                document.getElementById('audioInfo').innerHTML = `
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle"></i>
+                        <div>
+                            <strong>Arquivo carregado: ${file.name}</strong>
+                            <div>Tamanho: ${fileSize} MB</div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // Manipular upload de base de conhecimento
+        function handleKnowledgeUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                showAlert(`📚 Base de conhecimento ${file.name} carregada com sucesso!`, 'success');
+            }
+        }
+
+        // Buscar por palavras
+        function handleWordSearch(event) {
+            const searchTerm = event.target.value.toLowerCase().trim();
+            
+            if (searchTerm.length < 2) {
+                document.getElementById('searchResults').innerHTML = '';
+                return;
+            }
+            
+            // Filtrar mensagens que contêm o termo
+            const results = appState.filteredData.filter(item => 
+                item.Texto.toLowerCase().includes(searchTerm)
+            );
+            
+            if (results.length === 0) {
+                document.getElementById('searchResults').innerHTML = `
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Nenhuma ocorrência encontrada para "${searchTerm}"
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = `
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle"></i>
+                    <strong>Encontradas ${results.length} ocorrências para "${searchTerm}"</strong>
+                </div>
+            `;
+            
+            results.slice(0, 10).forEach(item => {
+                // Destacar o termo buscado
+                const highlightedText = item.Texto.replace(
+                    new RegExp(searchTerm, 'gi'), 
+                    match => `<mark>${match}</mark>`
+                );
+                
+                html += `
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">${item.Agente}</div>
+                            <div>${item.Data} ${item.Hora}</div>
+                        </div>
+                        <div style="padding: 15px;">
+                            ${highlightedText}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            if (results.length > 10) {
+                html += `<p class="text-center">... e mais ${results.length - 10} ocorrências</p>`;
+            }
+            
+            document.getElementById('searchResults').innerHTML = html;
+        }
+
+        // Busca global
+        function handleGlobalSearch(event) {
+            const searchTerm = event.target.value.toLowerCase().trim();
+            // Implementação similar à handleWordSearch, mas com escopo global
+        }
+
+        // Salvar configurações
+        function saveSettings() {
+            const stopWordsText = document.getElementById('stopWords').value;
+            appState.stopWords = stopWordsText.split('\n').map(word => word.trim()).filter(word => word);
+            
+            closeSettingsModal();
+            showAlert('✅ Configurações salvas com sucesso!', 'success');
+        }
+
+        // Restaurar configurações padrão
+        function resetSettings() {
+            const defaultStopWords = ["o", "a", "os", "as", "um", "uma", "uns", "umas", "de", "do", "da", "dos", "das", "em", "no", "na", "nos", "nas", "por", "para", "que", "e", "é", "ser", "se", "como", "mas", "ou", "com", "nao", "sim", "ate", "porque"];
+            document.getElementById('stopWords').value = defaultStopWords.join('\n');
+            showAlert('✅ Configurações restauradas para o padrão!', 'success');
+        }
+
+        // Fechar modal de configurações
+        function closeSettingsModal() {
+            document.getElementById('settingsModal').classList.remove('active');
+        }
+
+        // Alternar IA
+        function toggleIA() {
+            const isEnabled = document.getElementById('enableIA').checked;
+            showAlert(
+                isEnabled ? '✅ Análise de IA ativada' : '❌ Análise de IA desativada', 
+                isEnabled ? 'success' : 'warning'
+            );
+        }
+
+        // Visualizar detalhes do agente
+        function viewAgentDetails(agent) {
+            showAlert(`📊 Carregando detalhes de ${agent}...`, 'info');
+            // Em uma implementação completa, isso abriria um modal ou navegaria para uma página de detalhes
+        }
+
+        // Mostrar alerta
+        function showAlert(message, type) {
+            // Remover alertas existentes
+            const existingAlerts = document.querySelectorAll('.temp-alert');
+            existingAlerts.forEach(alert => alert.remove());
+            
+            // Criar novo alerta
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type} temp-alert`;
+            alert.innerHTML = `
+                <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'warning' ? 'exclamation-triangle' : type === 'error' ? 'times-circle' : 'info-circle'}"></i>
+                <div>${message}</div>
+            `;
+            
+            // Adicionar ao início do conteúdo principal
+            const mainContent = document.querySelector('.main-content');
+            mainContent.insertBefore(alert, mainContent.firstChild);
+            
+            // Remover após 5 segundos
+            setTimeout(() => {
+                if (alert.parentNode) {
+                    alert.parentNode.removeChild(alert);
+                }
+            }, 5000);
+        }
+
+        // Utilitários de data
+        function setDefaultDates() {
+            const today = new Date();
+            const oneWeekAgo = new Date();
+            oneWeekAgo.setDate(today.getDate() - 7);
+            
+            document.getElementById('startDate').value = formatDateForInput(oneWeekAgo);
+            document.getElementById('endDate').value = formatDateForInput(today);
+        }
+
+        function formatDateForInput(date) {
+            return date.toISOString().split('T')[0];
+        }
+
+        function convertDate(dateStr) {
+            // Converter de DD/MM/YYYY para YYYY-MM-DD
+            const parts = dateStr.split('/');
+            if (parts.length === 3) {
+                return `${parts[2]}-${parts[1]}-${parts[0]}`;
+            }
+            return dateStr;
+        }
+
+        function formatDate(date) {
+            return date.toLocaleDateString('pt-BR');
+        }
+
+        function getRandomColor() {
+            const colors = ['#4CAF50', '#2196F3', '#FFC107', '#F44336', '#9C27B0', '#00BCD4', '#FF9800', '#795548'];
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+    </script>
+</body>
+</html>

@@ -4,12 +4,709 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sentinela - Análise Inteligente de Conversas</title>
-    <link rel="stylesheet" href="css/style.css">
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #000000;
+            --secondary-color: #FFFFFF;
+            --accent-color: #4CAF50;
+            --warning-color: #FFC107;
+            --danger-color: #F44336;
+            --info-color: #2196F3;
+            --light-gray: #f5f7fa;
+            --medium-gray: #e4e7ed;
+            --dark-gray: #333333;
+            --sidebar-width: 300px;
+            --header-height: 70px;
+            --border-radius: 8px;
+            --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--light-gray);
+            color: var(--primary-color);
+            line-height: 1.6;
+        }
+
+        .container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            height: var(--header-height);
+            background-color: var(--secondary-color);
+            box-shadow: var(--box-shadow);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            position: fixed;
+            top: 0;
+            left: var(--sidebar-width);
+            right: 0;
+            z-index: 100;
+            transition: var(--transition);
+        }
+
+        .header.collapsed {
+            left: 70px;
+        }
+
+        .header-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .header-actions {
+            margin-left: auto;
+            display: flex;
+            gap: 15px;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: var(--sidebar-width);
+            background-color: var(--secondary-color);
+            box-shadow: var(--box-shadow);
+            padding: 20px;
+            overflow-y: auto;
+            position: fixed;
+            height: 100vh;
+            z-index: 100;
+            transition: var(--transition);
+        }
+
+        .sidebar.collapsed {
+            width: 70px;
+            overflow: hidden;
+        }
+
+        .sidebar.collapsed .sidebar-content {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .sidebar-toggle {
+            position: absolute;
+            top: 20px;
+            right: 10px;
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            color: var(--primary-color);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--medium-gray);
+        }
+
+        .logo-icon {
+            font-size: 2rem;
+            margin-right: 10px;
+        }
+
+        .logo-text {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .sidebar.collapsed .logo-text {
+            display: none;
+        }
+
+        .main-content {
+            margin-left: var(--sidebar-width);
+            padding: 90px 20px 20px 20px;
+            width: calc(100% - var(--sidebar-width));
+            transition: var(--transition);
+        }
+
+        .main-content.expanded {
+            margin-left: 70px;
+            width: calc(100% - 70px);
+        }
+
+        .section {
+            margin-bottom: 25px;
+        }
+
+        .section-title {
+            font-weight: bold;
+            margin-bottom: 15px;
+            padding-left: 10px;
+            border-left: 4px solid var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-title i {
+            font-size: 1.2rem;
+        }
+
+        .sidebar.collapsed .section-title span {
+            display: none;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .input-group input,
+        .input-group textarea,
+        .input-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--medium-gray);
+            border-radius: var(--border-radius);
+            background-color: var(--secondary-color);
+            color: var(--primary-color);
+            transition: var(--transition);
+        }
+
+        .input-group input:focus,
+        .input-group textarea:focus,
+        .input-group select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
+        }
+
+        .input-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .button {
+            background-color: var(--primary-color);
+            color: var(--secondary-color);
+            border: 2px solid var(--primary-color);
+            padding: 10px 15px;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-weight: 600;
+            transition: var(--transition);
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .button:hover {
+            background-color: var(--dark-gray);
+            border-color: var(--dark-gray);
+        }
+
+        .button-primary {
+            background-color: var(--primary-color);
+            color: var(--secondary-color);
+        }
+
+        .button-secondary {
+            background-color: transparent;
+            color: var(--primary-color);
+        }
+
+        .button-success {
+            background-color: var(--accent-color);
+            border-color: var(--accent-color);
+            color: white;
+        }
+
+        .button-warning {
+            background-color: var(--warning-color);
+            border-color: var(--warning-color);
+            color: black;
+        }
+
+        .button-danger {
+            background-color: var(--danger-color);
+            border-color: var(--danger-color);
+            color: white;
+        }
+
+        .button-info {
+            background-color: var(--info-color);
+            border-color: var(--info-color);
+            color: white;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+
+        .status-success {
+            background-color: var(--accent-color);
+        }
+
+        .status-error {
+            background-color: var(--danger-color);
+        }
+
+        .status-warning {
+            background-color: var(--warning-color);
+        }
+
+        /* Dashboard */
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .dashboard-title {
+            font-size: 1.8rem;
+            font-weight: bold;
+        }
+
+        .dashboard-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .metric-card {
+            background-color: var(--secondary-color);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            box-shadow: var(--box-shadow);
+            transition: var(--transition);
+        }
+
+        .metric-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .metric-icon {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+            color: var(--primary-color);
+        }
+
+        .metric-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .metric-label {
+            font-size: 0.9rem;
+            color: var(--dark-gray);
+        }
+
+        .metric-trend {
+            display: flex;
+            align-items: center;
+            font-size: 0.8rem;
+            margin-top: 5px;
+        }
+
+        .trend-up {
+            color: var(--accent-color);
+        }
+
+        .trend-down {
+            color: var(--danger-color);
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid var(--medium-gray);
+            margin-bottom: 20px;
+            overflow-x: auto;
+        }
+
+        .tab {
+            padding: 12px 20px;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            white-space: nowrap;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tab:hover {
+            background-color: var(--light-gray);
+        }
+
+        .tab.active {
+            border-bottom: 3px solid var(--primary-color);
+            font-weight: bold;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Charts */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .chart-container {
+            background-color: var(--secondary-color);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            box-shadow: var(--box-shadow);
+        }
+
+        .chart-title {
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Loading */
+        .loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 50vh;
+            text-align: center;
+        }
+
+        .spinner {
+            border: 3px solid var(--medium-gray);
+            border-top: 3px solid var(--primary-color);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Alertas */
+        .alert {
+            padding: 15px;
+            border-radius: var(--border-radius);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .alert i {
+            font-size: 1.2rem;
+        }
+
+        .alert-info {
+            background-color: #e3f2fd;
+            border-left: 4px solid var(--info-color);
+        }
+
+        .alert-warning {
+            background-color: #fff3cd;
+            border-left: 4px solid var(--warning-color);
+        }
+
+        .alert-success {
+            background-color: #e8f5e9;
+            border-left: 4px solid var(--accent-color);
+        }
+
+        .alert-error {
+            background-color: #ffebee;
+            border-left: 4px solid var(--danger-color);
+        }
+
+        /* Progress bars */
+        .progress-bar {
+            height: 8px;
+            background-color: var(--medium-gray);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background-color: var(--accent-color);
+            border-radius: 4px;
+        }
+
+        /* Cards */
+        .card {
+            background-color: var(--secondary-color);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            box-shadow: var(--box-shadow);
+            margin-bottom: 20px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .card-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        /* Forms */
+        .form-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .form-group {
+            flex: 1;
+        }
+
+        /* Tables */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--medium-gray);
+        }
+
+        .data-table th {
+            background-color: var(--light-gray);
+            font-weight: 600;
+        }
+
+        .data-table tr:hover {
+            background-color: var(--light-gray);
+        }
+
+        /* Chat bubbles */
+        .chat-container {
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 10px;
+            background-color: var(--light-gray);
+            border-radius: var(--border-radius);
+        }
+
+        .chat-agent {
+            background-color: var(--secondary-color);
+            padding: 12px 15px;
+            border-radius: 18px 18px 18px 0;
+            margin: 8px 0;
+            border-left: 4px solid var(--accent-color);
+            max-width: 80%;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+
+        .chat-client {
+            background-color: #e3f2fd;
+            padding: 12px 15px;
+            border-radius: 18px 18px 0 18px;
+            margin: 8px 0 8px auto;
+            border-left: 4px solid var(--info-color);
+            max-width: 80%;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+
+        .chat-sender {
+            font-weight: bold;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background-color: var(--secondary-color);
+            border-radius: var(--border-radius);
+            padding: 30px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--dark-gray);
+        }
+
+        /* Utilities */
+        .text-center {
+            text-align: center;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .mb-0 {
+            margin-bottom: 0;
+        }
+
+        .mt-20 {
+            margin-top: 20px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* Responsividade */
+        @media (max-width: 1200px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                transform: translateX(-100%);
+                z-index: 1000;
+            }
+            
+            .sidebar.active {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-left: 0;
+                width: 100%;
+                padding: 70px 15px 15px 15px;
+            }
+            
+            .header {
+                left: 0;
+            }
+            
+            .metrics-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .form-row {
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .metrics-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .dashboard-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+            
+            .dashboard-actions {
+                width: 100%;
+                justify-content: space-between;
+            }
+        }
+
+        /* Dark mode support */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --primary-color: #FFFFFF;
+                --secondary-color: #1a1a1a;
+                --light-gray: #2d2d2d;
+                --medium-gray: #3d3d3d;
+                --dark-gray: #cccccc;
+            }
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -442,10 +1139,674 @@
         </div>
     </div>
 
-    <script src="js/sentiment-analyzer.js"></script>
-    <script src="js/data-processor.js"></script>
-    <script src="js/charts.js"></script>
-    <script src="js/audio-analyzer.js"></script>
-    <script src="js/app.js"></script>
+    <script>
+        // =============================================
+        // DICIONÁRIO AFINN PARA ANÁLISE DE SENTIMENTOS
+        // =============================================
+        const AFINN_PT = {
+            'abandonar': -2, 'abandonado': -2, 'abandono': -2, 'abatido': -2, 'abominar': -3,
+            'abominação': -3, 'abominável': -3, 'aborrecer': -2, 'aborrecido': -2, 'aborrecimento': -2,
+            'abrasador': -1, 'abrasar': -1, 'abrir': 1, 'absurdo': -2, 'abuso': -3, 'abusar': -3,
+            'acalmar': 2, 'aceitar': 2, 'aceitação': 2, 'acessível': 1, 'acolhedor': 2, 'acolher': 2,
+            'acreditar': 1, 'acusar': -2, 'adeus': -1, 'admirar': 3, 'admirável': 3, 'adorei': 3,
+            'adoro': 3, 'adversário': -2, 'adversidade': -2, 'agradável': 3, 'agradecer': 2,
+            'agradecido': 2, 'agressão': -3, 'agressivo': -2, 'ajuda': 2, 'ajudar': 2, 'alegrar': 3,
+            'alegre': 3, 'alegria': 4, 'aliviado': 2, 'amabilidade': 3, 'amar': 3, 'amargo': -2,
+            'amigável': 2, 'amizade': 2, 'amor': 3, 'angustiado': -3, 'angústia': -3, 'animado': 3,
+            'ansiedade': -2, 'ansioso': -2, 'apavorado': -3, 'apoiar': 2, 'apreciação': 2,
+            'apreensivo': -2, 'apropriado': 2, 'aprovado': 2, 'assustado': -2, 'assustador': -2,
+            'aterrorizado': -3, 'atraente': 2, 'aviso': -1, 'bênção': 3, 'benéfico': 2, 'bom': 3,
+            'bondade': 3, 'bravo': -3, 'brilhante': 2, 'burlar': -2, 'cair': -1, 'calmo': 1,
+            'cansaço': -2, 'cansado': -2, 'capaz': 2, 'carinho': 3, 'catástrofe': -3, 'chateado': -2,
+            'chato': -2, 'chocante': -2, 'comemorar': 3, 'compreensão': 2, 'conforto': 2,
+            'confortável': 2, 'confusão': -2, 'confuso': -2, 'consertar': 2, 'consolo': 2,
+            'contente': 3, 'coragem': 2, 'corajoso': 2, 'cuidado': 2, 'culpa': -2, 'culpado': -2,
+            'danificar': -2, 'danificado': -2, 'danoso': -3, 'decepcionado': -2, 'decepção': -2,
+            'defeito': -2, 'defeituoso': -2, 'deficiência': -2, 'degradar': -2, 'degradante': -2,
+            'deixa': -1, 'deixar': -1, 'delícia': 3, 'delicioso': 3, 'deprimido': -2, 'deprimente': -2,
+            'derrota': -2, 'derrotar': -2, 'desafeto': -2, 'desagradável': -2, 'desanimado': -2,
+            'desanimar': -2, 'desapontado': -2, 'desastre': -3, 'desastrado': -2, 'desconforto': -2,
+            'desconfortável': -2, 'desculpa': -1, 'desejo': 1, 'desesperado': -3, 'desespero': -3,
+            'desgostar': -2, 'desgosto': -2, 'desgraça': -3, 'desilusão': -2, 'desistir': -2,
+            'desleal': -3, 'desolado': -3, 'desonesto': -2, 'desonra': -2, 'desordem': -2,
+            'desrespeito': -2, 'desrespeitoso': -2, 'destruir': -3, 'destruição': -3, 'deteriorar': -2,
+            'detestar': -3, 'devastado': -3, 'difícil': -1, 'digno': 2, 'dilema': -1, 'diminuir': -1,
+            'dinâmico': 2, 'direito': 2, 'disciplina': 1, 'disputa': -2, 'distúrbio': -2, 'diversão': 3,
+            'divertido': 3, 'doloroso': -2, 'dor': -2, 'dúvida': -1, 'econômico': 1, 'eficaz': 2,
+            'elegante': 2, 'elevar': 2, 'elogiar': 2, 'elogio': 2, 'embaraçado': -2, 'embaraçoso': -2,
+            'emoção': 3, 'empolgado': 3, 'encantador': 3, 'encorajar': 2, 'energia': 2, 'energético': 2,
+            'enfurecer': -3, 'engraçado': 3, 'enorme': 2, 'entusiasmado': 3, 'entusiasmo': 3,
+            'errado': -2, 'erro': -2, 'escolha': 1, 'escorregar': -1, 'esforço': 2, 'esmagar': -2,
+            'especial': 2, 'esperança': 2, 'esperançoso': 2, 'espantoso': 3, 'espetacular': 3,
+            'esplêndido': 3, 'estável': 1, 'estragar': -2, 'estranho': -1, 'estressado': -2,
+            'estresse': -2, 'estúpido': -3, 'euforia': 4, 'euforico': 4, 'evitar': -1, 'excelente': 3,
+            'excepcional': 3, 'excitação': 3, 'excitado': 3, 'exigente': -1, 'êxito': 3, 'experiência': 1,
+            'extraordinário': 3, 'facilidade': 1, 'fadiga': -2, 'falha': -2, 'falar': 1, 'falso': -2,
+            'falta': -1, 'faltar': -1, 'fantástico': 4, 'favorito': 2, 'felicidade': 4, 'feliz': 3,
+            'ficar': 1, 'fiel': 2, 'forte': 2, 'fraco': -2, 'fraqueza': -2, 'frustração': -2,
+            'frustrado': -2, 'fugir': -1, 'funciona': 2, 'funcionando': 2, 'fundamental': 2, 'fúria': -3,
+            'furioso': -3, 'ganhar': 2, 'generoso': 2, 'genial': 3, 'gostar': 2, 'gostei': 2, 'gosto': 2,
+            'grande': 2, 'gratidão': 3, 'grato': 3, 'grave': -2, 'guerra': -3, 'habilidade': 2,
+            'habilidoso': 2, 'harmonia': 2, 'herói': 2, 'heroico': 2, 'honesto': 2, 'honra': 2,
+            'horrível': -3, 'horror': -3, 'hostil': -2, 'humilhar': -3, 'ideia': 1, 'idiota': -3,
+            'ignorar': -2, 'ilegal': -3, 'imoral': -3, 'importante': 2, 'impressionante': 3,
+            'incapaz': -2, 'incerteza': -2, 'incerto': -2, 'incidente': -1, 'incrível': 3, 'indeciso': -1,
+            'indesejado': -2, 'ineficaz': -2, 'inferior': -2, 'injustiça': -2, 'injusto': -2,
+            'inseguro': -2, 'insensível': -2, 'insatisfeito': -2, 'insatisfação': -2, 'insistir': -1,
+            'insucesso': -2, 'inteligente': 2, 'interessante': 2, 'intriga': -1, 'inveja': -2,
+            'invejoso': -2, 'irritado': -3, 'irritante': -2, 'jovem': 1, 'julgamento': -1, 'justo': 2,
+            'justiça': 2, 'legal': 2, 'liberdade': 2, 'liberar': 1, 'livre': 2, 'loucura': -2,
+            'lutar': -1, 'magnífico': 3, 'mal': -3, 'maravilha': 3, 'maravilhoso': 4, 'mau': -3,
+            'medo': -2, 'melhor': 3, 'melhorar': 2, 'mentir': -3, 'mentira': -3, 'merecer': 2,
+            'merecido': 2, 'miserável': -3, 'miséria': -3, 'misterioso': -1, 'morte': -3, 'morto': -3,
+            'motivar': 2, 'motivação': 2, 'muito': 1, 'negligência': -2, 'negligente': -2, 'negociar': 1,
+            'nervoso': -2, 'nobre': 2, 'notável': 3, 'obrigado': 2, 'ódio': -3, 'odiar': -3, 'ofensa': -2,
+            'ofender': -2, 'ofensivo': -2, 'oportunidade': 2, 'optimismo': 2, 'optimista': 2,
+            'orgulho': 2, 'orgulhoso': 2, 'paciência': 2, 'paciente': 2, 'paz': 2, 'perda': -2,
+            'perder': -2, 'perdido': -2, 'perfeito': 3, 'perigo': -2, 'perigoso': -2, 'permitir': 1,
+            'pessimismo': -2, 'pessimista': -2, 'pior': -3, 'pobre': -2, 'poder': 2, 'poderoso': 2,
+            'popular': 2, 'positivo': 2, 'possível': 1, 'preciso': 2, 'preocupação': -2, 'preocupado': -2,
+            'preocupar': -2, 'presa': -2, 'preso': -2, 'pressa': -1, 'pressão': -1, 'prevenir': 1,
+            'problema': -2, 'produtivo': 2, 'progresso': 2, 'promessa': 1, 'promissor': 2, 'proteger': 2,
+            'proteção': 2, 'qualidade': 2, 'quebrar': -2, 'quebrado': -2, 'querer': 1, 'raiva': -3,
+            'rancor': -2, 'rancoroso': -2, 'raro': 2, 'realizar': 2, 'recusar': -2, 'recusa': -2,
+            'rejeitar': -2, 'rejeição': -2, 'relaxar': 2, 'relutante': -1, 'remorso': -2, 'respeito': 2,
+            'respeitoso': 2, 'responsabilidade': 1, 'responsável': 2, 'ressentimento': -2, 'ressuscitar': 2,
+            'restaurar': 2, 'resultado': 1, 'reto': 2, 'reunir': 1, 'reunião': 1, 'revelar': 1,
+            'ridículo': -2, 'risco': -2, 'rival': -1, 'roubar': -3, 'ruim': -3, 'sábio': 2, 'sabedoria': 2,
+            'saboroso': 2, 'sacrificar': -1, 'sacrifício': -1, 'sagrado': 2, 'salvar': 2, 'satisfação': 3,
+            'satisfeito': 3, 'saudade': -1, 'saudável': 2, 'segredo': -1, 'segurança': 2, 'seguro': 2,
+            'sensacional': 4, 'sensato': 2, 'sentir': 1, 'sereno': 2, 'sério': -1, 'servir': 1,
+            'significativo': 2, 'simpatia': 2, 'simpático': 2, 'sincero': 2, 'socorro': -2, 'solidão': -2,
+            'solitário': -2, 'solução': 2, 'solucionar': 2, 'sombrio': -2, 'sonho': 1, 'sortudo': 3,
+            'sorte': 2, 'sossego': 2, 'suave': 1, 'sucesso': 3, 'sugerir': 1, 'super': 3, 'superar': 2,
+            'surpresa': 1, 'surpreendente': 3, 'suspeita': -2, 'suspeitar': -2, 'suspeito': -2,
+            'talentoso': 2, 'talento': 2, 'temer': -2, 'temeroso': -2, 'tensão': -2, 'tenso': -2,
+            'terrível': -3, 'terror': -3, 'tolo': -2, 'trabalho': 1, 'traidor': -3, 'trair': -3,
+            'traição': -3, 'tranquilidade': 2, 'tranquilo': 2, 'triste': -2, 'tristeza': -2, 'útil': 2,
+            'vagaroso': -1, 'valioso': 2, 'valor': 2, 'vantagem': 2, 'vencer': 3, 'verdade': 2,
+            'verdadeiro': 2, 'vergonha': -2, 'vergonhoso': -2, 'vibrante': 2, 'vida': 2, 'vigor': 2,
+            'vigoroso': 2, 'vil': -2, 'violação': -2, 'violar': -2, 'violência': -3, 'violento': -3,
+            'virtude': 2, 'vitória': 3, 'vitorioso': 3, 'vivo': 2, 'vontade': 1, 'zombar': -2
+        };
+
+        // =============================================
+        // ANALISADOR DE SENTIMENTOS
+        // =============================================
+        class SentimentAnalyzer {
+            constructor() {
+                this.afinn = AFINN_PT;
+                this.negators = ['não', 'nem', 'nunca', 'jamais', 'sem'];
+                this.intensifiers = {
+                    'muito': 1.5, 'extremamente': 2.0, 'totalmente': 1.8,
+                    'completamente': 1.8, 'realmente': 1.3, 'demais': 1.5
+                };
+            }
+
+            analyze(text) {
+                if (!text || typeof text !== 'string') {
+                    return { score: 0, comparative: 0, sentiment: 'Neutro', confidence: 0 };
+                }
+
+                const words = this.tokenize(text);
+                let score = 0;
+                let wordCount = 0;
+                let negateNext = false;
+                let intensifyNext = 1.0;
+
+                for (let i = 0; i < words.length; i++) {
+                    const word = words[i];
+
+                    if (this.negators.includes(word)) {
+                        negateNext = true;
+                        continue;
+                    }
+
+                    if (this.intensifiers[word]) {
+                        intensifyNext = this.intensifiers[word];
+                        continue;
+                    }
+
+                    if (this.afinn[word]) {
+                        let wordScore = this.afinn[word];
+                        wordScore *= intensifyNext;
+                        intensifyNext = 1.0;
+
+                        if (negateNext) {
+                            wordScore = -wordScore;
+                            negateNext = false;
+                        }
+
+                        score += wordScore;
+                        wordCount++;
+                    }
+                }
+
+                const comparative = wordCount > 0 ? score / wordCount : 0;
+                const sentiment = this.getSentimentLabel(score, comparative);
+                const confidence = this.calculateConfidence(score, wordCount);
+
+                return {
+                    score: Math.round(score * 100) / 100,
+                    comparative: Math.round(comparative * 100) / 100,
+                    sentiment: sentiment,
+                    confidence: Math.round(confidence * 100) / 100,
+                    wordCount: wordCount
+                };
+            }
+
+            tokenize(text) {
+                return text
+                    .toLowerCase()
+                    .replace(/[^\w\sàáâãèéêìíîòóôõùúûç]/g, '')
+                    .split(/\s+/)
+                    .filter(word => word.length > 2);
+            }
+
+            getSentimentLabel(score, comparative) {
+                if (score > 2) return 'Muito Positivo';
+                if (score > 0.5) return 'Positivo';
+                if (score > -0.5) return 'Neutro';
+                if (score > -2) return 'Negativo';
+                return 'Muito Negativo';
+            }
+
+            calculateConfidence(score, wordCount) {
+                if (wordCount === 0) return 0;
+                const baseConfidence = Math.min(Math.abs(score) / wordCount * 2, 1);
+                const wordCountConfidence = Math.min(wordCount / 10, 1);
+                return (baseConfidence * 0.7 + wordCountConfidence * 0.3);
+            }
+        }
+
+        // =============================================
+        // ESTADO DA APLICAÇÃO
+        // =============================================
+        const appState = {
+            data: [],
+            filteredData: [],
+            stopWords: ["o", "a", "os", "as", "um", "uma", "uns", "umas", "de", "do", "da", "dos", "das", "em", "no", "na", "nos", "nas", "por", "para", "que", "e", "é", "ser", "se"],
+            metrics: {},
+            currentTab: 'overview',
+            isSidebarCollapsed: false
+        };
+
+        let sentimentAnalyzer;
+
+        // =============================================
+        // INICIALIZAÇÃO
+        // =============================================
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeApp();
+        });
+
+        async function initializeApp() {
+            try {
+                sentimentAnalyzer = new SentimentAnalyzer();
+                setupEventListeners();
+                await loadSampleData();
+                
+                document.getElementById('loadingIndicator').classList.add('hidden');
+                document.getElementById('contentArea').classList.remove('hidden');
+                
+                showAlert('✅ Sentinela carregado com análise REAL de sentimentos!', 'success');
+                
+            } catch (error) {
+                console.error('Erro ao inicializar:', error);
+                showAlert('❌ Erro ao carregar o Sentinela', 'error');
+            }
+        }
+
+        // =============================================
+        // CONFIGURAÇÃO DE EVENTOS
+        // =============================================
+        function setupEventListeners() {
+            document.getElementById('sidebarToggle').addEventListener('click', toggleSidebar);
+            document.getElementById('loadData').addEventListener('click', loadData);
+            document.getElementById('applyFilter').addEventListener('click', applyDateFilter);
+            document.getElementById('refreshData').addEventListener('click', refreshData);
+            document.getElementById('exportData').addEventListener('click', exportData);
+            document.getElementById('generateInsights').addEventListener('click', generateInsights);
+            document.getElementById('quickAnalysis').addEventListener('click', quickAnalysis);
+            document.getElementById('transcribeAudio').addEventListener('click', transcribeAudio);
+            document.getElementById('analyzeAudio').addEventListener('click', analyzeAudio);
+            document.getElementById('fileUpload').addEventListener('change', handleFileUpload);
+            document.getElementById('audioUpload').addEventListener('change', handleAudioUpload);
+            
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    switchTab(this.dataset.tab);
+                });
+            });
+        }
+
+        // =============================================
+        // FUNÇÕES PRINCIPAIS
+        // =============================================
+        function toggleSidebar() {
+            appState.isSidebarCollapsed = !appState.isSidebarCollapsed;
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.getElementById('mainContent');
+            const header = document.getElementById('header');
+            
+            if (appState.isSidebarCollapsed) {
+                sidebar.classList.add('collapsed');
+                mainContent.classList.add('expanded');
+                header.classList.add('collapsed');
+            } else {
+                sidebar.classList.remove('collapsed');
+                mainContent.classList.remove('expanded');
+                header.classList.remove('collapsed');
+            }
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            
+            document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+            document.getElementById(tabId).classList.add('active');
+            appState.currentTab = tabId;
+        }
+
+        function processDataWithSentiment(data) {
+            return data.map(item => {
+                const analysis = sentimentAnalyzer.analyze(item.Texto);
+                return {
+                    ...item,
+                    Sentimento: analysis.sentiment,
+                    Pontuacao: analysis.score,
+                    Confianca: analysis.confidence,
+                    Problemas: analysis.score < -0.5 ? 1 : 0,
+                    Solucoes: analysis.score > 0.5 ? 1 : 0
+                };
+            });
+        }
+
+        // =============================================
+        // CARREGAMENTO DE DADOS
+        // =============================================
+        async function loadSampleData() {
+            try {
+                const sampleData = [
+                    { Agente: "joao.silva@empresa.com", Data: "24/09/2024", Hora: "10:15:23", Texto: "Olá, bom dia! Como posso ajudá-lo hoje? Estou muito feliz em poder ajudar!" },
+                    { Agente: "joao.silva@empresa.com", Data: "24/09/2024", Hora: "10:16:05", Texto: "Entendo seu problema com o acesso à conta. Vou verificar isso para você imediatamente. Não se preocupe!" },
+                    { Agente: "maria.santos@empresa.com", Data: "24/09/2024", Hora: "11:30:45", Texto: "Boa tarde! Em que posso ser útil? Estou aqui para resolver seu problema." },
+                    { Agente: "maria.santos@empresa.com", Data: "24/09/2024", Hora: "11:31:20", Texto: "Infelizmente não consigo acessar essa informação no momento. Isso é muito ruim, me desculpe pelo inconveniente." },
+                    { Agente: "carlos.oliveira@empresa.com", Data: "25/09/2024", Hora: "09:05:12", Texto: "Excelente notícia! Seu problema foi resolvido com sucesso. Fico muito feliz!" },
+                    { Agente: "carlos.oliveira@empresa.com", Data: "25/09/2024", Hora: "09:06:33", Texto: "Que ótimo! Tudo funcionando perfeitamente agora. Maravilhoso!" }
+                ];
+                
+                appState.data = processDataWithSentiment(sampleData);
+                appState.filteredData = appState.data;
+                
+                updateStats();
+                updateMetrics();
+                renderCharts();
+                renderTables();
+                
+            } catch (error) {
+                console.error('Erro ao carregar dados:', error);
+                showAlert('❌ Erro ao processar dados', 'error');
+            }
+        }
+
+        async function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            showAlert(`📁 Processando ${file.name}...`, 'info');
+            
+            try {
+                const fileExtension = file.name.split('.').pop().toLowerCase();
+                let parsedData = [];
+                
+                if (fileExtension === 'csv') {
+                    parsedData = await parseCSV(file);
+                } else if (fileExtension === 'xlsx' || fileExtension === 'xls') {
+                    parsedData = await parseExcel(file);
+                } else {
+                    throw new Error('Formato não suportado');
+                }
+                
+                appState.data = processDataWithSentiment(parsedData);
+                appState.filteredData = appState.data;
+                
+                updateStats();
+                updateMetrics();
+                renderCharts();
+                renderTables();
+                
+                showAlert('✅ Arquivo processado com análise REAL de sentimentos!', 'success');
+                
+            } catch (error) {
+                console.error('Erro ao processar arquivo:', error);
+                showAlert('❌ Erro ao processar arquivo', 'error');
+            }
+        }
+
+        async function parseCSV(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const results = Papa.parse(e.target.result, {
+                            header: true,
+                            skipEmptyLines: true
+                        });
+                        resolve(results.data);
+                    } catch (error) {
+                        reject(error);
+                    }
+                };
+                reader.onerror = reject;
+                reader.readAsText(file);
+            });
+        }
+
+        async function parseExcel(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                        const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+                        resolve(jsonData);
+                    } catch (error) {
+                        reject(error);
+                    }
+                };
+                reader.onerror = reject;
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        // =============================================
+        // ATUALIZAÇÃO DE INTERFACE
+        // =============================================
+        function updateStats() {
+            const interactions = new Set(appState.filteredData.map(item => item.Agente + '_' + item.Data)).size;
+            const messages = appState.filteredData.length;
+            const agents = new Set(appState.filteredData.map(item => item.Agente)).size;
+            
+            document.getElementById('statInteractions').textContent = interactions;
+            document.getElementById('statMessages').textContent = messages;
+            document.getElementById('statAgents').textContent = agents;
+        }
+
+        function updateMetrics() {
+            const interactions = new Set(appState.filteredData.map(item => item.Agente + '_' + item.Data)).size;
+            const messages = appState.filteredData.length;
+            
+            const positive = appState.filteredData.filter(item => 
+                item.Sentimento === 'Positivo' || item.Sentimento === 'Muito Positivo'
+            ).length;
+            
+            const negative = appState.filteredData.filter(item => 
+                item.Sentimento === 'Negativo' || item.Sentimento === 'Muito Negativo'
+            ).length;
+            
+            const problems = appState.filteredData.reduce((sum, item) => sum + (item.Problemas || 0), 0);
+            
+            document.getElementById('metricInteractions').textContent = interactions;
+            document.getElementById('metricMessages').textContent = messages;
+            document.getElementById('metricPositive').textContent = positive;
+            document.getElementById('metricNegative').textContent = negative;
+            document.getElementById('metricProblems').textContent = problems;
+            
+            appState.metrics = {
+                total_interacoes: interactions,
+                total_mensagens: messages,
+                positivas: positive,
+                negativas: negative,
+                total_problemas: problems
+            };
+        }
+
+        // =============================================
+        // RENDERIZAÇÃO DE GRÁFICOS
+        // =============================================
+        function renderCharts() {
+            renderSentimentChart();
+            renderAgentsChart();
+            renderContentChart();
+            renderTemporalChart();
+        }
+
+        function renderSentimentChart() {
+            if (appState.filteredData.length === 0) return;
+            
+            const sentimentCounts = {
+                'Muito Positivo': 0, 'Positivo': 0, 'Neutro': 0, 'Negativo': 0, 'Muito Negativo': 0
+            };
+            
+            appState.filteredData.forEach(item => {
+                if (sentimentCounts.hasOwnProperty(item.Sentimento)) {
+                    sentimentCounts[item.Sentimento]++;
+                } else {
+                    sentimentCounts['Neutro']++;
+                }
+            });
+            
+            const data = [{
+                values: Object.values(sentimentCounts),
+                labels: Object.keys(sentimentCounts),
+                type: 'pie',
+                marker: { colors: ['#2E7D32', '#4CAF50', '#FFC107', '#F44336', '#C62828'] }
+            }];
+            
+            Plotly.newPlot('sentimentChart', data, { height: 300, showlegend: true }, { displayModeBar: false });
+        }
+
+        function renderAgentsChart() {
+            if (appState.filteredData.length === 0) return;
+            
+            const agentCounts = {};
+            appState.filteredData.forEach(item => {
+                agentCounts[item.Agente] = (agentCounts[item.Agente] || 0) + 1;
+            });
+            
+            const data = [{
+                x: Object.keys(agentCounts),
+                y: Object.values(agentCounts),
+                type: 'bar',
+                marker: { color: '#2196F3' }
+            }];
+            
+            Plotly.newPlot('agentsChart', data, { 
+                height: 300,
+                xaxis: { title: 'Agentes' },
+                yaxis: { title: 'Mensagens' }
+            }, { displayModeBar: false });
+        }
+
+        function renderContentChart() {
+            if (appState.filteredData.length === 0) return;
+            
+            const data = [{
+                x: ['Problemas', 'Soluções', 'Oportunidades'],
+                y: [
+                    appState.metrics.total_problemas,
+                    appState.filteredData.reduce((sum, item) => sum + (item.Solucoes || 0), 0),
+                    Math.floor(appState.metrics.total_mensagens * 0.1)
+                ],
+                type: 'bar',
+                marker: { color: ['#F44336', '#4CAF50', '#2196F3'] }
+            }];
+            
+            Plotly.newPlot('contentChart', data, { height: 300 }, { displayModeBar: false });
+        }
+
+        function renderTemporalChart() {
+            if (appState.filteredData.length === 0) return;
+            
+            const dateData = {};
+            appState.filteredData.forEach(item => {
+                const date = item.Data;
+                if (!dateData[date]) dateData[date] = { positive: 0, problems: 0, total: 0 };
+                dateData[date].total++;
+                if (item.Sentimento === 'Positivo' || item.Sentimento === 'Muito Positivo') {
+                    dateData[date].positive++;
+                }
+                if (item.Problemas) dateData[date].problems++;
+            });
+            
+            const dates = Object.keys(dateData);
+            const positive = dates.map(date => (dateData[date].positive / dateData[date].total) * 100);
+            const problems = dates.map(date => dateData[date].problems);
+            
+            const trace1 = { x: dates, y: positive, type: 'scatter', name: '% Positivo', line: { color: 'green' } };
+            const trace2 = { x: dates, y: problems, type: 'scatter', name: 'Problemas', line: { color: 'red' } };
+            
+            Plotly.newPlot('temporalChart', [trace1, trace2], { height: 300 }, { displayModeBar: false });
+        }
+
+        // =============================================
+        // RENDERIZAÇÃO DE TABELAS
+        // =============================================
+        function renderTables() {
+            renderAgentsTable();
+        }
+
+        function renderAgentsTable() {
+            if (appState.filteredData.length === 0) {
+                document.getElementById('agentsTable').innerHTML = '<p class="text-center">Nenhum dado disponível</p>';
+                return;
+            }
+            
+            const agentData = {};
+            appState.filteredData.forEach(item => {
+                if (!agentData[item.Agente]) {
+                    agentData[item.Agente] = { messages: 0, interactions: new Set(), positive: 0, problems: 0, totalScore: 0 };
+                }
+                
+                agentData[item.Agente].messages++;
+                agentData[item.Agente].interactions.add(item.Agente + '_' + item.Data);
+                agentData[item.Agente].totalScore += item.Pontuacao || 0;
+                
+                if (item.Sentimento === 'Positivo' || item.Sentimento === 'Muito Positivo') {
+                    agentData[item.Agente].positive++;
+                }
+                if (item.Problemas) agentData[item.Agente].problems++;
+            });
+            
+            let html = `
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Agente</th>
+                            <th>Interações</th>
+                            <th>Mensagens</th>
+                            <th>Sentimento Médio</th>
+                            <th>Positividade</th>
+                            <th>Problemas</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            Object.keys(agentData).forEach(agent => {
+                const data = agentData[agent];
+                const avgScore = data.totalScore / data.messages;
+                const positivity = ((data.positive / data.messages) * 100).toFixed(1);
+                const sentiment = avgScore > 0.5 ? '😊' : avgScore < -0.5 ? '😞' : '😐';
+                
+                html += `
+                    <tr>
+                        <td>${agent}</td>
+                        <td>${data.interactions.size}</td>
+                        <td>${data.messages}</td>
+                        <td>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="font-size: 1.2rem;">${sentiment}</span>
+                                <span>${avgScore.toFixed(2)}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <div>${positivity}%</div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: ${positivity}%"></div>
+                            </div>
+                        </td>
+                        <td>${data.problems}</td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table>';
+            document.getElementById('agentsTable').innerHTML = html;
+        }
+
+        // =============================================
+        // FUNÇÕES AUXILIARES
+        // =============================================
+        function showAlert(message, type) {
+            const existingAlerts = document.querySelectorAll('.temp-alert');
+            existingAlerts.forEach(alert => alert.remove());
+            
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type} temp-alert`;
+            alert.innerHTML = `
+                <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'warning' ? 'exclamation-triangle' : type === 'error' ? 'times-circle' : 'info-circle'}"></i>
+                <div>${message}</div>
+            `;
+            
+            const contentArea = document.getElementById('contentArea');
+            contentArea.insertBefore(alert, contentArea.firstChild);
+            
+            setTimeout(() => {
+                if (alert.parentNode) alert.parentNode.removeChild(alert);
+            }, 5000);
+        }
+
+        // =============================================
+        // FUNÇÕES PLACEHOLDER
+        // =============================================
+        async function loadData() {
+            showAlert('📊 Carregando dados do Google Sheets...', 'info');
+        }
+
+        async function applyDateFilter() {
+            showAlert('📅 Aplicando filtro de data...', 'info');
+        }
+
+        async function refreshData() {
+            showAlert('🔄 Atualizando dados...', 'info');
+            updateStats();
+            updateMetrics();
+            renderCharts();
+            renderTables();
+            showAlert('✅ Dados atualizados!', 'success');
+        }
+
+        async function exportData() {
+            showAlert('💾 Exportando dados...', 'info');
+        }
+
+        async function generateInsights() {
+            showAlert('🤖 Gerando insights com IA...', 'info');
+        }
+
+        async function quickAnalysis() {
+            showAlert('⚡ Análise rápida...', 'info');
+        }
+
+        async function transcribeAudio() {
+            showAlert('🎙️ Transcrevendo áudio...', 'info');
+        }
+
+        async function analyzeAudio() {
+            showAlert('🔍 Analisando áudio com IA...', 'info');
+        }
+
+        async function handleAudioUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                showAlert(`🎵 Arquivo de áudio carregado: ${file.name}`, 'success');
+            }
+        }
+    </script>
 </body>
 </html>

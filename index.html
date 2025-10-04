@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sentinela - Análise Inteligente de Conversas</title>
-    <!-- Favicon adicionado -->
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛡️</text></svg>">
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
@@ -13,7 +11,6 @@
     <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* Estilos mantidos iguais */
         :root {
             --primary-color: #000000;
             --secondary-color: #FFFFFF;
@@ -1220,75 +1217,146 @@
                                 <div class="card-title">Desempenho por Agente</div>
                                 <button class="button button-info" id="exportAgents">
                                     <i class="fas fa-download"></i>
-                                    Exportar
+                                    Exportar Relatório
                                 </button>
                             </div>
-                            <table class="data-table" id="agentsTable">
-                                <thead>
-                                    <tr>
-                                        <th>Agente</th>
-                                        <th>Interações</th>
-                                        <th>Mensagens</th>
-                                        <th>Positivas</th>
-                                        <th>Negativas</th>
-                                        <th>Pontuação</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <!-- Dados serão preenchidos via JavaScript -->
-                                </tbody>
-                            </table>
+                            <div id="agentsTable"></div>
                         </div>
                     </div>
                     
                     <div class="tab-content" id="trends">
+                        <div class="charts-grid">
+                            <div class="chart-container">
+                                <div class="chart-title">
+                                    <i class="fas fa-chart-line"></i>
+                                    Métricas ao Longo do Tempo
+                                </div>
+                                <div id="trendsChart"></div>
+                            </div>
+                            <div class="chart-container">
+                                <div class="chart-title">
+                                    <i class="fas fa-project-diagram"></i>
+                                    Correlação entre Métricas
+                                </div>
+                                <div id="correlationChart"></div>
+                            </div>
+                        </div>
                         <div class="card">
                             <div class="card-header">
-                                <div class="card-title">Tendências ao Longo do Tempo</div>
-                                <div class="dashboard-actions">
-                                    <button class="button button-info" id="trendDaily">
-                                        <i class="fas fa-calendar-day"></i>
-                                        Diário
-                                    </button>
-                                    <button class="button button-info" id="trendWeekly">
-                                        <i class="fas fa-calendar-week"></i>
-                                        Semanal
-                                    </button>
-                                    <button class="button button-info" id="trendMonthly">
-                                        <i class="fas fa-calendar-alt"></i>
-                                        Mensal
-                                    </button>
-                                </div>
+                                <div class="card-title">Dados Diários</div>
+                                <button class="button button-info" id="exportTrends">
+                                    <i class="fas fa-download"></i>
+                                    Exportar Dados
+                                </button>
                             </div>
-                            <div id="trendsChart"></div>
+                            <div id="dailyTable"></div>
                         </div>
                     </div>
                     
                     <div class="tab-content" id="words">
-                        <div class="card">
-                            <div class="card-header">
-                                <div class="card-title">Análise de Texto</div>
-                                <div class="dashboard-actions">
-                                    <button class="button button-info" id="generateWordCloud">
-                                        <i class="fas fa-cloud"></i>
-                                        Nuvem de Palavras
-                                    </button>
-                                    <button class="button button-info" id="analyzePhrases">
-                                        <i class="fas fa-comments"></i>
-                                        Análise de Frases
+                        <div class="charts-grid">
+                            <div class="chart-container">
+                                <div class="chart-title">
+                                    <i class="fas fa-cloud"></i>
+                                    Nuvem de Palavras
+                                    <button class="button button-info" style="margin-left: auto; padding: 5px 10px; font-size: 0.8rem;" id="refreshWordCloud">
+                                        <i class="fas fa-sync-alt"></i>
+                                        Atualizar
                                     </button>
                                 </div>
+                                <div id="wordCloud" class="word-cloud-container"></div>
                             </div>
-                            <div class="input-group">
-                                <label>Buscar Palavras ou Frases</label>
-                                <input type="text" id="wordSearch" placeholder="Digite palavras para buscar...">
+                            <div class="chart-container">
+                                <div class="chart-title">
+                                    <i class="fas fa-chart-bar"></i>
+                                    Palavras Mais Frequentes
+                                </div>
+                                <div id="wordFrequencyChart"></div>
                             </div>
-                            <button class="button button-primary" id="searchWords">
-                                <i class="fas fa-search"></i>
-                                Buscar
-                            </button>
-                            <div id="wordAnalysisResults" class="mt-20">
-                                <!-- Resultados da análise de palavras serão exibidos aqui -->
+                        </div>
+                        
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-title">Busca Avançada por Palavras</div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Buscar Palavra ou Frase</label>
+                                    <input type="text" id="wordSearch" placeholder="Ex: cartão de crédito, problema técnico...">
+                                </div>
+                                <div class="form-group">
+                                    <label>Filtrar por Sentimento</label>
+                                    <select id="sentimentFilter">
+                                        <option value="all">Todos</option>
+                                        <option value="positive">Positivo</option>
+                                        <option value="negative">Negativo</option>
+                                        <option value="neutral">Neutro</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <button class="button button-primary" id="performSearch">
+                                    <i class="fas fa-search"></i>
+                                    Buscar
+                                </button>
+                                <button class="button button-secondary" id="clearSearch">
+                                    <i class="fas fa-times"></i>
+                                    Limpar
+                                </button>
+                            </div>
+                            <div id="searchResults" class="mt-20"></div>
+                            
+                            <!-- Gráfico de Timeline para ocorrências por dia -->
+                            <div class="chart-container mt-20">
+                                <div class="chart-title">
+                                    <i class="fas fa-chart-line"></i>
+                                    Ocorrências ao Longo do Tempo
+                                </div>
+                                <div id="timelineChart"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-title">Análise de Combinações de Palavras</div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Frase para Análise</label>
+                                    <input type="text" id="phraseInput" placeholder="Ex: cartão de crédito, suporte técnico...">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <button class="button button-primary" id="analyzePhrase">
+                                    <i class="fas fa-chart-bar"></i>
+                                    Analisar Frase
+                                </button>
+                            </div>
+                            <div id="phraseAnalysis" class="phrase-analysis"></div>
+                        </div>
+                        
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-title">Gerenciar Stop Words</div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Adicionar Stop Word</label>
+                                    <input type="text" id="newStopWord" placeholder="Digite uma palavra para adicionar...">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <button class="button button-primary" id="addStopWord">
+                                    <i class="fas fa-plus"></i>
+                                    Adicionar
+                                </button>
+                                <button class="button button-secondary" id="resetStopWords">
+                                    <i class="fas fa-undo"></i>
+                                    Restaurar Padrão
+                                </button>
+                            </div>
+                            <div class="stop-words-list" id="stopWordsList">
+                                <!-- Stop words serão carregadas aqui -->
                             </div>
                         </div>
                     </div>
@@ -1296,18 +1364,17 @@
                     <div class="tab-content" id="ai">
                         <div class="card">
                             <div class="card-header">
-                                <div class="card-title">Análise Avançada com IA</div>
-                                <button class="button button-success" id="runAdvancedAnalysis">
-                                    <i class="fas fa-brain"></i>
-                                    Executar Análise
-                                </button>
+                                <div class="card-title">Análise com IA Avançada</div>
+                                <div id="modelStatus" class="model-status status-ready">
+                                    <i class="fas fa-check-circle"></i>
+                                    <span>Análise de IA Básica Disponível</span>
+                                </div>
                             </div>
                             
                             <div class="alert alert-info">
-                                <i class="fas fa-info-circle"></i>
+                                <i class="fas fa-robot"></i>
                                 <div>
-                                    <strong>Análise Avançada:</strong> Utilize modelos de IA para identificar padrões complexos, 
-                                    tópicos emergentes e insights profundos nos dados de conversas.
+                                    <strong>Análise Inteligente</strong> - Use análise de texto avançada para obter insights profundos sobre suas conversas.
                                 </div>
                             </div>
                             
@@ -1315,37 +1382,72 @@
                                 <div class="form-group">
                                     <label>Tipo de Análise</label>
                                     <select id="analysisType">
-                                        <option value="sentiment">Análise de Sentimento</option>
+                                        <option value="sentiment">Análise de Sentimento Avançada</option>
                                         <option value="topics">Identificação de Tópicos</option>
-                                        <option value="patterns">Padrões de Conversação</option>
-                                        <option value="recommendations">Recomendações Inteligentes</option>
+                                        <option value="summary">Sumarização de Conversas</option>
+                                        <option value="insights">Insights Gerais</option>
+                                        <option value="quality">Análise de Qualidade</option>
                                     </select>
                                 </div>
                                 <div class="form-group">
                                     <label>Modelo de IA</label>
-                                    <select id="aiModel">
-                                        <option value="standard">Padrão</option>
-                                        <option value="advanced">Avançado</option>
-                                        <option value="custom">Personalizado</option>
+                                    <select id="modelSelection">
+                                        <option value="sentiment">Análise de Sentimento (BERT)</option>
+                                        <option value="topic">Identificação de Tópicos</option>
+                                        <option value="summarization">Sumarização (T5)</option>
                                     </select>
                                 </div>
                             </div>
                             
                             <div class="input-group">
-                                <label>Prompt Personalizado</label>
-                                <textarea id="aiPrompt" placeholder="Digite um prompt específico para a análise..."></textarea>
+                                <label>Prompt para Análise</label>
+                                <textarea id="iaPrompt" rows="4">Analise estas conversas e identifique os principais problemas, oportunidades de melhoria e pontos fortes:</textarea>
                             </div>
                             
-                            <div class="input-group">
-                                <button class="button button-primary" id="analyzeClusters">
-                                    <i class="fas fa-project-diagram"></i>
-                                    Análise de Clusters
+                            <div class="form-row">
+                                <button class="button button-primary" id="generateInsights">
+                                    <i class="fas fa-brain"></i>
+                                    Gerar Insights com IA
+                                </button>
+                                <button class="button button-info" id="quickAnalysis">
+                                    <i class="fas fa-bolt"></i>
+                                    Análise Rápida
+                                </button>
+                                <button class="button button-secondary" id="clearAnalysis">
+                                    <i class="fas fa-times"></i>
+                                    Limpar
                                 </button>
                             </div>
                             
-                            <div id="aiAnalysisResults" class="mt-20">
-                                <!-- Resultados da análise de IA serão exibidos aqui -->
+                            <div id="analysisProgress" class="analysis-progress hidden">
+                                <div class="progress-bar-fill" id="progressFill" style="width: 0%"></div>
                             </div>
+                            
+                            <div id="iaResults" class="mt-20"></div>
+                        </div>
+                        
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-title">Análise de Tópicos Avançada</div>
+                            </div>
+                            <div class="form-row">
+                                <button class="button button-primary" id="analyzeTopics">
+                                    <i class="fas fa-project-diagram"></i>
+                                    Identificar Tópicos
+                                </button>
+                                <button class="button button-info" id="clusterAnalysis">
+                                    <i class="fas fa-object-group"></i>
+                                    Análise de Clusters
+                                </button>
+                            </div>
+                            <div id="topicsResults" class="mt-20"></div>
+                        </div>
+                        
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-title">Recomendações Inteligentes</div>
+                            </div>
+                            <div id="recommendationsList"></div>
                         </div>
                     </div>
                     
@@ -1353,63 +1455,146 @@
                         <div class="card">
                             <div class="card-header">
                                 <div class="card-title">Análise de Áudio</div>
-                                <div class="dashboard-actions">
-                                    <button class="button button-info" id="recordAudio">
-                                        <i class="fas fa-microphone"></i>
-                                        Gravar Áudio
-                                    </button>
-                                    <button class="button button-info" id="uploadAudio">
-                                        <i class="fas fa-upload"></i>
-                                        Upload de Áudio
-                                    </button>
-                                </div>
                             </div>
                             
                             <div class="alert alert-info">
-                                <i class="fas fa-info-circle"></i>
+                                <i class="fas fa-microphone"></i>
                                 <div>
-                                    <strong>Análise de Áudio:</strong> Grave ou faça upload de áudio para análise de sentimento, 
-                                    transcrição e identificação de padrões na fala.
+                                    <strong>Transcrição e Análise de Áudio</strong> - Grave áudio em tempo real ou cole transcrições diretamente.
                                 </div>
                             </div>
                             
-                            <div class="audio-controls">
-                                <button class="button button-primary" id="startRecording">
-                                    <i class="fas fa-record-vinyl"></i>
-                                    Iniciar Gravação
-                                </button>
-                                <button class="button button-danger" id="stopRecording" disabled>
-                                    <i class="fas fa-stop"></i>
-                                    Parar Gravação
-                                </button>
-                                <button class="button button-success" id="analyzeAudio">
-                                    <i class="fas fa-chart-bar"></i>
-                                    Analisar Áudio
-                                </button>
+                            <div class="audio-metrics" id="audioMetrics">
+                                <div class="audio-metric">
+                                    <div class="metric-label">Status</div>
+                                    <div class="metric-value" id="audioStatus">Pronto</div>
+                                </div>
+                                <div class="audio-metric">
+                                    <div class="metric-label">Duração</div>
+                                    <div class="metric-value" id="audioDuration">0s</div>
+                                </div>
+                                <div class="audio-metric">
+                                    <div class="metric-label">Confiança</div>
+                                    <div class="metric-value" id="audioConfidence">0%</div>
+                                </div>
+                                <div class="audio-metric">
+                                    <div class="metric-label">Palavras</div>
+                                    <div class="metric-value" id="wordCount">0</div>
+                                </div>
                             </div>
                             
-                            <div id="recordingIndicator" class="recording-indicator hidden">
-                                <div class="pulse"></div>
-                                <span>Gravando áudio... Fale agora.</span>
+                            <div class="section">
+                                <h3 class="section-title">
+                                    <i class="fas fa-microphone-alt"></i>
+                                    Gravação em Tempo Real
+                                </h3>
+                                
+                                <div class="audio-controls">
+                                    <button class="button button-primary" id="startRecording">
+                                        <i class="fas fa-microphone"></i>
+                                        Iniciar Gravação
+                                    </button>
+                                    <button class="button button-danger" id="stopRecording" disabled>
+                                        <i class="fas fa-stop"></i>
+                                        Parar Gravação
+                                    </button>
+                                    <button class="button button-secondary" id="clearRecording">
+                                        <i class="fas fa-trash"></i>
+                                        Limpar
+                                    </button>
+                                </div>
+                                
+                                <div id="recordingIndicator" class="recording-indicator hidden">
+                                    <div class="pulse"></div>
+                                    <span>Gravando áudio... Fale agora!</span>
+                                    <span id="recordingTimer">00:00</span>
+                                </div>
+                                
+                                <div class="audio-visualizer" id="audioVisualizer">
+                                    <!-- Barras do visualizador serão geradas aqui -->
+                                </div>
                             </div>
                             
-                            <div class="audio-visualizer" id="audioVisualizer">
-                                <!-- Visualizador de áudio será gerado dinamicamente -->
+                            <div class="section">
+                                <h3 class="section-title">
+                                    <i class="fas fa-paste"></i>
+                                    Colar Transcrição Diretamente
+                                </h3>
+                                
+                                <div class="paste-transcription-container">
+                                    <div class="input-group">
+                                        <label>Cole sua transcrição aqui:</label>
+                                        <textarea id="pasteTranscription" rows="6" placeholder="Cole o texto transcrito diretamente aqui..."></textarea>
+                                    </div>
+                                    <div class="audio-controls">
+                                        <button class="button button-success" id="usePastedTranscription">
+                                            <i class="fas fa-check"></i>
+                                            Usar Esta Transcrição
+                                        </button>
+                                        <button class="button button-secondary" id="clearPastedTranscription">
+                                            <i class="fas fa-times"></i>
+                                            Limpar
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                             
-                            <div class="transcription-result" id="transcriptionResult">
-                                <!-- Resultado da transcrição será exibido aqui -->
-                            </div>
-                            
-                            <div class="paste-transcription-container">
+                            <div class="section">
+                                <h3 class="section-title">
+                                    <i class="fas fa-file-alt"></i>
+                                    Transcrição
+                                </h3>
+                                
                                 <div class="input-group">
-                                    <label>Ou cole uma transcrição de áudio</label>
-                                    <textarea id="pasteTranscription" placeholder="Cole aqui o texto transcrito de uma conversa..."></textarea>
+                                    <label>Configurações de Transcrição</label>
+                                    <select id="languageSelect">
+                                        <option value="pt-BR">Português (Brasil)</option>
+                                        <option value="en-US">Inglês (EUA)</option>
+                                        <option value="es-ES">Espanhol</option>
+                                    </select>
                                 </div>
-                                <button class="button button-primary" id="analyzeTranscription">
-                                    <i class="fas fa-search"></i>
-                                    Analisar Transcrição
-                                </button>
+                                
+                                <div class="transcription-result" id="transcriptionResults">
+                                    <p class="text-center" style="color: #666;">
+                                        A transcrição aparecerá aqui...
+                                    </p>
+                                </div>
+                                
+                                <div class="audio-controls">
+                                    <button class="button button-success" id="copyTranscription">
+                                        <i class="fas fa-copy"></i>
+                                        Copiar Transcrição
+                                    </button>
+                                    <button class="button button-info" id="exportTranscription">
+                                        <i class="fas fa-download"></i>
+                                        Exportar TXT
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="section">
+                                <h3 class="section-title">
+                                    <i class="fas fa-robot"></i>
+                                    Análise com IA
+                                </h3>
+                                
+                                <div class="input-group">
+                                    <label>Prompt para Análise do Áudio</label>
+                                    <textarea id="audioPrompt" rows="4">Analise esta conversa transcrita e identifique os principais problemas, sentimentos e oportunidades:</textarea>
+                                </div>
+                                
+                                <div class="form-row">
+                                    <button class="button button-primary" id="analyzeAudio">
+                                        <i class="fas fa-search"></i>
+                                        Analisar com IA
+                                    </button>
+                                    <button class="button button-info" id="quickAudioAnalysis">
+                                        <i class="fas fa-bolt"></i>
+                                        Análise Rápida
+                                    </button>
+                                </div>
+                                
+                                <div id="audioAnalysisResults" class="mt-20"></div>
                             </div>
                         </div>
                     </div>
@@ -1419,957 +1604,2506 @@
     </div>
 
     <script>
-        // Dados de exemplo
-        const sampleData = {
-            interactions: [
-                {
-                    id: 1,
-                    agent: "João Silva",
-                    client: "Maria Santos",
-                    date: "2023-10-15",
-                    messages: [
-                        { sender: "agent", text: "Olá, como posso ajudá-lo hoje?" },
-                        { sender: "client", text: "Estou com problemas para acessar minha conta." },
-                        { sender: "agent", text: "Entendo, vou ajudar com isso. Pode me informar seu e-mail?" },
-                        { sender: "client", text: "maria.santos@email.com" },
-                        { sender: "agent", text: "Obrigado! Verifiquei aqui e parece que sua conta está bloqueada temporariamente por segurança." },
-                        { sender: "client", text: "Ah, entendi. Como posso desbloquear?" },
-                        { sender: "agent", text: "Vou enviar um link para redefinir sua senha. Isso deve resolver o problema." },
-                        { sender: "client", text: "Perfeito, obrigada pela ajuda!" }
-                    ],
-                    sentiment: "positive",
-                    duration: 8
-                },
-                {
-                    id: 2,
-                    agent: "Ana Costa",
-                    client: "Pedro Oliveira",
-                    date: "2023-10-16",
-                    messages: [
-                        { sender: "agent", text: "Boa tarde! Em que posso ser útil?" },
-                        { sender: "client", text: "Meu pedido ainda não chegou e já passou do prazo." },
-                        { sender: "agent", text: "Peço desculpas pelo ocorrido. Pode me informar o número do pedido?" },
-                        { sender: "client", text: "É o #12345" },
-                        { sender: "agent", text: "Obrigada. Estou verificando... Encontrei aqui, houve um problema com a transportadora." },
-                        { sender: "client", text: "Isso é inaceitável! Preciso do produto urgentemente." },
-                        { sender: "agent", text: "Compreendo sua frustração. Vou priorizar seu caso e entrar em contato com a transportadora." },
-                        { sender: "client", text: "Espero que resolvam rápido, estou muito insatisfeito." }
-                    ],
-                    sentiment: "negative",
-                    duration: 7
-                },
-                {
-                    id: 3,
-                    agent: "Carlos Lima",
-                    client: "Fernanda Rocha",
-                    date: "2023-10-17",
-                    messages: [
-                        { sender: "agent", text: "Olá, sou Carlos. Como posso ajudá-la?" },
-                        { sender: "client", text: "Gostaria de informações sobre o plano premium." },
-                        { sender: "agent", text: "Claro! O plano premium inclui suporte prioritário, relatórios detalhados e acesso a recursos avançados." },
-                        { sender: "client", text: "Interessante! E qual o valor?" },
-                        { sender: "agent", text: "O valor mensal é de R$ 99,90, mas temos desconto para pagamento anual." },
-                        { sender: "client", text: "Pode me enviar mais detalhes por e-mail?" },
-                        { sender: "agent", text: "Com certeza! Vou enviar todas as informações para o e-mail cadastrado." },
-                        { sender: "client", text: "Obrigada, foi muito útil!" }
-                    ],
-                    sentiment: "positive",
-                    duration: 7
-                },
-                {
-                    id: 4,
-                    agent: "João Silva",
-                    client: "Roberto Alves",
-                    date: "2023-10-18",
-                    messages: [
-                        { sender: "agent", text: "Bom dia! Como posso ajudá-lo?" },
-                        { sender: "client", text: "Preciso cancelar minha assinatura." },
-                        { sender: "agent", text: "Entendo. Há algum problema específico que posso ajudar a resolver?" },
-                        { sender: "client", text: "Não estou usando muito o serviço, então prefiro cancelar." },
-                        { sender: "agent", text: "Compreendo. Antes de cancelar, gostaria de informar sobre nossos novos recursos que podem ser úteis." },
-                        { sender: "client", text: "Não, obrigado. Só quero cancelar mesmo." },
-                        { sender: "agent", text: "Certo, vou processar o cancelamento. Foi um prazer atendê-lo." }
-                    ],
-                    sentiment: "neutral",
-                    duration: 6
-                },
-                {
-                    id: 5,
-                    agent: "Ana Costa",
-                    client: "Juliana Mendes",
-                    date: "2023-10-19",
-                    messages: [
-                        { sender: "agent", text: "Olá, sou a Ana. Como posso ajudá-la?" },
-                        { sender: "client", text: "Adorei o atendimento da última vez! Queria dar um feedback positivo." },
-                        { sender: "agent", text: "Que bom ouvir isso! Fico feliz em saber que teve uma boa experiência." },
-                        { sender: "client", text: "Sim, o João foi muito prestativo e resolveu meu problema rapidamente." },
-                        { sender: "agent", text: "Vou repassar seu feedback para ele. A equipe agradece!" },
-                        { sender: "client", text: "Parabéns pelo excelente serviço!" }
-                    ],
-                    sentiment: "positive",
-                    duration: 5
+        // =============================================
+        // DICIONÁRIO AFINN PARA ANÁLISE DE SENTIMENTOS
+        // =============================================
+        const AFINN_PT = {
+            'abandonar': -2, 'abandonado': -2, 'abandono': -2, 'abatido': -2, 'abominar': -3,
+            'abominação': -3, 'abominável': -3, 'aborrecer': -2, 'aborrecido': -2, 'aborrecimento': -2,
+            'abrasador': -1, 'abrasar': -1, 'abrir': 1, 'absurdo': -2, 'abuso': -3, 'abusar': -3,
+            'acalmar': 2, 'aceitar': 2, 'aceitação': 2, 'acessível': 1, 'acolhedor': 2, 'acolher': 2,
+            'acreditar': 1, 'acusar': -2, 'adeus': -1, 'admirar': 3, 'admirável': 3, 'adorei': 3,
+            'adoro': 3, 'adversário': -2, 'adversidade': -2, 'agradável': 3, 'agradecer': 2,
+            'agradecido': 2, 'agressão': -3, 'agressivo': -2, 'ajuda': 2, 'ajudar': 2, 'alegrar': 3,
+            'alegre': 3, 'alegria': 4, 'aliviado': 2, 'amabilidade': 3, 'amar': 3, 'amargo': -2,
+            'amigável': 2, 'amizade': 2, 'amor': 3, 'angustiado': -3, 'angústia': -3, 'animado': 3,
+            'ansiedade': -2, 'ansioso': -2, 'apavorado': -3, 'apoiar': 2, 'apreciação': 2,
+            'apreensivo': -2, 'apropriado': 2, 'aprovado': 2, 'assustado': -2, 'assustador': -2,
+            'aterrorizado': -3, 'atraente': 2, 'aviso': -1, 'bênção': 3, 'benéfico': 2, 'bom': 3,
+            'bondade': 3, 'bravo': -3, 'brilhante': 2, 'burlar': -2, 'cair': -1, 'calmo': 1,
+            'cansaço': -2, 'cansado': -2, 'capaz': 2, 'carinho': 3, 'catástrofe': -3, 'chateado': -2,
+            'chato': -2, 'chocante': -2, 'comemorar': 3, 'compreensão': 2, 'conforto': 2,
+            'confortável': 2, 'confusão': -2, 'confuso': -2, 'consertar': 2, 'consolo': 2,
+            'contente': 3, 'coragem': 2, 'corajoso': 2, 'cuidado': 2, 'culpa': -2, 'culpado': -2,
+            'danificar': -2, 'danificado': -2, 'danoso': -3, 'decepcionado': -2, 'decepção': -2,
+            'defeito': -2, 'defeituoso': -2, 'deficiência': -2, 'degradar': -2, 'degradante': -2,
+            'deixa': -1, 'deixar': -1, 'delícia': 3, 'delicioso': 3, 'deprimido': -2, 'deprimente': -2,
+            'derrota': -2, 'derrotar': -2, 'desafeto': -2, 'desagradável': -2, 'desanimado': -2,
+            'desanimar': -2, 'desapontado': -2, 'desastre': -3, 'desastrado': -2, 'desconforto': -2,
+            'desconfortável': -2, 'desculpa': -1, 'desejo': 1, 'desesperado': -3, 'desespero': -3,
+            'desgostar': -2, 'desgosto': -2, 'desgraça': -3, 'desilusão': -2, 'desistir': -2,
+            'desleal': -3, 'desolado': -3, 'desonesto': -2, 'desonra': -2, 'desordem': -2,
+            'desrespeito': -2, 'desrespeitoso': -2, 'destruir': -3, 'destruição': -3, 'deteriorar': -2,
+            'detestar': -3, 'devastado': -3, 'difícil': -1, 'digno': 2, 'dilema': -1, 'diminuir': -1,
+            'dinâmico': 2, 'direito': 2, 'disciplina': 1, 'disputa': -2, 'distúrbio': -2, 'diversão': 3,
+            'divertido': 3, 'doloroso': -2, 'dor': -2, 'dúvida': -1, 'econômico': 1, 'eficaz': 2,
+            'elegante': 2, 'elevar': 2, 'elogiar': 2, 'elogio': 2, 'embaraçado': -2, 'embaraçoso': -2,
+            'emoção': 3, 'empolgado': 3, 'encantador': 3, 'encorajar': 2, 'energia': 2, 'energético': 2,
+            'enfurecer': -3, 'engraçado': 3, 'enorme': 2, 'entusiasmado': 3, 'entusiasmo': 3,
+            'errado': -2, 'erro': -2, 'escolha': 1, 'escorregar': -1, 'esforço': 2, 'esmagar': -2,
+            'especial': 2, 'esperança': 2, 'esperançoso': 2, 'espantoso': 3, 'espetacular': 3,
+            'esplêndido': 3, 'estável': 1, 'estragar': -2, 'estranho': -1, 'estressado': -2,
+            'estresse': -2, 'estúpido': -3, 'euforia': 4, 'euforico': 4, 'evitar': -1, 'excelente': 3,
+            'excepcional': 3, 'excitação': 3, 'excitado': 3, 'exigente': -1, 'êxito': 3, 'experiência': 1,
+            'extraordinário': 3, 'facilidade': 1, 'fadiga': -2, 'falha': -2, 'falar': 1, 'falso': -2,
+            'falta': -1, 'faltar': -1, 'fantástico': 4, 'favorito': 2, 'felicidade': 4, 'feliz': 3,
+            'ficar': 1, 'fiel': 2, 'forte': 2, 'fraco': -2, 'fraqueza': -2, 'frustração': -2,
+            'frustrado': -2, 'fugir': -1, 'funciona': 2, 'funcionando': 2, 'fundamental': 2, 'fúria': -3,
+            'furioso': -3, 'ganhar': 2, 'generoso': 2, 'genial': 3, 'gostar': 2, 'gostei': 2, 'gosto': 2,
+            'grande': 2, 'gratidão': 3, 'grato': 3, 'grave': -2, 'guerra': -3, 'habilidade': 2,
+            'habilidoso': 2, 'harmonia': 2, 'herói': 2, 'heroico': 2, 'honesto': 2, 'honra': 2,
+            'horrível': -3, 'horror': -3, 'hostil': -2, 'humilhar': -3, 'ideia': 1, 'idiota': -3,
+            'ignorar': -2, 'ilegal': -3, 'imoral': -3, 'importante': 2, 'impressionante': 3,
+            'incapaz': -2, 'incerteza': -2, 'incerto': -2, 'incidente': -1, 'incrível': 3, 'indeciso': -1,
+            'indesejado': -2, 'ineficaz': -2, 'inferior': -2, 'injustiça': -2, 'injusto': -2,
+            'inseguro': -2, 'insensível': -2, 'insatisfeito': -2, 'insatisfação': -2, 'insistir': -1,
+            'insucesso': -2, 'inteligente': 2, 'interessante': 2, 'intriga': -1, 'inveja': -2,
+            'invejoso': -2, 'irritado': -3, 'irritante': -2, 'jovem': 1, 'julgamento': -1, 'justo': 2,
+            'justiça': 2, 'legal': 2, 'liberdade': 2, 'liberar': 1, 'livre': 2, 'loucura': -2,
+            'lutar': -1, 'magnífico': 3, 'mal': -3, 'maravilha': 3, 'maravilhoso': 4, 'mau': -3,
+            'medo': -2, 'melhor': 3, 'melhorar': 2, 'mentir': -3, 'mentira': -3, 'merecer': 2,
+            'merecido': 2, 'miserável': -3, 'miséria': -3, 'misterioso': -1, 'morte': -3, 'morto': -3,
+            'motivar': 2, 'motivação': 2, 'muito': 1, 'negligência': -2, 'negligente': -2, 'negociar': 1,
+            'nervoso': -2, 'nobre': 2, 'notável': 3, 'obrigado': 2, 'ódio': -3, 'odiar': -3, 'ofensa': -2,
+            'ofender': -2, 'ofensivo': -2, 'oportunidade': 2, 'optimismo': 2, 'optimista': 2,
+            'orgulho': 2, 'orgulhoso': 2, 'paciência': 2, 'paciente': 2, 'paz': 2, 'perda': -2,
+            'perder': -2, 'perdido': -2, 'perfeito': 3, 'perigo': -2, 'perigoso': -2, 'permitir': 1,
+            'pessimismo': -2, 'pessimista': -2, 'pior': -3, 'pobre': -2, 'poder': 2, 'poderoso': 2,
+            'popular': 2, 'positivo': 2, 'possível': 1, 'preciso': 2, 'preocupação': -2, 'preocupado': -2,
+            'preocupar': -2, 'presa': -2, 'preso': -2, 'pressa': -1, 'pressão': -1, 'prevenir': 1,
+            'problema': -2, 'produtivo': 2, 'progresso': 2, 'promessa': 1, 'promissor': 2, 'proteger': 2,
+            'proteção': 2, 'qualidade': 2, 'quebrar': -2, 'quebrado': -2, 'querer': 1, 'raiva': -3,
+            'rancor': -2, 'rancoroso': -2, 'raro': 2, 'realizar': 2, 'recusar': -2, 'recusa': -2,
+            'rejeitar': -2, 'rejeição': -2, 'relaxar': 2, 'relutante': -1, 'remorso': -2, 'respeito': 2,
+            'respeitoso': 2, 'responsabilidade': 1, 'responsável': 2, 'ressentimento': -2, 'ressuscitar': 2,
+            'restaurar': 2, 'resultado': 1, 'reto': 2, 'reunir': 1, 'reunião': 1, 'revelar': 1,
+            'ridículo': -2, 'risco': -2, 'rival': -1, 'roubar': -3, 'ruim': -3, 'sábio': 2, 'sabedoria': 2,
+            'saboroso': 2, 'sacrificar': -1, 'sacrifício': -1, 'sagrado': 2, 'salvar': 2, 'satisfação': 3,
+            'satisfeito': 3, 'saudade': -1, 'saudável': 2, 'segredo': -1, 'segurança': 2, 'seguro': 2,
+            'sensacional': 4, 'sensato': 2, 'sentir': 1, 'sereno': 2, 'sério': -1, 'servir': 1,
+            'significativo': 2, 'simpatia': 2, 'simpático': 2, 'sincero': 2, 'socorro': -2, 'solidão': -2,
+            'solitário': -2, 'solução': 2, 'solucionar': 2, 'sombrio': -2, 'sonho': 1, 'sortudo': 3,
+            'sorte': 2, 'sossego': 2, 'suave': 1, 'sucesso': 3, 'sugerir': 1, 'super': 3, 'superar': 2,
+            'surpresa': 1, 'surpreendente': 3, 'suspeita': -2, 'suspeitar': -2, 'suspeito': -2,
+            'talentoso': 2, 'talento': 2, 'temer': -2, 'temeroso': -2, 'tensão': -2, 'tenso': -2,
+            'terrível': -3, 'terror': -3, 'tolo': -2, 'trabalho': 1, 'traidor': -3, 'trair': -3,
+            'traição': -3, 'tranquilidade': 2, 'tranquilo': 2, 'triste': -2, 'tristeza': -2, 'útil': 2,
+            'vagaroso': -1, 'valioso': 2, 'valor': 2, 'vantagem': 2, 'vencer': 3, 'verdade': 2,
+            'verdadeiro': 2, 'vergonha': -2, 'vergonhoso': -2, 'vibrante': 2, 'vida': 2, 'vigor': 2,
+            'vigoroso': 2, 'vil': -2, 'violação': -2, 'violar': -2, 'violência': -3, 'violento': -3,
+            'virtude': 2, 'vitória': 3, 'vitorioso': 3, 'vivo': 2, 'vontade': 1, 'zombar': -2
+        };
+
+        // =============================================
+        // ANALISADOR DE SENTIMENTOS
+        // =============================================
+        class SentimentAnalyzer {
+            constructor() {
+                this.afinn = AFINN_PT;
+                this.negators = ['não', 'nem', 'nunca', 'jamais', 'sem'];
+                this.intensifiers = {
+                    'muito': 1.5, 'extremamente': 2.0, 'totalmente': 1.8,
+                    'completamente': 1.8, 'realmente': 1.3, 'demais': 1.5
+                };
+            }
+
+            analyze(text) {
+                if (!text || typeof text !== 'string') {
+                    return { score: 0, comparative: 0, sentiment: 'Neutro', confidence: 0 };
                 }
-            ]
-        };
 
-        // Estado da aplicação
-        let appState = {
-            currentData: [],
+                const words = this.tokenize(text);
+                let score = 0;
+                let wordCount = 0;
+                let negateNext = false;
+                let intensifyNext = 1.0;
+
+                for (let i = 0; i < words.length; i++) {
+                    const word = words[i];
+
+                    if (this.negators.includes(word)) {
+                        negateNext = true;
+                        continue;
+                    }
+
+                    if (this.intensifiers[word]) {
+                        intensifyNext = this.intensifiers[word];
+                        continue;
+                    }
+
+                    if (this.afinn[word]) {
+                        let wordScore = this.afinn[word];
+                        wordScore *= intensifyNext;
+                        intensifyNext = 1.0;
+
+                        if (negateNext) {
+                            wordScore = -wordScore;
+                            negateNext = false;
+                        }
+
+                        score += wordScore;
+                        wordCount++;
+                    }
+                }
+
+                const comparative = wordCount > 0 ? score / wordCount : 0;
+                const sentiment = this.getSentimentLabel(score, comparative);
+                const confidence = this.calculateConfidence(score, wordCount);
+
+                return {
+                    score: Math.round(score * 100) / 100,
+                    comparative: Math.round(comparative * 100) / 100,
+                    sentiment: sentiment,
+                    confidence: Math.round(confidence * 100) / 100,
+                    wordCount: wordCount
+                };
+            }
+
+            tokenize(text) {
+                return text
+                    .toLowerCase()
+                    .replace(/[^\w\sàáâãèéêìíîòóôõùúûç]/g, '')
+                    .split(/\s+/)
+                    .filter(word => word.length > 2);
+            }
+
+            getSentimentLabel(score, comparative) {
+                if (score > 2) return 'Muito Positivo';
+                if (score > 0.5) return 'Positivo';
+                if (score > -0.5) return 'Neutro';
+                if (score > -2) return 'Negativo';
+                return 'Muito Negativo';
+            }
+
+            calculateConfidence(score, wordCount) {
+                if (wordCount === 0) return 0;
+                const baseConfidence = Math.min(Math.abs(score) / wordCount * 2, 1);
+                const wordCountConfidence = Math.min(wordCount / 10, 1);
+                return (baseConfidence * 0.7 + wordCountConfidence * 0.3);
+            }
+        }
+
+        // =============================================
+        // ANALISADOR DE TEXTO AVANÇADO
+        // =============================================
+        class TextAnalyzer {
+            constructor() {
+                this.stopWords = new Set(["o", "a", "os", "as", "um", "uma", "uns", "umas", "de", "do", "da", "dos", "das", "em", "no", "na", "nos", "nas", "por", "para", "que", "e", "é", "ser", "se", "com", "como", "mas", "ou", "em", "na", "no", "nos", "nas", "por", "para", "com", "sem", "sob", "sobre", "entre", "até", "após", "desde", "quando", "onde", "porque", "porquê", "que", "quem", "qual", "quais", "cujo", "cuja", "cujos", "cujas", "quanto", "quanta", "quantos", "quantas", "qualquer", "quaisquer", "algum", "alguma", "alguns", "algumas", "todo", "toda", "todos", "todas", "outro", "outra", "outros", "outras", "mesmo", "mesma", "mesmos", "mesmas", "tal", "tais", "certo", "certa", "certos", "certas", "vário", "vária", "vários", "várias", "muito", "muita", "muitos", "muitas", "pouco", "pouca", "poucos", "poucas", "tanto", "tanta", "tantos", "tantas", "quanto", "quanta", "quantos", "quantas", "alguns", "algumas", "nenhum", "nenhuma", "nenhuns", "nenhumas", "todo", "toda", "todos", "todas", "outro", "outra", "outros", "outras", "qual", "quais", "cada", "qualquer", "quaisquer", "sim", "não", "já", "ainda", "só", "somente", "até", "mesmo", "também", "já", "já", "logo", "depois", "antes", "agora", "então", "assim", "bem", "mal", "aqui", "ali", "lá", "acolá", "cá", "onde", "quando", "como", "porque", "porquê", "pois", "que", "se", "embora", "conquanto", "contudo", "todavia", "entretanto", "no entanto", "portanto", "logo", "por conseguinte", "assim", "desse modo", "dessa forma", "alias", "aliás", "ou seja", "isto é", "a saber", "por exemplo", "e", "nem", "não só", "mas também", "ora", "já", "quer", "quer", "seja", "seja", "ou", "ou", "nem", "nem", "porque", "porquê", "pois", "que", "como", "quando", "onde", "donde", "aonde", "quem", "qual", "quais", "quanto", "quanta", "quantos", "quantas", "cujo", "cuja", "cujos", "cujas", "cada", "qualquer", "quaisquer", "algum", "alguma", "alguns", "algumas", "nenhum", "nenhuma", "nenhuns", "nenhumas", "todo", "toda", "todos", "todas", "outro", "outra", "outros", "outras", "mesmo", "mesma", "mesmos", "mesmas", "tal", "tais", "certo", "certa", "certos", "certas", "vário", "vária", "vários", "várias", "muito", "muita", "muitos", "muitas", "pouco", "pouca", "poucos", "poucas", "tanto", "tanta", "tantos", "tantas", "quanto", "quanta", "quantos", "quantas", "alguns", "algumas", "nenhum", "nenhuma", "nenhuns", "nenhumas", "todo", "toda", "todos", "todas", "outro", "outra", "outros", "outras", "qual", "quais", "cada", "qualquer", "quaisquer"]);
+                this.wordFrequencies = {};
+                this.bigramFrequencies = {};
+                this.searchIndex = null;
+            }
+
+            tokenize(text) {
+                return text
+                    .toLowerCase()
+                    .replace(/[^\w\sàáâãèéêìíîòóôõùúûç]/g, '')
+                    .split(/\s+/)
+                    .filter(word => word.length > 2 && !this.stopWords.has(word));
+            }
+
+            extractBigrams(tokens) {
+                const bigrams = [];
+                for (let i = 0; i < tokens.length - 1; i++) {
+                    bigrams.push(tokens[i] + ' ' + tokens[i + 1]);
+                }
+                return bigrams;
+            }
+
+            calculateFrequencies(data) {
+                this.wordFrequencies = {};
+                this.bigramFrequencies = {};
+                
+                data.forEach(item => {
+                    const tokens = this.tokenize(item.Texto);
+                    const bigrams = this.extractBigrams(tokens);
+                    
+                    // Contar palavras
+                    tokens.forEach(word => {
+                        this.wordFrequencies[word] = (this.wordFrequencies[word] || 0) + 1;
+                    });
+                    
+                    // Contar bigramas
+                    bigrams.forEach(bigram => {
+                        this.bigramFrequencies[bigram] = (this.bigramFrequencies[bigram] || 0) + 1;
+                    });
+                });
+            }
+
+            getTopWords(limit = 50) {
+                return Object.entries(this.wordFrequencies)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, limit);
+            }
+
+            getTopBigrams(limit = 30) {
+                return Object.entries(this.bigramFrequencies)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, limit);
+            }
+
+            setupSearchIndex(data) {
+                const options = {
+                    includeScore: true,
+                    threshold: 0.3,
+                    keys: ['Texto', 'Agente']
+                };
+                this.searchIndex = new Fuse(data, options);
+            }
+
+            search(query, sentimentFilter = 'all', limit = 20) {
+                if (!this.searchIndex) return [];
+                
+                let results = this.searchIndex.search(query);
+                
+                // Aplicar filtro de sentimento
+                if (sentimentFilter !== 'all') {
+                    results = results.filter(result => {
+                        const sentiment = result.item.Sentimento;
+                        switch (sentimentFilter) {
+                            case 'positive':
+                                return sentiment === 'Positivo' || sentiment === 'Muito Positivo';
+                            case 'negative':
+                                return sentiment === 'Negativo' || sentiment === 'Muito Negativo';
+                            case 'neutral':
+                                return sentiment === 'Neutro';
+                            default:
+                                return true;
+                        }
+                    });
+                }
+                
+                return results.slice(0, limit);
+            }
+
+            highlightText(text, query) {
+                const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+                return text.replace(regex, '<span class="search-highlight">$1</span>');
+            }
+
+            addStopWord(word) {
+                const cleanWord = word.toLowerCase().trim();
+                if (cleanWord && !this.stopWords.has(cleanWord)) {
+                    this.stopWords.add(cleanWord);
+                    return true;
+                }
+                return false;
+            }
+
+            removeStopWord(word) {
+                return this.stopWords.delete(word.toLowerCase().trim());
+            }
+
+            resetStopWords() {
+                this.stopWords = new Set(["o", "a", "os", "as", "um", "uma", "uns", "umas", "de", "do", "da", "dos", "das", "em", "no", "na", "nos", "nas", "por", "para", "que", "e", "é", "ser", "se", "com", "como", "mas", "ou"]);
+            }
+
+            getStopWords() {
+                return Array.from(this.stopWords).sort();
+            }
+        }
+
+        // =============================================
+        // ANALISADOR DE IA AVANÇADA
+        // =============================================
+        class AdvancedAIAnalyzer {
+            constructor() {
+                this.isInitialized = true;
+            }
+
+            async initialize() {
+                this.isInitialized = true;
+                return true;
+            }
+
+            async analyzeSentimentAdvanced(text) {
+                const sentimentAnalyzer = new SentimentAnalyzer();
+                const result = sentimentAnalyzer.analyze(text);
+                
+                return {
+                    label: result.sentiment,
+                    score: result.score,
+                    sentiment: result.sentiment
+                };
+            }
+
+            async summarizeText(text, maxLength = 150) {
+                const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
+                const summary = sentences.slice(0, 3).join('. ') + '.';
+                return summary;
+            }
+
+            async generateInsights(conversations, prompt) {
+                const allText = conversations.map(c => c.Texto).join(' ');
+                const sentimentResult = await this.analyzeSentimentAdvanced(allText);
+                const summary = await this.summarizeText(allText);
+                const topics = this.extractTopics(conversations);
+                
+                return {
+                    sentiment: sentimentResult,
+                    summary: summary,
+                    topics: topics,
+                    recommendations: this.generateRecommendations(sentimentResult, topics),
+                    confidence: sentimentResult.score
+                };
+            }
+
+            extractTopics(conversations) {
+                const topics = {
+                    'Problemas Técnicos': 0,
+                    'Atendimento ao Cliente': 0,
+                    'Cobrança e Pagamentos': 0,
+                    'Produtos e Serviços': 0,
+                    'Elogios': 0,
+                    'Reclamações': 0
+                };
+
+                const keywords = {
+                    'Problemas Técnicos': ['erro', 'problema', 'bug', 'falha', 'não funciona', 'quebrado', 'defeito'],
+                    'Atendimento ao Cliente': ['atendimento', 'suporte', 'ajuda', 'assistência', 'consultor'],
+                    'Cobrança e Pagamentos': ['pagamento', 'cobrança', 'fatura', 'cartão', 'dinheiro', 'preço'],
+                    'Produtos e Serviços': ['produto', 'serviço', 'funcionalidade', 'recurso', 'aplicativo'],
+                    'Elogios': ['parabéns', 'excelente', 'ótimo', 'maravilhoso', 'gostei', 'recomendo'],
+                    'Reclamações': ['reclamação', 'insatisfeito', 'ruim', 'péssimo', 'decepcionado', 'lento']
+                };
+
+                conversations.forEach(conversation => {
+                    const text = conversation.Texto.toLowerCase();
+                    Object.keys(keywords).forEach(topic => {
+                        keywords[topic].forEach(keyword => {
+                            if (text.includes(keyword)) {
+                                topics[topic]++;
+                            }
+                        });
+                    });
+                });
+
+                return Object.entries(topics)
+                    .filter(([_, count]) => count > 0)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 5);
+            }
+
+            generateRecommendations(sentiment, topics) {
+                const recommendations = [];
+                
+                if (sentiment.score < 0.6) {
+                    recommendations.push({
+                        type: 'warning',
+                        title: 'Sentimento Negativo Detectado',
+                        description: 'Considere revisar processos de atendimento e treinamento da equipe.',
+                        priority: 'Alta'
+                    });
+                }
+
+                if (topics.some(([topic, count]) => topic === 'Problemas Técnicos' && count > 2)) {
+                    recommendations.push({
+                        type: 'error',
+                        title: 'Problemas Técnicos Frequentes',
+                        description: 'Muitas menções a problemas técnicos. Avalie a estabilidade do sistema.',
+                        priority: 'Alta'
+                    });
+                }
+
+                if (topics.some(([topic, count]) => topic === 'Elogios' && count > 0)) {
+                    recommendations.push({
+                        type: 'success',
+                        title: 'Pontos Positivos Identificados',
+                        description: 'Clientes estão elogiando alguns aspectos do serviço. Mantenha essas práticas!',
+                        priority: 'Média'
+                    });
+                }
+
+                recommendations.push({
+                    type: 'info',
+                    title: 'Análise Contínua Recomendada',
+                    description: 'Monitore essas métricas regularmente para identificar tendências.',
+                    priority: 'Média'
+                });
+
+                return recommendations;
+            }
+
+            async performQuickAnalysis(conversations) {
+                const sampleText = conversations.slice(0, 3).map(c => c.Texto).join(' ');
+                const sentiment = await this.analyzeSentimentAdvanced(sampleText);
+                const topics = this.extractTopics(conversations.slice(0, 10));
+
+                return {
+                    sentiment: sentiment,
+                    mainTopics: topics.slice(0, 3),
+                    messageCount: conversations.length,
+                    urgency: sentiment.score < 0.5 ? 'Alta' : 'Normal'
+                };
+            }
+
+            async analyzeTopicsAdvanced(conversations) {
+                const topics = this.extractTopics(conversations);
+                const detailedTopics = [];
+
+                for (const [topic, count] of topics) {
+                    const relatedConversations = conversations.filter(conv => 
+                        conv.Texto.toLowerCase().includes(
+                            topic.toLowerCase().split(' ')[0]
+                        )
+                    ).slice(0, 3);
+
+                    detailedTopics.push({
+                        topic: topic,
+                        frequency: count,
+                        examples: relatedConversations.map(c => ({
+                            text: c.Texto.slice(0, 100) + '...',
+                            sentiment: c.Sentimento,
+                            agent: c.Agente
+                        })),
+                        sentimentDistribution: this.calculateTopicSentiment(relatedConversations)
+                    });
+                }
+
+                return detailedTopics;
+            }
+
+            calculateTopicSentiment(conversations) {
+                const distribution = {
+                    'Muito Positivo': 0,
+                    'Positivo': 0,
+                    'Neutro': 0,
+                    'Negativo': 0,
+                    'Muito Negativo': 0
+                };
+
+                conversations.forEach(conv => {
+                    distribution[conv.Sentimento] = (distribution[conv.Sentimento] || 0) + 1;
+                });
+
+                return distribution;
+            }
+        }
+
+        // =============================================
+        // TRANSCRITOR DE ÁUDIO
+        // =============================================
+        class AudioTranscriber {
+            constructor() {
+                this.recognition = null;
+                this.isRecording = false;
+                this.transcription = '';
+                this.audioChunks = [];
+                this.mediaRecorder = null;
+                this.audioContext = null;
+                this.analyser = null;
+                this.recordingStartTime = 0;
+                this.recordingTimer = null;
+                this.setupSpeechRecognition();
+            }
+
+            setupSpeechRecognition() {
+                if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                    throw new Error('Web Speech API não é suportada neste navegador');
+                }
+
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                this.recognition = new SpeechRecognition();
+                
+                this.recognition.continuous = true;
+                this.recognition.interimResults = true;
+                this.recognition.lang = document.getElementById('languageSelect').value;
+
+                this.recognition.onstart = () => {
+                    this.isRecording = true;
+                    this.onRecordingStateChange(true);
+                };
+
+                this.recognition.onresult = (event) => {
+                    let interimTranscript = '';
+                    let finalTranscript = '';
+
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                        const transcript = event.results[i][0].transcript;
+                        if (event.results[i].isFinal) {
+                            finalTranscript += transcript + ' ';
+                        } else {
+                            interimTranscript += transcript;
+                        }
+                    }
+
+                    if (finalTranscript) {
+                        this.transcription += finalTranscript;
+                    }
+
+                    this.onTranscriptionUpdate(this.transcription, interimTranscript);
+                };
+
+                this.recognition.onerror = (event) => {
+                    console.error('Erro no reconhecimento de voz:', event.error);
+                    this.onTranscriptionError(event.error);
+                };
+
+                this.recognition.onend = () => {
+                    this.isRecording = false;
+                    this.onRecordingStateChange(false);
+                };
+            }
+
+            async startRecording() {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ 
+                        audio: {
+                            echoCancellation: true,
+                            noiseSuppression: true,
+                            sampleRate: 44100
+                        } 
+                    });
+                    
+                    this.audioChunks = [];
+                    this.transcription = '';
+                    this.recordingStartTime = Date.now();
+                    
+                    this.mediaRecorder = new MediaRecorder(stream);
+                    
+                    this.mediaRecorder.ondataavailable = (event) => {
+                        if (event.data.size > 0) {
+                            this.audioChunks.push(event.data);
+                        }
+                    };
+                    
+                    this.mediaRecorder.onstop = () => {
+                        const audioBlob = new Blob(this.audioChunks, { type: 'audio/wav' });
+                        this.onAudioRecorded(audioBlob);
+                    };
+                    
+                    this.setupAudioVisualizer(stream);
+                    this.mediaRecorder.start();
+                    this.recognition.start();
+                    this.startRecordingTimer();
+                    
+                } catch (error) {
+                    console.error('Erro ao acessar microfone:', error);
+                    throw error;
+                }
+            }
+
+            stopRecording() {
+                if (this.mediaRecorder && this.isRecording) {
+                    this.mediaRecorder.stop();
+                    this.recognition.stop();
+                    
+                    if (this.mediaRecorder.stream) {
+                        this.mediaRecorder.stream.getTracks().forEach(track => track.stop());
+                    }
+                    
+                    this.stopRecordingTimer();
+                }
+            }
+
+            setupAudioVisualizer(stream) {
+                this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                this.analyser = this.audioContext.createAnalyser();
+                const source = this.audioContext.createMediaStreamSource(stream);
+                
+                source.connect(this.analyser);
+                this.analyser.fftSize = 256;
+                
+                this.visualizeAudio();
+            }
+
+            visualizeAudio() {
+                if (!this.analyser || !this.isRecording) return;
+                
+                const bufferLength = this.analyser.frequencyBinCount;
+                const dataArray = new Uint8Array(bufferLength);
+                const visualizer = document.getElementById('audioVisualizer');
+                
+                const draw = () => {
+                    if (!this.isRecording) return;
+                    
+                    requestAnimationFrame(draw);
+                    this.analyser.getByteFrequencyData(dataArray);
+                    
+                    visualizer.innerHTML = '';
+                    const barWidth = (visualizer.offsetWidth / bufferLength) * 2.5;
+                    
+                    for (let i = 0; i < bufferLength; i++) {
+                        const barHeight = (dataArray[i] / 255) * 100;
+                        const bar = document.createElement('div');
+                        bar.className = 'visualizer-bar';
+                        bar.style.height = barHeight + 'px';
+                        bar.style.left = (i * barWidth) + 'px';
+                        bar.style.width = (barWidth - 1) + 'px';
+                        visualizer.appendChild(bar);
+                    }
+                };
+                
+                draw();
+            }
+
+            startRecordingTimer() {
+                this.recordingTimer = setInterval(() => {
+                    const elapsed = Math.floor((Date.now() - this.recordingStartTime) / 1000);
+                    const minutes = Math.floor(elapsed / 60).toString().padStart(2, '0');
+                    const seconds = (elapsed % 60).toString().padStart(2, '0');
+                    document.getElementById('recordingTimer').textContent = `${minutes}:${seconds}`;
+                    document.getElementById('audioDuration').textContent = `${elapsed}s`;
+                }, 1000);
+            }
+
+            stopRecordingTimer() {
+                if (this.recordingTimer) {
+                    clearInterval(this.recordingTimer);
+                    this.recordingTimer = null;
+                }
+            }
+
+            setLanguage(language) {
+                if (this.recognition) {
+                    this.recognition.lang = language;
+                }
+            }
+
+            // Callbacks para serem sobrescritos
+            onRecordingStateChange(isRecording) {}
+            onTranscriptionUpdate(finalTranscript, interimTranscript) {}
+            onTranscriptionError(error) {}
+            onAudioRecorded(audioBlob) {}
+        }
+
+        // =============================================
+        // ESTADO DA APLICAÇÃO
+        // =============================================
+        const appState = {
+            data: [],
             filteredData: [],
-            isSidebarCollapsed: false,
+            stopWords: ["o", "a", "os", "as", "um", "uma", "uns", "umas", "de", "do", "da", "dos", "das", "em", "no", "na", "nos", "nas", "por", "para", "que", "e", "é", "ser", "se"],
+            metrics: {},
             currentTab: 'overview',
-            wordCloudGenerated: false,
-            audioRecording: false,
-            mediaRecorder: null,
-            audioChunks: []
+            isSidebarCollapsed: false,
+            dailyStats: {},
+            textAnalyzer: new TextAnalyzer(),
+            aiAnalyzer: new AdvancedAIAnalyzer(),
+            audioTranscriber: null
         };
 
-        // Inicialização da aplicação
+        let sentimentAnalyzer;
+
+        // =============================================
+        // CONEXÃO COM GOOGLE SHEETS
+        // =============================================
+        async function loadGoogleSheetData() {
+            const sheetId = document.getElementById('sheetId').value.trim();
+            const sheetTab = document.getElementById('sheetTab').value.trim() || 'Página1';
+            
+            if (!sheetId) {
+                showAlert('⚠️ Digite o ID da planilha Google', 'warning');
+                return;
+            }
+
+            showAlert('📊 Conectando ao Google Sheets...', 'info');
+            
+            try {
+                const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetTab)}`;
+                
+                const response = await fetch(csvUrl);
+                if (!response.ok) {
+                    throw new Error('Erro ao carregar planilha');
+                }
+                
+                const csvText = await response.text();
+                const results = Papa.parse(csvText, {
+                    header: true,
+                    skipEmptyLines: true,
+                    transform: (value) => value.trim()
+                });
+                
+                if (results.errors.length > 0) {
+                    console.warn('Erros no parsing:', results.errors);
+                }
+                
+                if (results.data.length === 0) {
+                    throw new Error('Nenhum dado encontrado na planilha');
+                }
+                
+                appState.data = processDataWithSentiment(results.data);
+                appState.filteredData = appState.data;
+                
+                appState.textAnalyzer.setupSearchIndex(appState.filteredData);
+                calculateDailyStats();
+                updateStats();
+                updateMetrics();
+                renderCharts();
+                renderTables();
+                updateWordAnalysis();
+                updateStopWordsList();
+                
+                showAlert(`✅ Dados carregados: ${results.data.length} registros`, 'success');
+                
+            } catch (error) {
+                console.error('Erro ao carregar Google Sheet:', error);
+                showAlert('❌ Erro ao carregar planilha. Verifique o ID e se está publicada.', 'error');
+            }
+        }
+
+        // =============================================
+        // GRÁFICO DE TIMELINE PARA BUSCA DE PALAVRAS
+        // =============================================
+        function renderTimelineChart(query) {
+            if (!query || appState.filteredData.length === 0) return;
+            
+            const dailyCounts = {};
+            appState.filteredData.forEach(item => {
+                if (item.Texto.toLowerCase().includes(query.toLowerCase())) {
+                    const date = item.Data;
+                    dailyCounts[date] = (dailyCounts[date] || 0) + 1;
+                }
+            });
+            
+            const dates = Object.keys(dailyCounts).sort();
+            const counts = dates.map(date => dailyCounts[date]);
+            
+            if (dates.length === 0) {
+                document.getElementById('timelineChart').innerHTML = '<p class="text-center" style="color: #666;">Nenhuma ocorrência encontrada para esta busca</p>';
+                return;
+            }
+            
+            const data = [{
+                x: dates,
+                y: counts,
+                type: 'scatter',
+                mode: 'lines+markers',
+                line: { color: '#2196F3', width: 3 },
+                marker: { size: 8, color: '#2196F3' },
+                name: `Ocorrências de "${query}"`
+            }];
+            
+            const layout = {
+                height: 300,
+                xaxis: { 
+                    title: 'Data',
+                    tickangle: -45
+                },
+                yaxis: { title: 'Número de Ocorrências' },
+                margin: { t: 30, r: 30, l: 50, b: 70 },
+                showlegend: true
+            };
+            
+            Plotly.newPlot('timelineChart', data, layout, { displayModeBar: true });
+        }
+
+        // =============================================
+        // INICIALIZAÇÃO
+        // =============================================
         document.addEventListener('DOMContentLoaded', function() {
             initializeApp();
         });
 
-        function initializeApp() {
-            // Simular carregamento
-            setTimeout(() => {
+        async function initializeApp() {
+            try {
+                sentimentAnalyzer = new SentimentAnalyzer();
+                setupEventListeners();
+                await loadSampleData();
+                
+                initializeAI();
+                initializeAudioTranscription();
+                
                 document.getElementById('loadingIndicator').classList.add('hidden');
                 document.getElementById('contentArea').classList.remove('hidden');
                 
-                // Carregar dados de exemplo
-                loadSampleData();
+                showAlert('✅ Sentinela carregado com sucesso!', 'success');
                 
-                // Inicializar gráficos
-                initializeCharts();
-                
-                // Atualizar métricas
-                updateMetrics();
-            }, 1500);
-            
-            // Configurar eventos
-            setupEventListeners();
+            } catch (error) {
+                console.error('Erro ao inicializar:', error);
+                showAlert('❌ Erro ao carregar o Sentinela', 'error');
+            }
         }
 
+        function initializeAudioTranscription() {
+            try {
+                appState.audioTranscriber = new AudioTranscriber();
+                
+                appState.audioTranscriber.onRecordingStateChange = (isRecording) => {
+                    const indicator = document.getElementById('recordingIndicator');
+                    const startBtn = document.getElementById('startRecording');
+                    const stopBtn = document.getElementById('stopRecording');
+                    const status = document.getElementById('audioStatus');
+                    
+                    if (isRecording) {
+                        indicator.classList.remove('hidden');
+                        startBtn.disabled = true;
+                        stopBtn.disabled = false;
+                        status.textContent = 'Gravando';
+                        status.style.color = '#f44336';
+                    } else {
+                        indicator.classList.add('hidden');
+                        startBtn.disabled = false;
+                        stopBtn.disabled = true;
+                        status.textContent = 'Parado';
+                        status.style.color = '#666';
+                    }
+                };
+                
+                appState.audioTranscriber.onTranscriptionUpdate = (final, interim) => {
+                    updateTranscriptionDisplay(final, interim);
+                    updateAudioMetrics(final, interim);
+                };
+                
+                appState.audioTranscriber.onTranscriptionError = (error) => {
+                    showAlert(`❌ Erro na transcrição: ${error}`, 'error');
+                };
+                
+                appState.audioTranscriber.onAudioRecorded = (audioBlob) => {
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    const audioPlayer = document.getElementById('audioPlayer');
+                    audioPlayer.src = audioUrl;
+                    document.getElementById('audioPlayerContainer').classList.remove('hidden');
+                };
+                
+            } catch (error) {
+                console.error('Erro ao inicializar transcrição de áudio:', error);
+                showAlert('❌ Transcrição de áudio não disponível neste navegador', 'warning');
+            }
+        }
+
+        async function initializeAI() {
+            try {
+                const statusElement = document.getElementById('modelStatus');
+                if (statusElement) {
+                    statusElement.innerHTML = '<i class="fas fa-check-circle"></i><span>Análise de IA Básica Disponível</span>';
+                    statusElement.className = 'model-status status-ready';
+                }
+            } catch (error) {
+                console.error('Erro na inicialização da IA:', error);
+                if (document.getElementById('modelStatus')) {
+                    document.getElementById('modelStatus').innerHTML = '<i class="fas fa-check-circle"></i><span>Análise Básica Disponível</span>';
+                    document.getElementById('modelStatus').className = 'model-status status-ready';
+                }
+            }
+        }
+
+        // =============================================
+        // CONFIGURAÇÃO DE EVENTOS
+        // =============================================
         function setupEventListeners() {
-            // Toggle da sidebar
             document.getElementById('sidebarToggle').addEventListener('click', toggleSidebar);
-            
-            // Tabs
-            document.querySelectorAll('.tab').forEach(tab => {
-                tab.addEventListener('click', function() {
-                    switchTab(this.getAttribute('data-tab'));
-                });
-            });
-            
-            // Botões de ação
-            document.getElementById('applyFilter').addEventListener('click', applyFilters);
-            document.getElementById('loadData').addEventListener('click', loadData);
+            document.getElementById('loadData').addEventListener('click', loadGoogleSheetData);
+            document.getElementById('applyFilter').addEventListener('click', applyDateFilter);
             document.getElementById('refreshData').addEventListener('click', refreshData);
             document.getElementById('exportData').addEventListener('click', exportData);
-            document.getElementById('exportAgents').addEventListener('click', exportAgentsData);
+            document.getElementById('fileUpload').addEventListener('change', handleFileUpload);
             
-            // Análise de texto
-            document.getElementById('generateWordCloud').addEventListener('click', generateWordCloud);
-            document.getElementById('analyzePhrases').addEventListener('click', analyzePhrases);
-            document.getElementById('searchWords').addEventListener('click', searchWords);
+            document.getElementById('refreshWordCloud').addEventListener('click', updateWordAnalysis);
+            document.getElementById('performSearch').addEventListener('click', performSearch);
+            document.getElementById('clearSearch').addEventListener('click', clearSearch);
+            document.getElementById('analyzePhrase').addEventListener('click', analyzePhrase);
+            document.getElementById('addStopWord').addEventListener('click', addStopWord);
+            document.getElementById('resetStopWords').addEventListener('click', resetStopWords);
+            document.getElementById('wordSearch').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') performSearch();
+            });
+            document.getElementById('phraseInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') analyzePhrase();
+            });
+            document.getElementById('newStopWord').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') addStopWord();
+            });
             
-            // IA Avançada - Corrigido para tornar funcional
-            document.getElementById('runAdvancedAnalysis').addEventListener('click', runAdvancedAnalysis);
-            document.getElementById('analyzeClusters').addEventListener('click', analyzeClusters);
+            document.getElementById('generateInsights').addEventListener('click', generateInsights);
+            document.getElementById('quickAnalysis').addEventListener('click', quickAnalysis);
+            document.getElementById('clearAnalysis').addEventListener('click', clearAnalysis);
+            document.getElementById('analyzeTopics').addEventListener('click', analyzeTopics);
+            document.getElementById('clusterAnalysis').addEventListener('click', clusterAnalysis);
             
-            // Análise de áudio
             document.getElementById('startRecording').addEventListener('click', startRecording);
             document.getElementById('stopRecording').addEventListener('click', stopRecording);
+            document.getElementById('clearRecording').addEventListener('click', clearRecording);
             document.getElementById('analyzeAudio').addEventListener('click', analyzeAudio);
-            document.getElementById('analyzeTranscription').addEventListener('click', analyzeTranscription);
+            document.getElementById('quickAudioAnalysis').addEventListener('click', quickAudioAnalysis);
+            document.getElementById('copyTranscription').addEventListener('click', copyTranscription);
+            document.getElementById('exportTranscription').addEventListener('click', exportTranscription);
+            document.getElementById('languageSelect').addEventListener('change', changeLanguage);
+            document.getElementById('usePastedTranscription').addEventListener('click', usePastedTranscription);
+            document.getElementById('clearPastedTranscription').addEventListener('click', clearPastedTranscription);
             
-            // Tendências
-            document.getElementById('trendDaily').addEventListener('click', () => showTrends('daily'));
-            document.getElementById('trendWeekly').addEventListener('click', () => showTrends('weekly'));
-            document.getElementById('trendMonthly').addEventListener('click', () => showTrends('monthly'));
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    switchTab(this.dataset.tab);
+                });
+            });
         }
 
+        // =============================================
+        // FUNÇÕES PRINCIPAIS
+        // =============================================
         function toggleSidebar() {
+            appState.isSidebarCollapsed = !appState.isSidebarCollapsed;
             const sidebar = document.getElementById('sidebar');
             const mainContent = document.getElementById('mainContent');
             const header = document.getElementById('header');
             
-            sidebar.classList.toggle('collapsed');
-            mainContent.classList.toggle('expanded');
-            header.classList.toggle('collapsed');
-            
-            appState.isSidebarCollapsed = !appState.isSidebarCollapsed;
-        }
-
-        function switchTab(tabName) {
-            // Remover classe active de todas as tabs
-            document.querySelectorAll('.tab').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            
-            document.querySelectorAll('.tab-content').forEach(content => {
-                content.classList.remove('active');
-            });
-            
-            // Adicionar classe active à tab selecionada
-            document.querySelector(`.tab[data-tab="${tabName}"]`).classList.add('active');
-            document.getElementById(tabName).classList.add('active');
-            
-            appState.currentTab = tabName;
-            
-            // Atualizar gráficos específicos da tab
-            if (tabName === 'trends') {
-                showTrends('daily');
+            if (appState.isSidebarCollapsed) {
+                sidebar.classList.add('collapsed');
+                mainContent.classList.add('expanded');
+                header.classList.add('collapsed');
+            } else {
+                sidebar.classList.remove('collapsed');
+                mainContent.classList.remove('expanded');
+                header.classList.remove('collapsed');
             }
         }
 
-        function loadSampleData() {
-            appState.currentData = sampleData.interactions;
-            appState.filteredData = [...appState.currentData];
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            
+            document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+            document.getElementById(tabId).classList.add('active');
+            appState.currentTab = tabId;
+            
+            if (tabId === 'words') {
+                updateWordAnalysis();
+                updateStopWordsList();
+            } else if (tabId === 'trends') {
+                renderTrendsChart();
+                renderCorrelationChart();
+                renderDailyTable();
+            }
         }
 
-        function loadData() {
-            // Simular carregamento de dados
-            showNotification('Dados carregados com sucesso!', 'success');
-            updateMetrics();
-            initializeCharts();
+        function processDataWithSentiment(data) {
+            return data.map(item => {
+                const analysis = sentimentAnalyzer.analyze(item.Texto);
+                return {
+                    ...item,
+                    Sentimento: analysis.sentiment,
+                    Pontuacao: analysis.score,
+                    Confianca: analysis.confidence,
+                    Problemas: analysis.score < -0.5 ? 1 : 0,
+                    Solucoes: analysis.score > 0.5 ? 1 : 0
+                };
+            });
         }
 
-        function refreshData() {
-            // Simular atualização de dados
-            showNotification('Dados atualizados!', 'success');
-            updateMetrics();
-            initializeCharts();
+        // =============================================
+        // CARREGAMENTO DE DADOS
+        // =============================================
+        async function loadSampleData() {
+            try {
+                const sampleData = [
+                    { Agente: "joao.silva@empresa.com", Data: "24/09/2024", Hora: "10:15:23", Texto: "Olá, bom dia! Como posso ajudá-lo hoje? Estou muito feliz em poder ajudar!" },
+                    { Agente: "joao.silva@empresa.com", Data: "24/09/2024", Hora: "10:16:05", Texto: "Entendo seu problema com o acesso à conta. Vou verificar isso para você imediatamente. Não se preocupe!" },
+                    { Agente: "maria.santos@empresa.com", Data: "24/09/2024", Hora: "11:30:45", Texto: "Boa tarde! Em que posso ser útil? Estou aqui para resolver seu problema." },
+                    { Agente: "maria.santos@empresa.com", Data: "24/09/2024", Hora: "11:31:20", Texto: "Infelizmente não consigo acessar essa informação no momento. Isso é muito ruim, me desculpe pelo inconveniente." },
+                    { Agente: "carlos.oliveira@empresa.com", Data: "25/09/2024", Hora: "09:05:12", Texto: "Excelente notícia! Seu problema foi resolvido com sucesso. Fico muito feliz!" },
+                    { Agente: "carlos.oliveira@empresa.com", Data: "25/09/2024", Hora: "09:06:33", Texto: "Que ótimo! Tudo funcionando perfeitamente agora. Maravilhoso!" },
+                    { Agente: "ana.costa@empresa.com", Data: "26/09/2024", Hora: "14:20:10", Texto: "Preciso de ajuda urgente! Nada está funcionando como deveria. Estou muito frustrado!" },
+                    { Agente: "ana.costa@empresa.com", Data: "26/09/2024", Hora: "14:21:45", Texto: "O serviço está horrível, quero cancelar minha conta imediatamente!" },
+                    { Agente: "pedro.souza@empresa.com", Data: "27/09/2024", Hora: "16:45:30", Texto: "Incrível! O atendimento foi excelente e resolveu todos meus problemas." },
+                    { Agente: "pedro.souza@empresa.com", Data: "27/09/2024", Hora: "16:46:15", Texto: "Recomendarei seus serviços para todos os meus amigos. Parabéns!" }
+                ];
+                
+                appState.data = processDataWithSentiment(sampleData);
+                appState.filteredData = appState.data;
+                
+                appState.textAnalyzer.setupSearchIndex(appState.filteredData);
+                calculateDailyStats();
+                updateStats();
+                updateMetrics();
+                renderCharts();
+                renderTables();
+                updateWordAnalysis();
+                updateStopWordsList();
+                
+            } catch (error) {
+                console.error('Erro ao carregar dados:', error);
+                showAlert('❌ Erro ao processar dados', 'error');
+            }
         }
 
-        function applyFilters() {
-            // Simular aplicação de filtros
-            showNotification('Filtros aplicados!', 'success');
-            updateMetrics();
-            initializeCharts();
+        async function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            showAlert(`📁 Processando ${file.name}...`, 'info');
+            
+            try {
+                const fileExtension = file.name.split('.').pop().toLowerCase();
+                let parsedData = [];
+                
+                if (fileExtension === 'csv') {
+                    parsedData = await parseCSV(file);
+                } else if (fileExtension === 'xlsx' || fileExtension === 'xls') {
+                    parsedData = await parseExcel(file);
+                } else {
+                    throw new Error('Formato não suportado');
+                }
+                
+                appState.data = processDataWithSentiment(parsedData);
+                appState.filteredData = appState.data;
+                
+                appState.textAnalyzer.setupSearchIndex(appState.filteredData);
+                calculateDailyStats();
+                updateStats();
+                updateMetrics();
+                renderCharts();
+                renderTables();
+                updateWordAnalysis();
+                updateStopWordsList();
+                
+                showAlert('✅ Arquivo processado com sucesso!', 'success');
+                
+            } catch (error) {
+                console.error('Erro ao processar arquivo:', error);
+                showAlert('❌ Erro ao processar arquivo', 'error');
+            }
         }
 
-        function exportData() {
-            // Simular exportação de dados
-            showNotification('Dados exportados com sucesso!', 'success');
+        async function parseCSV(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const results = Papa.parse(e.target.result, {
+                            header: true,
+                            skipEmptyLines: true
+                        });
+                        resolve(results.data);
+                    } catch (error) {
+                        reject(error);
+                    }
+                };
+                reader.onerror = reject;
+                reader.readAsText(file);
+            });
         }
 
-        function exportAgentsData() {
-            // Simular exportação de dados de agentes
-            showNotification('Dados dos agentes exportados!', 'success');
+        async function parseExcel(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                        const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+                        resolve(jsonData);
+                    } catch (error) {
+                        reject(error);
+                    }
+                };
+                reader.onerror = reject;
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        // =============================================
+        // ATUALIZAÇÃO DE INTERFACE
+        // =============================================
+        function updateStats() {
+            const interactions = new Set(appState.filteredData.map(item => item.Agente + '_' + item.Data)).size;
+            const messages = appState.filteredData.length;
+            const agents = new Set(appState.filteredData.map(item => item.Agente)).size;
+            
+            document.getElementById('statInteractions').textContent = interactions;
+            document.getElementById('statMessages').textContent = messages;
+            document.getElementById('statAgents').textContent = agents;
         }
 
         function updateMetrics() {
-            const data = appState.filteredData;
+            const interactions = new Set(appState.filteredData.map(item => item.Agente + '_' + item.Data)).size;
+            const messages = appState.filteredData.length;
             
-            // Atualizar métricas principais
-            document.getElementById('metricInteractions').textContent = data.length;
-            document.getElementById('metricMessages').textContent = data.reduce((total, interaction) => total + interaction.messages.length, 0);
+            const positive = appState.filteredData.filter(item => 
+                item.Sentimento === 'Positivo' || item.Sentimento === 'Muito Positivo'
+            ).length;
             
-            const positiveInteractions = data.filter(i => i.sentiment === 'positive').length;
-            const negativeInteractions = data.filter(i => i.sentiment === 'negative').length;
+            const negative = appState.filteredData.filter(item => 
+                item.Sentimento === 'Negativo' || item.Sentimento === 'Muito Negativo'
+            ).length;
             
-            document.getElementById('metricPositive').textContent = positiveInteractions;
-            document.getElementById('metricNegative').textContent = negativeInteractions;
-            document.getElementById('metricProblems').textContent = Math.round(negativeInteractions / data.length * 100) + '%';
+            const problems = appState.filteredData.reduce((sum, item) => sum + (item.Problemas || 0), 0);
             
-            // Atualizar estatísticas na sidebar
-            document.getElementById('statInteractions').textContent = data.length;
-            document.getElementById('statMessages').textContent = data.reduce((total, interaction) => total + interaction.messages.length, 0);
+            document.getElementById('metricInteractions').textContent = interactions;
+            document.getElementById('metricMessages').textContent = messages;
+            document.getElementById('metricPositive').textContent = positive;
+            document.getElementById('metricNegative').textContent = negative;
+            document.getElementById('metricProblems').textContent = problems;
             
-            const uniqueAgents = [...new Set(data.map(i => i.agent))];
-            document.getElementById('statAgents').textContent = uniqueAgents.length;
-            
-            // Atualizar tabela de agentes
-            updateAgentsTable();
+            appState.metrics = {
+                total_interacoes: interactions,
+                total_mensagens: messages,
+                positivas: positive,
+                negativas: negative,
+                total_problemas: problems
+            };
         }
 
-        function updateAgentsTable() {
-            const data = appState.filteredData;
-            const agents = {};
-            
-            // Agrupar interações por agente
-            data.forEach(interaction => {
-                if (!agents[interaction.agent]) {
-                    agents[interaction.agent] = {
-                        interactions: 0,
-                        messages: 0,
-                        positive: 0,
-                        negative: 0
-                    };
-                }
-                
-                agents[interaction.agent].interactions++;
-                agents[interaction.agent].messages += interaction.messages.length;
-                
-                if (interaction.sentiment === 'positive') {
-                    agents[interaction.agent].positive++;
-                } else if (interaction.sentiment === 'negative') {
-                    agents[interaction.agent].negative++;
-                }
-            });
-            
-            // Calcular pontuação para cada agente (limitada a 100)
-            Object.keys(agents).forEach(agent => {
-                const agentData = agents[agent];
-                const positiveRatio = agentData.positive / agentData.interactions;
-                const negativeRatio = agentData.negative / agentData.interactions;
-                
-                // Pontuação baseada no ratio de interações positivas, limitada a 100
-                agentData.score = Math.min(Math.round(positiveRatio * 100), 100);
-            });
-            
-            // Atualizar tabela
-            const tbody = document.querySelector('#agentsTable tbody');
-            tbody.innerHTML = '';
-            
-            Object.keys(agents).forEach(agent => {
-                const agentData = agents[agent];
-                const row = document.createElement('tr');
-                
-                row.innerHTML = `
-                    <td>${agent}</td>
-                    <td>${agentData.interactions}</td>
-                    <td>${agentData.messages}</td>
-                    <td>${agentData.positive}</td>
-                    <td>${agentData.negative}</td>
-                    <td>${agentData.score}</td>
-                `;
-                
-                tbody.appendChild(row);
-            });
+        // =============================================
+        // RENDERIZAÇÃO DE GRÁFICOS
+        // =============================================
+        function renderCharts() {
+            renderSentimentChart();
+            renderAgentsChart();
+            renderContentChart();
+            renderTemporalChart();
         }
 
-        function initializeCharts() {
-            // Gráfico de Sentimento
-            const sentimentData = [
-                {
-                    x: ['Positivo', 'Negativo', 'Neutro'],
-                    y: [
-                        appState.filteredData.filter(i => i.sentiment === 'positive').length,
-                        appState.filteredData.filter(i => i.sentiment === 'negative').length,
-                        appState.filteredData.filter(i => i.sentiment !== 'positive' && i.sentiment !== 'negative').length
-                    ],
-                    type: 'bar',
-                    marker: {
-                        color: ['#4CAF50', '#F44336', '#FFC107']
-                    }
-                }
-            ];
+        function renderSentimentChart() {
+            if (appState.filteredData.length === 0) return;
             
-            const sentimentLayout = {
-                title: '',
-                paper_bgcolor: 'rgba(0,0,0,0)',
-                plot_bgcolor: 'rgba(0,0,0,0)',
-                font: {
-                    color: '#333'
-                }
+            const sentimentCounts = {
+                'Muito Positivo': 0, 'Positivo': 0, 'Neutro': 0, 'Negativo': 0, 'Muito Negativo': 0
             };
             
-            Plotly.newPlot('sentimentChart', sentimentData, sentimentLayout, {displayModeBar: false});
-            
-            // Gráfico de Agentes
-            const agents = {};
-            appState.filteredData.forEach(interaction => {
-                if (!agents[interaction.agent]) {
-                    agents[interaction.agent] = 0;
+            appState.filteredData.forEach(item => {
+                if (sentimentCounts.hasOwnProperty(item.Sentimento)) {
+                    sentimentCounts[item.Sentimento]++;
+                } else {
+                    sentimentCounts['Neutro']++;
                 }
-                agents[interaction.agent]++;
             });
             
-            const agentsData = [{
-                values: Object.values(agents),
-                labels: Object.keys(agents),
+            const data = [{
+                values: Object.values(sentimentCounts),
+                labels: Object.keys(sentimentCounts),
                 type: 'pie',
-                hole: 0.4,
-                marker: {
-                    colors: ['#4CAF50', '#2196F3', '#FFC107', '#F44336', '#9C27B0']
-                }
+                marker: { colors: ['#2E7D32', '#4CAF50', '#FFC107', '#F44336', '#C62828'] }
             }];
             
-            const agentsLayout = {
-                title: '',
-                paper_bgcolor: 'rgba(0,0,0,0)',
-                plot_bgcolor: 'rgba(0,0,0,0)',
-                font: {
-                    color: '#333'
-                }
-            };
-            
-            Plotly.newPlot('agentsChart', agentsData, agentsLayout, {displayModeBar: false});
-            
-            // Gráfico de Conteúdo
-            const contentData = [{
-                values: [35, 25, 20, 15, 5],
-                labels: ['Suporte Técnico', 'Vendas', 'Cobrança', 'Feedback', 'Outros'],
-                type: 'pie',
-                marker: {
-                    colors: ['#4CAF50', '#2196F3', '#FFC107', '#F44336', '#9C27B0']
-                }
-            }];
-            
-            const contentLayout = {
-                title: '',
-                paper_bgcolor: 'rgba(0,0,0,0)',
-                plot_bgcolor: 'rgba(0,0,0,0)',
-                font: {
-                    color: '#333'
-                }
-            };
-            
-            Plotly.newPlot('contentChart', contentData, contentLayout, {displayModeBar: false});
-            
-            // Gráfico Temporal
-            const dates = {};
-            appState.filteredData.forEach(interaction => {
-                if (!dates[interaction.date]) {
-                    dates[interaction.date] = 0;
-                }
-                dates[interaction.date]++;
-            });
-            
-            const sortedDates = Object.keys(dates).sort();
-            
-            const temporalData = [{
-                x: sortedDates,
-                y: sortedDates.map(date => dates[date]),
-                type: 'scatter',
-                mode: 'lines+markers',
-                line: {
-                    color: '#4CAF50',
-                    width: 3
-                },
-                marker: {
-                    color: '#4CAF50',
-                    size: 8
-                }
-            }];
-            
-            const temporalLayout = {
-                title: '',
-                paper_bgcolor: 'rgba(0,0,0,0)',
-                plot_bgcolor: 'rgba(0,0,0,0)',
-                font: {
-                    color: '#333'
-                },
-                xaxis: {
-                    title: 'Data'
-                },
-                yaxis: {
-                    title: 'Interações'
-                }
-            };
-            
-            Plotly.newPlot('temporalChart', temporalData, temporalLayout, {displayModeBar: false});
+            Plotly.newPlot('sentimentChart', data, { height: 300, showlegend: true }, { displayModeBar: false });
         }
 
-        function showTrends(period) {
-            // Dados de exemplo para tendências
-            let labels, data;
+        function renderAgentsChart() {
+            if (appState.filteredData.length === 0) return;
             
-            switch(period) {
-                case 'daily':
-                    labels = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
-                    data = [45, 52, 38, 61, 55, 48, 40];
-                    break;
-                case 'weekly':
-                    labels = ['Sem 1', 'Sem 2', 'Sem 3', 'Sem 4'];
-                    data = [180, 210, 195, 230];
-                    break;
-                case 'monthly':
-                    labels = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun'];
-                    data = [800, 950, 1100, 1050, 1200, 1150];
-                    break;
-            }
+            const agentCounts = {};
+            appState.filteredData.forEach(item => {
+                agentCounts[item.Agente] = (agentCounts[item.Agente] || 0) + 1;
+            });
             
-            const trendsData = [{
-                x: labels,
-                y: data,
+            const data = [{
+                x: Object.keys(agentCounts),
+                y: Object.values(agentCounts),
+                type: 'bar',
+                marker: { color: '#2196F3' }
+            }];
+            
+            Plotly.newPlot('agentsChart', data, { 
+                height: 300,
+                xaxis: { title: 'Agentes' },
+                yaxis: { title: 'Mensagens' }
+            }, { displayModeBar: false });
+        }
+
+        function renderContentChart() {
+            if (appState.filteredData.length === 0) return;
+            
+            const data = [{
+                x: ['Problemas', 'Soluções', 'Oportunidades'],
+                y: [
+                    appState.metrics.total_problemas,
+                    appState.filteredData.reduce((sum, item) => sum + (item.Solucoes || 0), 0),
+                    Math.floor(appState.metrics.total_mensagens * 0.1)
+                ],
+                type: 'bar',
+                marker: { color: ['#F44336', '#4CAF50', '#2196F3'] }
+            }];
+            
+            Plotly.newPlot('contentChart', data, { height: 300 }, { displayModeBar: false });
+        }
+
+        function renderTemporalChart() {
+            if (appState.filteredData.length === 0) return;
+            
+            const dateData = {};
+            appState.filteredData.forEach(item => {
+                const date = item.Data;
+                if (!dateData[date]) dateData[date] = { positive: 0, problems: 0, total: 0 };
+                dateData[date].total++;
+                if (item.Sentimento === 'Positivo' || item.Sentimento === 'Muito Positivo') {
+                    dateData[date].positive++;
+                }
+                if (item.Problemas) dateData[date].problems++;
+            });
+            
+            const dates = Object.keys(dateData);
+            const positive = dates.map(date => (dateData[date].positive / dateData[date].total) * 100);
+            const problems = dates.map(date => dateData[date].problems);
+            
+            const trace1 = { x: dates, y: positive, type: 'scatter', name: '% Positivo', line: { color: 'green' } };
+            const trace2 = { x: dates, y: problems, type: 'scatter', name: 'Problemas', line: { color: 'red' } };
+            
+            Plotly.newPlot('temporalChart', [trace1, trace2], { height: 300 }, { displayModeBar: false });
+        }
+
+        // =============================================
+        // FUNÇÕES DE ANÁLISE DE PALAVRAS
+        // =============================================
+        function updateWordAnalysis() {
+            if (appState.filteredData.length === 0) return;
+            
+            appState.textAnalyzer.calculateFrequencies(appState.filteredData);
+            renderWordCloud();
+            renderWordFrequencyChart();
+        }
+
+        function renderWordCloud() {
+            const wordCloudElement = document.getElementById('wordCloud');
+            wordCloudElement.innerHTML = '';
+            
+            const topWords = appState.textAnalyzer.getTopWords(40);
+            const topBigrams = appState.textAnalyzer.getTopBigrams(20);
+            
+            const allItems = [...topWords, ...topBigrams];
+            
+            allItems.forEach(([text, frequency]) => {
+                const size = Math.min(30, 12 + (frequency * 2));
+                const color = getColorByFrequency(frequency);
+                
+                const wordElement = document.createElement('div');
+                wordElement.className = 'word-item';
+                wordElement.textContent = text;
+                wordElement.style.fontSize = `${size}px`;
+                wordElement.style.color = color;
+                wordElement.style.backgroundColor = color + '20';
+                wordElement.style.border = `1px solid ${color}`;
+                
+                wordElement.addEventListener('click', () => {
+                    document.getElementById('wordSearch').value = text;
+                    performSearch();
+                });
+                
+                wordCloudElement.appendChild(wordElement);
+            });
+        }
+
+        function getColorByFrequency(frequency) {
+            if (frequency > 10) return '#F44336';
+            if (frequency > 5) return '#FF9800';
+            if (frequency > 3) return '#2196F3';
+            return '#4CAF50';
+        }
+
+        function renderWordFrequencyChart() {
+            const topWords = appState.textAnalyzer.getTopWords(15);
+            
+            const data = [{
+                x: topWords.map(([word]) => word),
+                y: topWords.map(([, freq]) => freq),
                 type: 'bar',
                 marker: {
-                    color: '#4CAF50'
+                    color: topWords.map(([, freq]) => getColorByFrequency(freq))
                 }
             }];
             
-            const trendsLayout = {
-                title: '',
-                paper_bgcolor: 'rgba(0,0,0,0)',
-                plot_bgcolor: 'rgba(0,0,0,0)',
-                font: {
-                    color: '#333'
-                },
+            const layout = {
+                height: 300,
+                margin: { t: 30, r: 30, l: 50, b: 100 },
                 xaxis: {
-                    title: 'Período'
+                    tickangle: -45
                 },
                 yaxis: {
-                    title: 'Interações'
+                    title: 'Frequência'
                 }
             };
             
-            Plotly.newPlot('trendsChart', trendsData, trendsLayout, {displayModeBar: false});
+            Plotly.newPlot('wordFrequencyChart', data, layout, { displayModeBar: true });
         }
 
-        function generateWordCloud() {
-            const resultsContainer = document.getElementById('wordAnalysisResults');
-            resultsContainer.innerHTML = '<div class="loading"><div class="spinner"></div><p>Gerando nuvem de palavras...</p></div>';
+        function performSearch() {
+            const query = document.getElementById('wordSearch').value.trim();
+            const sentimentFilter = document.getElementById('sentimentFilter').value;
             
-            // Simular processamento
-            setTimeout(() => {
-                const words = [
-                    { text: 'problema', size: 40 },
-                    { text: 'conta', size: 35 },
-                    { text: 'ajuda', size: 30 },
-                    { text: 'suporte', size: 28 },
-                    { text: 'acesso', size: 25 },
-                    { text: 'serviço', size: 22 },
-                    { text: 'atendimento', size: 20 },
-                    { text: 'solução', size: 18 },
-                    { text: 'informação', size: 16 },
-                    { text: 'cliente', size: 15 },
-                    { text: 'produto', size: 14 },
-                    { text: 'email', size: 13 },
-                    { text: 'senha', size: 12 },
-                    { text: 'bloqueado', size: 11 },
-                    { text: 'pedido', size: 10 }
-                ];
-                
-                let html = '<h3>Nuvem de Palavras Mais Frequentes</h3>';
-                html += '<div class="word-cloud-container">';
-                
-                words.forEach(word => {
-                    const fontSize = word.size / 2;
-                    const color = getRandomColor();
-                    html += `<span class="word-item" style="font-size: ${fontSize}px; background-color: ${color}">${word.text}</span>`;
-                });
-                
-                html += '</div>';
-                
-                resultsContainer.innerHTML = html;
-                appState.wordCloudGenerated = true;
-                
-                showNotification('Nuvem de palavras gerada com sucesso!', 'success');
-            }, 1500);
-        }
-
-        function analyzePhrases() {
-            const resultsContainer = document.getElementById('wordAnalysisResults');
-            resultsContainer.innerHTML = '<div class="loading"><div class="spinner"></div><p>Analisando frases...</p></div>';
-            
-            // Simular processamento
-            setTimeout(() => {
-                const phrases = [
-                    { phrase: "Estou com problemas para acessar", count: 12, sentiment: "negative" },
-                    { phrase: "Como posso ajudá-lo", count: 25, sentiment: "neutral" },
-                    { phrase: "Obrigado pela ajuda", count: 18, sentiment: "positive" },
-                    { phrase: "Preciso cancelar minha assinatura", count: 8, sentiment: "negative" },
-                    { phrase: "Excelente atendimento", count: 15, sentiment: "positive" }
-                ];
-                
-                let html = '<h3>Frases Mais Frequentes</h3>';
-                html += '<div class="phrase-analysis">';
-                
-                phrases.forEach(item => {
-                    const sentimentColor = item.sentiment === 'positive' ? '#4CAF50' : 
-                                         item.sentiment === 'negative' ? '#F44336' : '#FFC107';
-                    
-                    html += `
-                        <div class="search-result-item">
-                            <div style="display: flex; justify-content: space-between;">
-                                <strong>${item.phrase}</strong>
-                                <span>${item.count} ocorrências</span>
-                            </div>
-                            <div class="sentiment-distribution">
-                                <div class="sentiment-bar" style="background-color: ${sentimentColor}; width: ${item.sentiment === 'positive' ? '70%' : item.sentiment === 'negative' ? '30%' : '50%'}"></div>
-                            </div>
-                        </div>
-                    `;
-                });
-                
-                html += '</div>';
-                
-                resultsContainer.innerHTML = html;
-                showNotification('Análise de frases concluída!', 'success');
-            }, 1500);
-        }
-
-        function searchWords() {
-            const searchTerm = document.getElementById('wordSearch').value.trim();
-            
-            if (!searchTerm) {
-                showNotification('Digite um termo para buscar', 'warning');
+            if (!query) {
+                showAlert('⚠️ Digite uma palavra ou frase para buscar', 'warning');
                 return;
             }
             
-            const resultsContainer = document.getElementById('wordAnalysisResults');
-            resultsContainer.innerHTML = '<div class="loading"><div class="spinner"></div><p>Buscando ocorrências...</p></div>';
+            const results = appState.textAnalyzer.search(query, sentimentFilter, 15);
+            displaySearchResults(results, query);
+            renderTimelineChart(query);
+        }
+
+        function displaySearchResults(results, query) {
+            const resultsContainer = document.getElementById('searchResults');
             
-            // Simular processamento
-            setTimeout(() => {
-                // Simular resultados da busca
-                const results = [
-                    { 
-                        interactionId: 1, 
-                        agent: "João Silva", 
-                        client: "Maria Santos", 
-                        date: "2023-10-15",
-                        message: "Estou com <span class='search-highlight'>problemas</span> para acessar minha conta.",
-                        sentiment: "negative"
-                    },
-                    { 
-                        interactionId: 2, 
-                        agent: "Ana Costa", 
-                        client: "Pedro Oliveira", 
-                        date: "2023-10-16",
-                        message: "Houve um <span class='search-highlight'>problema</span> com a transportadora.",
-                        sentiment: "negative"
-                    },
-                    { 
-                        interactionId: 3, 
-                        agent: "Carlos Lima", 
-                        client: "Fernanda Rocha", 
-                        date: "2023-10-17",
-                        message: "Não há <span class='search-highlight'>problema</span>, podemos ajudá-la com isso.",
-                        sentiment: "positive"
-                    }
-                ];
+            if (results.length === 0) {
+                resultsContainer.innerHTML = `
+                    <div class="alert alert-warning">
+                        <i class="fas fa-search"></i>
+                        Nenhum resultado encontrado para "${query}"
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = `
+                <div class="alert alert-info">
+                    <i class="fas fa-search"></i>
+                    <strong>${results.length}</strong> resultados encontrados para "${query}"
+                </div>
+            `;
+            
+            results.forEach((result, index) => {
+                const item = result.item;
+                const highlightedText = appState.textAnalyzer.highlightText(item.Texto, query);
+                const sentimentIcon = getSentimentIcon(item.Sentimento);
                 
-                let html = `<h3>Resultados para "${searchTerm}"</h3>`;
-                html += `<p>${results.length} ocorrências encontradas</p>`;
+                html += `
+                    <div class="search-result-item">
+                        <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 8px;">
+                            <strong>${index + 1}. Agente: ${item.Agente}</strong>
+                            <span style="display: flex; align-items: center; gap: 5px;">
+                                ${sentimentIcon}
+                                <small>${item.Data} ${item.Hora}</small>
+                            </span>
+                        </div>
+                        <div style="margin-bottom: 8px;">${highlightedText}</div>
+                        <div style="display: flex; justify-content: space-between; font-size: 0.9rem; color: #666;">
+                            <span>Sentimento: <strong>${item.Sentimento}</strong></span>
+                            <span>Pontuação: <strong>${item.Pontuacao}</strong></span>
+                            <span>Confiança: <strong>${(item.Confianca * 100).toFixed(1)}%</strong></span>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            resultsContainer.innerHTML = html;
+        }
+
+        function getSentimentIcon(sentiment) {
+            switch(sentiment) {
+                case 'Muito Positivo': return '😊';
+                case 'Positivo': return '🙂';
+                case 'Neutro': return '😐';
+                case 'Negativo': return '🙁';
+                case 'Muito Negativo': return '😞';
+                default: return '❓';
+            }
+        }
+
+        async function analyzePhrase() {
+            const phrase = document.getElementById('phraseInput').value.trim();
+            
+            if (!phrase) {
+                showAlert('⚠️ Digite uma frase para análise', 'warning');
+                return;
+            }
+            
+            showAlert('🔍 Analisando frase...', 'info');
+            
+            try {
+                const sentiment = sentimentAnalyzer.analyze(phrase);
+                const similarResults = appState.textAnalyzer.search(phrase, 'all', 5);
+                const phraseTokens = appState.textAnalyzer.tokenize(phrase);
+                const phraseBigrams = appState.textAnalyzer.extractBigrams(phraseTokens);
                 
-                results.forEach(result => {
-                    const sentimentIcon = result.sentiment === 'positive' ? '✅' : 
-                                        result.sentiment === 'negative' ? '❌' : '➖';
+                let html = `
+                    <div class="alert alert-info">
+                        <i class="fas fa-chart-bar"></i>
+                        <strong>Análise da Frase:</strong> "${phrase}"
+                    </div>
                     
+                    <div class="form-row">
+                        <div class="metric-card">
+                            <div class="metric-label">Sentimento</div>
+                            <div class="metric-value">${sentiment.sentiment}</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-label">Pontuação</div>
+                            <div class="metric-value">${sentiment.score}</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-label">Confiança</div>
+                            <div class="metric-value">${(sentiment.confidence * 100).toFixed(1)}%</div>
+                        </div>
+                    </div>
+                `;
+                
+                if (phraseTokens.length > 0) {
                     html += `
-                        <div class="search-result-item">
-                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                                <strong>${result.agent} → ${result.client}</strong>
-                                <span>${result.date} ${sentimentIcon}</span>
+                        <div style="margin-top: 20px;">
+                            <h4>Palavras na Frase:</h4>
+                            <div style="display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px;">
+                    `;
+                    
+                    phraseTokens.forEach(word => {
+                        const freq = appState.textAnalyzer.wordFrequencies[word] || 0;
+                        html += `<span class="word-item" style="font-size: 14px;">${word} (${freq})</span>`;
+                    });
+                    
+                    html += `</div></div>`;
+                }
+                
+                if (phraseBigrams.length > 0) {
+                    html += `
+                        <div style="margin-top: 20px;">
+                            <h4>Combinações na Frase:</h4>
+                            <div style="display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px;">
+                    `;
+                    
+                    phraseBigrams.forEach(bigram => {
+                        const freq = appState.textAnalyzer.bigramFrequencies[bigram] || 0;
+                        if (freq > 0) {
+                            html += `<span class="word-item" style="font-size: 14px; background: #2196F3; color: white;">${bigram} (${freq})</span>`;
+                        }
+                    });
+                    
+                    html += `</div></div>`;
+                }
+                
+                if (similarResults.length > 0) {
+                    html += `
+                        <div style="margin-top: 20px;">
+                            <h4>Mensagens Similares Encontradas:</h4>
+                    `;
+                    
+                    similarResults.forEach((result, index) => {
+                        const item = result.item;
+                        html += `
+                            <div class="search-result-item" style="margin-top: 10px;">
+                                <div><strong>${item.Agente}</strong> - ${item.Data}</div>
+                                <div>${item.Texto}</div>
+                                <div style="font-size: 0.8rem; color: #666;">
+                                    Similaridade: ${(100 - (result.score * 100)).toFixed(1)}% | 
+                                    Sentimento: ${item.Sentimento}
+                                </div>
                             </div>
-                            <div>${result.message}</div>
+                        `;
+                    });
+                    
+                    html += `</div>`;
+                }
+                
+                document.getElementById('phraseAnalysis').innerHTML = html;
+                showAlert('✅ Análise da frase concluída!', 'success');
+                
+            } catch (error) {
+                console.error('Erro na análise da frase:', error);
+                showAlert('❌ Erro na análise da frase', 'error');
+            }
+        }
+
+        function addStopWord() {
+            const word = document.getElementById('newStopWord').value.trim();
+            
+            if (!word) {
+                showAlert('⚠️ Digite uma palavra para adicionar', 'warning');
+                return;
+            }
+            
+            if (appState.textAnalyzer.addStopWord(word)) {
+                document.getElementById('newStopWord').value = '';
+                updateStopWordsList();
+                updateWordAnalysis();
+                showAlert(`✅ Stop word "${word}" adicionada com sucesso!`, 'success');
+            } else {
+                showAlert('⚠️ Stop word já existe ou é inválida', 'warning');
+            }
+        }
+
+        function resetStopWords() {
+            appState.textAnalyzer.resetStopWords();
+            updateStopWordsList();
+            updateWordAnalysis();
+            showAlert('✅ Stop words restauradas para o padrão!', 'success');
+        }
+
+        function updateStopWordsList() {
+            const stopWordsList = document.getElementById('stopWordsList');
+            const stopWords = appState.textAnalyzer.getStopWords();
+            
+            if (stopWords.length === 0) {
+                stopWordsList.innerHTML = '<p>Nenhuma stop word cadastrada</p>';
+                return;
+            }
+            
+            let html = '';
+            stopWords.forEach(word => {
+                html += `<span class="stop-word-item">${word}</span>`;
+            });
+            
+            stopWordsList.innerHTML = html;
+        }
+
+        function clearSearch() {
+            document.getElementById('wordSearch').value = '';
+            document.getElementById('searchResults').innerHTML = '';
+            document.getElementById('sentimentFilter').value = 'all';
+            document.getElementById('timelineChart').innerHTML = '';
+        }
+
+        // =============================================
+        // FUNÇÕES DE IA AVANÇADA
+        // =============================================
+        async function generateInsights() {
+            if (!appState.aiAnalyzer.isInitialized) {
+                showAlert('❌ Modelos de IA não estão carregados', 'error');
+                return;
+            }
+
+            if (appState.filteredData.length === 0) {
+                showAlert('⚠️ Nenhum dado disponível para análise', 'warning');
+                return;
+            }
+
+            showAlert('🧠 Gerando insights com IA avançada...', 'info');
+            
+            const progressElement = document.getElementById('analysisProgress');
+            const progressFill = document.getElementById('progressFill');
+            progressElement.classList.remove('hidden');
+            
+            try {
+                let progress = 0;
+                const progressInterval = setInterval(() => {
+                    progress += 5;
+                    progressFill.style.width = `${Math.min(progress, 90)}%`;
+                    if (progress >= 90) clearInterval(progressInterval);
+                }, 200);
+
+                const prompt = document.getElementById('iaPrompt').value;
+                const insights = await appState.aiAnalyzer.generateInsights(appState.filteredData, prompt);
+                
+                clearInterval(progressInterval);
+                progressFill.style.width = '100%';
+                
+                displayInsights(insights);
+                showAlert('✅ Insights gerados com sucesso!', 'success');
+                
+                setTimeout(() => {
+                    progressElement.classList.add('hidden');
+                    progressFill.style.width = '0%';
+                }, 1000);
+                
+            } catch (error) {
+                console.error('Erro na geração de insights:', error);
+                showAlert('❌ Erro ao gerar insights com IA', 'error');
+                progressElement.classList.add('hidden');
+            }
+        }
+
+        function displayInsights(insights) {
+            const resultsElement = document.getElementById('iaResults');
+            
+            let html = `
+                <div class="insight-card">
+                    <div class="insight-header">
+                        <div class="insight-icon">🧠</div>
+                        <h3>Análise Inteligente Completa</h3>
+                        <span class="confidence-badge">${(insights.confidence * 100).toFixed(1)}% confiança</span>
+                    </div>
+                    
+                    <div class="insight-content">
+                        <h4>📊 Resumo Executivo</h4>
+                        <p>${insights.summary}</p>
+                        
+                        <h4>😊 Análise de Sentimento</h4>
+                        <div style="display: flex; align-items: center; gap: 15px; margin: 10px 0;">
+                            <span style="font-size: 2rem;">${getSentimentEmoji(insights.sentiment.sentiment)}</span>
+                            <div>
+                                <div><strong>${insights.sentiment.sentiment}</strong></div>
+                                <div>Pontuação: ${insights.sentiment.score.toFixed(3)}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">🎯 Tópicos Principais Identificados</div>
+                    </div>
+            `;
+            
+            insights.topics.forEach(([topic, count]) => {
+                html += `
+                    <div class="topic-item">
+                        <div style="display: flex; justify-content: between; align-items: center;">
+                            <strong>${topic}</strong>
+                            <span class="confidence-badge">${count} ocorrências</span>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += `</div>`;
+            
+            html += `
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">💡 Recomendações Inteligentes</div>
+                    </div>
+            `;
+            
+            insights.recommendations.forEach(rec => {
+                const icon = rec.type === 'success' ? '✅' : rec.type === 'warning' ? '⚠️' : rec.type === 'error' ? '❌' : 'ℹ️';
+                
+                html += `
+                    <div class="recommendation-item">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                            ${icon}
+                            <strong>${rec.title}</strong>
+                            <span class="confidence-badge" style="background: ${
+                                rec.priority === 'Alta' ? '#dc3545' : 
+                                rec.priority === 'Média' ? '#ffc107' : '#28a745'
+                            };">${rec.priority}</span>
+                        </div>
+                        <div>${rec.description}</div>
+                    </div>
+                `;
+            });
+            
+            html += `</div>`;
+            
+            resultsElement.innerHTML = html;
+        }
+
+        async function quickAnalysis() {
+            if (!appState.aiAnalyzer.isInitialized) {
+                showAlert('❌ Modelos de IA não estão carregados', 'error');
+                return;
+            }
+
+            if (appState.filteredData.length === 0) {
+                showAlert('⚠️ Nenhum dado disponível para análise', 'warning');
+                return;
+            }
+
+            showAlert('⚡ Executando análise rápida...', 'info');
+            
+            try {
+                const analysis = await appState.aiAnalyzer.performQuickAnalysis(appState.filteredData);
+                
+                const resultsElement = document.getElementById('iaResults');
+                resultsElement.innerHTML = `
+                    <div class="insight-card">
+                        <div class="insight-header">
+                            <div class="insight-icon">⚡</div>
+                            <h3>Análise Rápida</h3>
+                        </div>
+                        
+                        <div class="insight-content">
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 15px 0;">
+                                <div class="metric-card" style="background: rgba(255,255,255,0.2);">
+                                    <div class="metric-value" style="font-size: 2rem;">${getSentimentEmoji(analysis.sentiment.sentiment)}</div>
+                                    <div class="metric-label">Sentimento</div>
+                                </div>
+                                <div class="metric-card" style="background: rgba(255,255,255,0.2);">
+                                    <div class="metric-value">${analysis.messageCount}</div>
+                                    <div class="metric-label">Mensagens</div>
+                                </div>
+                                <div class="metric-card" style="background: rgba(255,255,255,0.2);">
+                                    <div class="metric-value">${analysis.urgency}</div>
+                                    <div class="metric-label">Urgência</div>
+                                </div>
+                            </div>
+                            
+                            <h4>🎯 Tópicos Principais:</h4>
+                            <div style="display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0;">
+                                ${analysis.mainTopics.map(([topic, count]) => 
+                                    `<span class="word-item">${topic} (${count})</span>`
+                                ).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                showAlert('✅ Análise rápida concluída!', 'success');
+                
+            } catch (error) {
+                console.error('Erro na análise rápida:', error);
+                showAlert('❌ Erro na análise rápida', 'error');
+            }
+        }
+
+        async function analyzeTopics() {
+            if (!appState.aiAnalyzer.isInitialized) {
+                showAlert('❌ Modelos de IA não estão carregados', 'error');
+                return;
+            }
+
+            showAlert('🔍 Analisando tópicos com IA...', 'info');
+            
+            try {
+                const topics = await appState.aiAnalyzer.analyzeTopicsAdvanced(appState.filteredData);
+                
+                const resultsElement = document.getElementById('topicsResults');
+                let html = '<h4>📊 Tópicos Identificados</h4>';
+                
+                topics.forEach(topic => {
+                    html += `
+                        <div class="topic-item">
+                            <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 10px;">
+                                <strong>${topic.topic}</strong>
+                                <span class="confidence-badge">${topic.frequency} ocorrências</span>
+                            </div>
+                            
+                            <div class="sentiment-distribution">
+                                ${Object.entries(topic.sentimentDistribution).map(([sentiment, count]) => `
+                                    <div class="sentiment-bar" style="background: ${
+                                        sentiment === 'Muito Positivo' ? '#4CAF50' :
+                                        sentiment === 'Positivo' ? '#8BC34A' :
+                                        sentiment === 'Neutro' ? '#FFC107' :
+                                        sentiment === 'Negativo' ? '#FF9800' : '#F44336'
+                                    }; width: ${(count / Math.max(...Object.values(topic.sentimentDistribution))) * 100}%"></div>
+                                `).join('')}
+                            </div>
+                            
+                            <div style="font-size: 0.9rem; margin-top: 8px;">
+                                <strong>Exemplos:</strong>
+                                ${topic.examples.map(ex => `
+                                    <div style="margin: 5px 0; padding: 5px; background: rgba(0,0,0,0.1); border-radius: 4px;">
+                                        "${ex.text}" - <em>${ex.agent}</em>
+                                    </div>
+                                `).join('')}
+                            </div>
                         </div>
                     `;
                 });
                 
-                resultsContainer.innerHTML = html;
-                showNotification(`Busca concluída: ${results.length} resultados encontrados`, 'success');
-            }, 1000);
-        }
-
-        // Funções para IA Avançada - Corrigidas para serem funcionais
-        function runAdvancedAnalysis() {
-            const analysisType = document.getElementById('analysisType').value;
-            const aiModel = document.getElementById('aiModel').value;
-            const prompt = document.getElementById('aiPrompt').value;
-            
-            const resultsContainer = document.getElementById('aiAnalysisResults');
-            resultsContainer.innerHTML = '<div class="loading"><div class="spinner"></div><p>Executando análise avançada...</p></div>';
-            
-            // Simular processamento
-            setTimeout(() => {
-                let html = '';
+                resultsElement.innerHTML = html;
+                showAlert('✅ Análise de tópicos concluída!', 'success');
                 
-                // Mostrar que as opções selecionadas estão sendo usadas
-                html += `<div class="model-status status-ready">
-                            <i class="fas fa-check-circle"></i>
-                            <div>
-                                <strong>Análise configurada:</strong> Tipo: ${analysisType}, Modelo: ${aiModel}
-                                ${prompt ? `<br><strong>Prompt:</strong> ${prompt}` : ''}
-                            </div>
-                        </div>`;
-                
-                // Resultados baseados no tipo de análise selecionado
-                if (analysisType === 'sentiment') {
-                    html += `
-                        <div class="insight-card">
-                            <div class="insight-header">
-                                <i class="fas fa-smile-beam insight-icon"></i>
-                                <h3>Análise de Sentimento Avançada</h3>
-                            </div>
-                            <div class="insight-content">
-                                <p>A análise detectou padrões emocionais complexos nas conversas:</p>
-                                <ul>
-                                    <li>Frustração relacionada a problemas técnicos (35% das interações)</li>
-                                    <li>Satisfação com resolução rápida (42% das interações)</li>
-                                    <li>Necessidade de mais informações sobre produtos (23% das interações)</li>
-                                </ul>
-                            </div>
-                        </div>
-                    `;
-                } else if (analysisType === 'topics') {
-                    html += `
-                        <div class="insight-card">
-                            <div class="insight-header">
-                                <i class="fas fa-tags insight-icon"></i>
-                                <h3>Identificação de Tópicos</h3>
-                            </div>
-                            <div class="insight-content">
-                                <p>Foram identificados 5 tópicos principais nas conversas:</p>
-                                <div class="topic-item">
-                                    <strong>Problemas de acesso</strong> <span class="confidence-badge">92%</span>
-                                    <p>Clientes relatando dificuldades para acessar contas e serviços</p>
-                                </div>
-                                <div class="topic-item">
-                                    <strong>Informações sobre produtos</strong> <span class="confidence-badge">88%</span>
-                                    <p>Solicitações de detalhes sobre funcionalidades e preços</p>
-                                </div>
-                                <div class="topic-item">
-                                    <strong>Atendimento ao cliente</strong> <span class="confidence-badge">85%</span>
-                                    <p>Elogios e críticas sobre a qualidade do atendimento</p>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                } else if (analysisType === 'patterns') {
-                    html += `
-                        <div class="insight-card">
-                            <div class="insight-header">
-                                <i class="fas fa-project-diagram insight-icon"></i>
-                                <h3>Padrões de Conversação</h3>
-                            </div>
-                            <div class="insight-content">
-                                <p>Padrões identificados no fluxo de conversas:</p>
-                                <ul>
-                                    <li>70% das conversas começam com uma saudação padrão do agente</li>
-                                    <li>Conversas que incluem a palavra "problema" tendem a ser 40% mais longas</li>
-                                    <li>Clientes que usam emojis positivos têm 65% mais chance de dar feedback positivo</li>
-                                </ul>
-                            </div>
-                        </div>
-                    `;
-                } else if (analysisType === 'recommendations') {
-                    html += `
-                        <div class="insight-card">
-                            <div class="insight-header">
-                                <i class="fas fa-lightbulb insight-icon"></i>
-                                <h3>Recomendações Inteligentes</h3>
-                            </div>
-                            <div class="insight-content">
-                                <p>Com base na análise dos dados, recomendamos:</p>
-                                <div class="recommendation-item">
-                                    <strong>Melhorar documentação de acesso</strong>
-                                    <p>35% dos problemas relatados são relacionados a dificuldades de acesso. Considere criar tutoriais mais claros.</p>
-                                </div>
-                                <div class="recommendation-item">
-                                    <strong>Treinamento em empatia para agentes</strong>
-                                    <p>Conversas onde agentes demonstram empatia têm 50% mais avaliações positivas.</p>
-                                </div>
-                                <div class="recommendation-item">
-                                    <strong>Otimizar tempo de resposta</strong>
-                                    <p>Clientes que recebem resposta em menos de 2 minutos avaliam o serviço 30% melhor.</p>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                }
-                
-                // Adicionar análise de progresso
-                html += `
-                    <div class="analysis-progress">
-                        <div class="progress-bar-fill" style="width: 100%"></div>
-                    </div>
-                    <p class="text-center">Análise concluída com sucesso!</p>
-                `;
-                
-                resultsContainer.innerHTML = html;
-                showNotification('Análise avançada concluída!', 'success');
-            }, 2000);
-        }
-
-        function analyzeClusters() {
-            const resultsContainer = document.getElementById('aiAnalysisResults');
-            resultsContainer.innerHTML = '<div class="loading"><div class="spinner"></div><p>Analisando clusters de conversas...</p></div>';
-            
-            // Simular processamento
-            setTimeout(() => {
-                const html = `
-                    <div class="insight-card">
-                        <div class="insight-header">
-                            <i class="fas fa-object-group insight-icon"></i>
-                            <h3>Análise de Clusters</h3>
-                        </div>
-                        <div class="insight-content">
-                            <p>Foram identificados 4 clusters principais nas conversas analisadas:</p>
-                            <div class="topic-item">
-                                <strong>Cluster 1: Problemas Técnicos</strong> <span class="confidence-badge">42 interações</span>
-                                <p>Conversas focadas em dificuldades de acesso, erros no sistema e problemas técnicos.</p>
-                            </div>
-                            <div class="topic-item">
-                                <strong>Cluster 2: Vendas e Informações</strong> <span class="confidence-badge">38 interações</span>
-                                <p>Solicitações de informações sobre produtos, preços e funcionalidades.</p>
-                            </div>
-                            <div class="topic-item">
-                                <strong>Cluster 3: Suporte Pós-Venda</strong> <span class="confidence-badge">25 interações</span>
-                                <p>Conversas sobre uso de produtos, dúvidas de configuração e suporte continuado.</p>
-                            </div>
-                            <div class="topic-item">
-                                <strong>Cluster 4: Feedback e Avaliações</strong> <span class="confidence-badge">15 interações</span>
-                                <p>Clientes fornecendo feedback sobre produtos, serviços e atendimento.</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="analysis-progress">
-                        <div class="progress-bar-fill" style="width: 100%"></div>
-                    </div>
-                    <p class="text-center">Análise de clusters concluída!</p>
-                `;
-                
-                resultsContainer.innerHTML = html;
-                showNotification('Análise de clusters realizada com sucesso!', 'success');
-            }, 1800);
-        }
-
-        // Funções para Análise de Áudio
-        function startRecording() {
-            // Simular início de gravação
-            appState.audioRecording = true;
-            document.getElementById('startRecording').disabled = true;
-            document.getElementById('stopRecording').disabled = false;
-            document.getElementById('recordingIndicator').classList.remove('hidden');
-            
-            // Simular visualizador de áudio
-            const visualizer = document.getElementById('audioVisualizer');
-            visualizer.innerHTML = '';
-            
-            for (let i = 0; i < 50; i++) {
-                const bar = document.createElement('div');
-                bar.className = 'visualizer-bar';
-                bar.style.height = `${Math.random() * 80 + 10}px`;
-                bar.style.left = `${i * 8}px`;
-                visualizer.appendChild(bar);
+            } catch (error) {
+                console.error('Erro na análise de tópicos:', error);
+                showAlert('❌ Erro na análise de tópicos', 'error');
             }
-            
-            showNotification('Gravação de áudio iniciada', 'success');
+        }
+
+        function getSentimentEmoji(sentiment) {
+            switch(sentiment) {
+                case 'Muito Positivo': return '😊';
+                case 'Positivo': return '🙂';
+                case 'Neutro': return '😐';
+                case 'Negativo': return '🙁';
+                case 'Muito Negativo': return '😞';
+                default: return '❓';
+            }
+        }
+
+        function clearAnalysis() {
+            document.getElementById('iaResults').innerHTML = '';
+            document.getElementById('topicsResults').innerHTML = '';
+            showAlert('🧹 Análises limpas!', 'info');
+        }
+
+        async function clusterAnalysis() {
+            showAlert('🔬 Análise de clusters em desenvolvimento...', 'info');
+        }
+
+        // =============================================
+        // FUNÇÕES DE ANÁLISE DE ÁUDIO
+        // =============================================
+        async function startRecording() {
+            if (!appState.audioTranscriber) {
+                showAlert('❌ Transcrição de áudio não disponível', 'error');
+                return;
+            }
+
+            try {
+                await appState.audioTranscriber.startRecording();
+                showAlert('🎙️ Gravação iniciada! Fale agora...', 'success');
+            } catch (error) {
+                console.error('Erro ao iniciar gravação:', error);
+                if (error.name === 'NotAllowedError') {
+                    showAlert('❌ Permissão de microfone negada', 'error');
+                } else {
+                    showAlert('❌ Erro ao acessar microfone', 'error');
+                }
+            }
         }
 
         function stopRecording() {
-            // Simular parada de gravação
-            appState.audioRecording = false;
-            document.getElementById('startRecording').disabled = false;
-            document.getElementById('stopRecording').disabled = true;
-            document.getElementById('recordingIndicator').classList.add('hidden');
-            
-            showNotification('Gravação de áudio finalizada', 'success');
+            if (appState.audioTranscriber) {
+                appState.audioTranscriber.stopRecording();
+                showAlert('⏹️ Gravação finalizada', 'info');
+            }
         }
 
-        function analyzeAudio() {
-            const resultsContainer = document.getElementById('transcriptionResult');
-            resultsContainer.innerHTML = '<div class="loading"><div class="spinner"></div><p>Analisando áudio...</p></div>';
-            
-            // Simular processamento
-            setTimeout(() => {
-                const html = `
-                    <h3>Análise do Áudio</h3>
-                    <div class="audio-metrics">
-                        <div class="audio-metric">
-                            <div class="metric-label">Duração</div>
-                            <div class="metric-value">2:45</div>
-                        </div>
-                        <div class="audio-metric">
-                            <div class="metric-label">Sentimento</div>
-                            <div class="metric-value">Positivo</div>
-                        </div>
-                        <div class="audio-metric">
-                            <div class="metric-label">Clareza</div>
-                            <div class="metric-value">92%</div>
-                        </div>
-                        <div class="audio-metric">
-                            <div class="metric-label">Tópico</div>
-                            <div class="metric-value">Suporte</div>
-                        </div>
-                    </div>
-                    <h4>Transcrição:</h4>
-                    <div class="transcription-line">
-                        <span class="speaker-label">Agente:</span> Olá, boa tarde! Como posso ajudá-lo hoje?
-                    </div>
-                    <div class="transcription-line">
-                        <span class="speaker-label">Cliente:</span> Oi, estou com dificuldade para acessar minha conta no aplicativo.
-                    </div>
-                    <div class="transcription-line">
-                        <span class="speaker-label">Agente:</span> Entendo, vou ajudar com isso. Já tentou redefinir sua senha?
-                    </div>
-                    <div class="transcription-line">
-                        <span class="speaker-label">Cliente:</span> Ainda não, como faço isso?
-                    </div>
-                    <div class="transcription-line">
-                        <span class="speaker-label">Agente:</span> Vou enviar um link para seu e-mail cadastrado. Pode verificar?
-                    </div>
-                    <div class="transcription-line">
-                        <span class="speaker-label">Cliente:</span> Perfeito, recebi! Muito obrigado pela ajuda.
-                    </div>
-                `;
-                
-                resultsContainer.innerHTML = html;
-                showNotification('Análise de áudio concluída!', 'success');
-            }, 2000);
+        function clearRecording() {
+            if (appState.audioTranscriber) {
+                appState.audioTranscriber.transcription = '';
+                updateTranscriptionDisplay('', '');
+                updateAudioMetrics('', '');
+                document.getElementById('audioPlayerContainer').classList.add('hidden');
+                document.getElementById('audioDuration').textContent = '0s';
+                showAlert('🧹 Transcrição limpa!', 'info');
+            }
         }
 
-        function analyzeTranscription() {
-            const transcription = document.getElementById('pasteTranscription').value.trim();
+        function usePastedTranscription() {
+            const pastedText = document.getElementById('pasteTranscription').value.trim();
             
-            if (!transcription) {
-                showNotification('Cole uma transcrição para analisar', 'warning');
+            if (!pastedText) {
+                showAlert('⚠️ Cole uma transcrição primeiro', 'warning');
                 return;
             }
             
-            const resultsContainer = document.getElementById('transcriptionResult');
-            resultsContainer.innerHTML = '<div class="loading"><div class="spinner"></div><p>Analisando transcrição...</p></div>';
+            if (appState.audioTranscriber) {
+                appState.audioTranscriber.transcription = pastedText;
+            }
             
-            // Simular processamento
-            setTimeout(() => {
-                const html = `
-                    <h3>Análise da Transcrição</h3>
-                    <div class="audio-metrics">
-                        <div class="audio-metric">
-                            <div class="metric-label">Sentimento</div>
-                            <div class="metric-value">Neutro</div>
+            updateTranscriptionDisplay(pastedText, '');
+            updateAudioMetrics(pastedText, '');
+            showAlert('✅ Transcrição colada com sucesso!', 'success');
+        }
+
+        function clearPastedTranscription() {
+            document.getElementById('pasteTranscription').value = '';
+            showAlert('🧹 Transcrição colada removida!', 'info');
+        }
+
+        function updateTranscriptionDisplay(finalTranscript, interimTranscript) {
+            const resultsElement = document.getElementById('transcriptionResults');
+            
+            let html = '';
+            
+            if (finalTranscript) {
+                html += `<div class="transcription-line">
+                    <span class="speaker-label">🔊</span>
+                    <span>${finalTranscript}</span>
+                </div>`;
+            }
+            
+            if (interimTranscript) {
+                html += `<div class="transcription-line" style="opacity: 0.7; font-style: italic;">
+                    <span class="speaker-label">🎤</span>
+                    <span>${interimTranscript}</span>
+                </div>`;
+            }
+            
+            if (!finalTranscript && !interimTranscript) {
+                html = '<p class="text-center" style="color: #666;">A transcrição aparecerá aqui...</p>';
+            }
+            
+            resultsElement.innerHTML = html;
+            resultsElement.scrollTop = resultsElement.scrollHeight;
+        }
+
+        function updateAudioMetrics(finalTranscript, interimTranscript) {
+            const fullText = finalTranscript + ' ' + interimTranscript;
+            const wordCount = fullText.trim().split(/\s+/).filter(word => word.length > 0).length;
+            
+            document.getElementById('wordCount').textContent = wordCount;
+            
+            const confidence = Math.min(100, Math.max(0, 
+                50 + (finalTranscript.length / (finalTranscript.length + interimTranscript.length + 1)) * 50
+            ));
+            document.getElementById('audioConfidence').textContent = Math.round(confidence) + '%';
+        }
+
+        function changeLanguage() {
+            const language = document.getElementById('languageSelect').value;
+            if (appState.audioTranscriber) {
+                appState.audioTranscriber.setLanguage(language);
+                showAlert(`🌐 Idioma alterado para: ${language}`, 'info');
+            }
+        }
+
+        function copyTranscription() {
+            const transcription = appState.audioTranscriber ? 
+                appState.audioTranscriber.transcription : 
+                document.getElementById('transcriptionResults').innerText;
+            
+            navigator.clipboard.writeText(transcription).then(() => {
+                showAlert('✅ Transcrição copiada para a área de transferência!', 'success');
+            }).catch(err => {
+                showAlert('❌ Erro ao copiar transcrição', 'error');
+            });
+        }
+
+        function exportTranscription() {
+            const transcription = appState.audioTranscriber ? 
+                appState.audioTranscriber.transcription : 
+                document.getElementById('transcriptionResults').innerText;
+            
+            const blob = new Blob([transcription], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'transcricao_audio.txt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showAlert('💾 Transcrição exportada como arquivo TXT!', 'success');
+        }
+
+        async function analyzeAudio() {
+            const transcription = appState.audioTranscriber ? 
+                appState.audioTranscriber.transcription : 
+                document.getElementById('transcriptionResults').innerText;
+            
+            if (!transcription.trim()) {
+                showAlert('⚠️ Nenhuma transcrição disponível para análise', 'warning');
+                return;
+            }
+
+            showAlert('🔍 Analisando transcrição com IA...', 'info');
+            
+            try {
+                const prompt = document.getElementById('audioPrompt').value;
+                const analysis = await appState.aiAnalyzer.generateInsights(
+                    [{ Texto: transcription, Agente: "Áudio", Data: new Date().toLocaleDateString('pt-BR') }], 
+                    prompt
+                );
+                
+                displayAudioAnalysis(analysis, transcription);
+                showAlert('✅ Análise de áudio concluída!', 'success');
+                
+            } catch (error) {
+                console.error('Erro na análise de áudio:', error);
+                showAlert('❌ Erro ao analisar áudio', 'error');
+            }
+        }
+
+        async function quickAudioAnalysis() {
+            const transcription = appState.audioTranscriber ? 
+                appState.audioTranscriber.transcription : 
+                document.getElementById('transcriptionResults').innerText;
+            
+            if (!transcription.trim()) {
+                showAlert('⚠️ Nenhuma transcrição disponível para análise', 'warning');
+                return;
+            }
+
+            showAlert('⚡ Análise rápida de áudio...', 'info');
+            
+            try {
+                const sentiment = sentimentAnalyzer.analyze(transcription);
+                
+                const resultsElement = document.getElementById('audioAnalysisResults');
+                resultsElement.innerHTML = `
+                    <div class="insight-card">
+                        <div class="insight-header">
+                            <div class="insight-icon">🎵</div>
+                            <h3>Análise Rápida do Áudio</h3>
                         </div>
-                        <div class="audio-metric">
-                            <div class="metric-label">Palavras</div>
-                            <div class="metric-value">${transcription.split(' ').length}</div>
-                        </div>
-                        <div class="audio-metric">
-                            <div class="metric-label">Tópico Principal</div>
-                            <div class="metric-value">Informações</div>
-                        </div>
-                        <div class="audio-metric">
-                            <div class="metric-label">Pontuação</div>
-                            <div class="metric-value">78/100</div>
+                        <div class="insight-content">
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin: 15px 0;">
+                                <div class="metric-card" style="background: rgba(255,255,255,0.2);">
+                                    <div class="metric-value">${getSentimentEmoji(sentiment.sentiment)}</div>
+                                    <div class="metric-label">Sentimento</div>
+                                </div>
+                                <div class="metric-card" style="background: rgba(255,255,255,0.2);">
+                                    <div class="metric-value">${sentiment.score}</div>
+                                    <div class="metric-label">Pontuação</div>
+                                </div>
+                                <div class="metric-card" style="background: rgba(255,255,255,0.2);">
+                                    <div class="metric-value">${Math.round(sentiment.confidence * 100)}%</div>
+                                    <div class="metric-label">Confiança</div>
+                                </div>
+                            </div>
+                            
+                            <h4>📝 Resumo:</h4>
+                            <p>O áudio apresenta um sentimento <strong>${sentiment.sentiment.toLowerCase()}</strong> com uma pontuação de <strong>${sentiment.score}</strong>.</p>
+                            
+                            <h4>🔍 Palavras-chave:</h4>
+                            <div style="display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0;">
+                                ${extractKeywords(transcription).map(word => 
+                                    `<span class="word-item">${word}</span>`
+                                ).join('')}
+                            </div>
                         </div>
                     </div>
-                    <h4>Resumo da Análise:</h4>
-                    <p>A transcrição fornecida contém uma conversa sobre ${transcription.substring(0, 50)}... 
-                    O sentimento geral é neutro, com tom profissional. Foram identificadas palavras-chave como 
-                    "conta", "acesso" e "informação".</p>
                 `;
                 
-                resultsContainer.innerHTML = html;
-                showNotification('Transcrição analisada com sucesso!', 'success');
-            }, 1500);
+                showAlert('✅ Análise rápida concluída!', 'success');
+                
+            } catch (error) {
+                console.error('Erro na análise rápida:', error);
+                showAlert('❌ Erro na análise rápida', 'error');
+            }
         }
 
-        // Funções auxiliares
-        function getRandomColor() {
-            const colors = ['#4CAF50', '#2196F3', '#FFC107', '#F44336', '#9C27B0', '#00BCD4', '#FF9800', '#795548'];
-            return colors[Math.floor(Math.random() * colors.length)];
+        function displayAudioAnalysis(analysis, transcription) {
+            const resultsElement = document.getElementById('audioAnalysisResults');
+            
+            resultsElement.innerHTML = `
+                <div class="insight-card">
+                    <div class="insight-header">
+                        <div class="insight-icon">🎵</div>
+                        <h3>Análise Completa do Áudio</h3>
+                        <span class="confidence-badge">${Math.round(analysis.confidence * 100)}% confiança</span>
+                    </div>
+                    
+                    <div class="insight-content">
+                        <h4>📊 Resumo Executivo</h4>
+                        <p>${analysis.summary}</p>
+                        
+                        <h4>😊 Análise de Sentimento</h4>
+                        <div style="display: flex; align-items: center; gap: 15px; margin: 10px 0;">
+                            <span style="font-size: 2rem;">${getSentimentEmoji(analysis.sentiment.sentiment)}</span>
+                            <div>
+                                <div><strong>${analysis.sentiment.sentiment}</strong></div>
+                                <div>Pontuação: ${analysis.sentiment.score.toFixed(3)}</div>
+                            </div>
+                        </div>
+                        
+                        <h4>🎯 Tópicos Identificados</h4>
+                        <div style="display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0;">
+                            ${analysis.topics.map(([topic, count]) => 
+                                `<span class="word-item">${topic} (${count})</span>`
+                            ).join('')}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">💡 Recomendações</div>
+                    </div>
+                    ${analysis.recommendations.map(rec => `
+                        <div class="recommendation-item">
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                ${rec.type === 'success' ? '✅' : rec.type === 'warning' ? '⚠️' : rec.type === 'error' ? '❌' : 'ℹ️'}
+                                <strong>${rec.title}</strong>
+                                <span class="confidence-badge" style="background: ${
+                                    rec.priority === 'Alta' ? '#dc3545' : 
+                                    rec.priority === 'Média' ? '#ffc107' : '#28a745'
+                                };">${rec.priority}</span>
+                            </div>
+                            <div>${rec.description}</div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
         }
 
-        function showNotification(message, type) {
-            // Criar elemento de notificação
-            const notification = document.createElement('div');
-            notification.className = `alert alert-${type}`;
-            notification.innerHTML = `
+        function extractKeywords(text, limit = 8) {
+            const words = text.toLowerCase()
+                .replace(/[^\w\sàáâãèéêìíîòóôõùúûç]/g, '')
+                .split(/\s+/)
+                .filter(word => word.length > 3);
+            
+            const frequency = {};
+            words.forEach(word => {
+                frequency[word] = (frequency[word] || 0) + 1;
+            });
+            
+            return Object.entries(frequency)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, limit)
+                .map(([word]) => word);
+        }
+
+        // =============================================
+        // FUNÇÕES DE TENDÊNCIAS
+        // =============================================
+        function calculateDailyStats() {
+            appState.dailyStats = {};
+            
+            appState.filteredData.forEach(item => {
+                const date = item.Data;
+                if (!appState.dailyStats[date]) {
+                    appState.dailyStats[date] = {
+                        total: 0,
+                        positive: 0,
+                        negative: 0,
+                        problems: 0,
+                        solutions: 0,
+                        agents: new Set(),
+                        avgScore: 0,
+                        totalScore: 0
+                    };
+                }
+                
+                const day = appState.dailyStats[date];
+                day.total++;
+                day.totalScore += item.Pontuacao || 0;
+                day.agents.add(item.Agente);
+                
+                if (item.Sentimento === 'Positivo' || item.Sentimento === 'Muito Positivo') {
+                    day.positive++;
+                }
+                if (item.Sentimento === 'Negativo' || item.Sentimento === 'Muito Negativo') {
+                    day.negative++;
+                }
+                if (item.Problemas) day.problems++;
+                if (item.Solucoes) day.solutions++;
+            });
+            
+            Object.keys(appState.dailyStats).forEach(date => {
+                const day = appState.dailyStats[date];
+                day.avgScore = day.total > 0 ? day.totalScore / day.total : 0;
+                day.agents = day.agents.size;
+            });
+        }
+
+        function renderTrendsChart() {
+            if (Object.keys(appState.dailyStats).length === 0) return;
+            
+            const dates = Object.keys(appState.dailyStats).sort();
+            const totals = dates.map(date => appState.dailyStats[date].total);
+            const positives = dates.map(date => appState.dailyStats[date].positive);
+            const negatives = dates.map(date => appState.dailyStats[date].negative);
+            const problems = dates.map(date => appState.dailyStats[date].problems);
+            const avgScores = dates.map(date => appState.dailyStats[date].avgScore);
+            
+            const trace1 = {
+                x: dates,
+                y: totals,
+                type: 'scatter',
+                mode: 'lines+markers',
+                name: 'Total Mensagens',
+                line: { color: '#2196F3', width: 3 }
+            };
+            
+            const trace2 = {
+                x: dates,
+                y: positives,
+                type: 'scatter',
+                mode: 'lines+markers',
+                name: 'Positivas',
+                line: { color: '#4CAF50', width: 3 }
+            };
+            
+            const trace3 = {
+                x: dates,
+                y: negatives,
+                type: 'scatter',
+                mode: 'lines+markers',
+                name: 'Negativas',
+                line: { color: '#F44336', width: 3 }
+            };
+            
+            const trace4 = {
+                x: dates,
+                y: problems,
+                type: 'scatter',
+                mode: 'lines+markers',
+                name: 'Problemas',
+                line: { color: '#FF9800', width: 3 }
+            };
+            
+            const trace5 = {
+                x: dates,
+                y: avgScores,
+                type: 'scatter',
+                mode: 'lines+markers',
+                name: 'Pontuação Média',
+                yaxis: 'y2',
+                line: { color: '#9C27B0', width: 3, dash: 'dot' }
+            };
+            
+            const data = [trace1, trace2, trace3, trace4, trace5];
+            
+            const layout = {
+                height: 400,
+                xaxis: { title: 'Data' },
+                yaxis: { title: 'Quantidade' },
+                yaxis2: {
+                    title: 'Pontuação',
+                    overlaying: 'y',
+                    side: 'right'
+                },
+                legend: { orientation: 'h', y: -0.2 },
+                margin: { t: 30, r: 50, l: 50, b: 80 }
+            };
+            
+            Plotly.newPlot('trendsChart', data, layout, { displayModeBar: true });
+        }
+
+        function renderCorrelationChart() {
+            if (Object.keys(appState.dailyStats).length === 0) return;
+            
+            const dates = Object.keys(appState.dailyStats).sort();
+            const totals = dates.map(date => appState.dailyStats[date].total);
+            const positives = dates.map(date => appState.dailyStats[date].positive);
+            const negatives = dates.map(date => appState.dailyStats[date].negative);
+            const problems = dates.map(date => appState.dailyStats[date].problems);
+            const avgScores = dates.map(date => appState.dailyStats[date].avgScore);
+            
+            const correlations = [
+                [1, correlation(totals, positives), correlation(totals, negatives), correlation(totals, problems), correlation(totals, avgScores)],
+                [correlation(positives, totals), 1, correlation(positives, negatives), correlation(positives, problems), correlation(positives, avgScores)],
+                [correlation(negatives, totals), correlation(negatives, positives), 1, correlation(negatives, problems), correlation(negatives, avgScores)],
+                [correlation(problems, totals), correlation(problems, positives), correlation(problems, negatives), 1, correlation(problems, avgScores)],
+                [correlation(avgScores, totals), correlation(avgScores, positives), correlation(avgScores, negatives), correlation(avgScores, problems), 1]
+            ];
+            
+            const data = [{
+                z: correlations,
+                x: ['Total', 'Positivas', 'Negativas', 'Problemas', 'Pontuação'],
+                y: ['Total', 'Positivas', 'Negativas', 'Problemas', 'Pontuação'],
+                type: 'heatmap',
+                colorscale: 'RdBu',
+                zmin: -1,
+                zmax: 1,
+                hoverongaps: false,
+                showscale: true
+            }];
+            
+            const layout = {
+                height: 400,
+                title: 'Correlação entre Métricas Diárias',
+                margin: { t: 50, r: 50, l: 50, b: 50 }
+            };
+            
+            Plotly.newPlot('correlationChart', data, layout, { displayModeBar: true });
+        }
+
+        function correlation(x, y) {
+            if (x.length !== y.length || x.length === 0) return 0;
+            
+            const n = x.length;
+            let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0, sumY2 = 0;
+            
+            for (let i = 0; i < n; i++) {
+                sumX += x[i];
+                sumY += y[i];
+                sumXY += x[i] * y[i];
+                sumX2 += x[i] * x[i];
+                sumY2 += y[i] * y[i];
+            }
+            
+            const numerator = n * sumXY - sumX * sumY;
+            const denominator = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
+            
+            return denominator === 0 ? 0 : Math.round((numerator / denominator) * 100) / 100;
+        }
+
+        function renderDailyTable() {
+            if (Object.keys(appState.dailyStats).length === 0) {
+                document.getElementById('dailyTable').innerHTML = '<p class="text-center">Nenhum dado disponível</p>';
+                return;
+            }
+            
+            const dates = Object.keys(appState.dailyStats).sort();
+            
+            let html = `
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Total Msgs</th>
+                            <th>Positivas</th>
+                            <th>Negativas</th>
+                            <th>Problemas</th>
+                            <th>Soluções</th>
+                            <th>Agentes</th>
+                            <th>Pontuação Média</th>
+                            <th>Tendência</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            dates.forEach((date, index) => {
+                const day = appState.dailyStats[date];
+                const positivityRate = day.total > 0 ? (day.positive / day.total * 100).toFixed(1) : 0;
+                const negativityRate = day.total > 0 ? (day.negative / day.total * 100).toFixed(1) : 0;
+                
+                let trend = '→';
+                let trendColor = 'gray';
+                
+                if (index > 0) {
+                    const prevDate = dates[index - 1];
+                    const prevDay = appState.dailyStats[prevDate];
+                    const currentPositivity = day.positive / day.total;
+                    const prevPositivity = prevDay.positive / prevDay.total;
+                    
+                    if (currentPositivity > prevPositivity + 0.05) {
+                        trend = '↗';
+                        trendColor = 'green';
+                    } else if (currentPositivity < prevPositivity - 0.05) {
+                        trend = '↘';
+                        trendColor = 'red';
+                    }
+                }
+                
+                html += `
+                    <tr>
+                        <td><strong>${date}</strong></td>
+                        <td>${day.total}</td>
+                        <td>
+                            <div>${day.positive}</div>
+                            <small style="color: #4CAF50;">${positivityRate}%</small>
+                        </td>
+                        <td>
+                            <div>${day.negative}</div>
+                            <small style="color: #F44336;">${negativityRate}%</small>
+                        </td>
+                        <td>${day.problems}</td>
+                        <td>${day.solutions}</td>
+                        <td>${day.agents}</td>
+                        <td>
+                            <div style="display: flex; align-items: center; gap: 5px;">
+                                <span style="font-size: 1.2rem;">
+                                    ${day.avgScore > 0.5 ? '😊' : day.avgScore < -0.5 ? '😞' : '😐'}
+                                </span>
+                                <span>${day.avgScore.toFixed(2)}</span>
+                            </div>
+                        </td>
+                        <td style="color: ${trendColor}; font-weight: bold; font-size: 1.2rem;">
+                            ${trend}
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table>';
+            document.getElementById('dailyTable').innerHTML = html;
+        }
+
+        // =============================================
+        // RENDERIZAÇÃO DE TABELAS
+        // =============================================
+        function renderTables() {
+            renderAgentsTable();
+        }
+
+        function renderAgentsTable() {
+            if (appState.filteredData.length === 0) {
+                document.getElementById('agentsTable').innerHTML = '<p class="text-center">Nenhum dado disponível</p>';
+                return;
+            }
+            
+            const agentData = {};
+            appState.filteredData.forEach(item => {
+                if (!agentData[item.Agente]) {
+                    agentData[item.Agente] = { messages: 0, interactions: new Set(), positive: 0, problems: 0, totalScore: 0 };
+                }
+                
+                agentData[item.Agente].messages++;
+                agentData[item.Agente].interactions.add(item.Agente + '_' + item.Data);
+                agentData[item.Agente].totalScore += item.Pontuacao || 0;
+                
+                if (item.Sentimento === 'Positivo' || item.Sentimento === 'Muito Positivo') {
+                    agentData[item.Agente].positive++;
+                }
+                if (item.Problemas) agentData[item.Agente].problems++;
+            });
+            
+            let html = `
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Agente</th>
+                            <th>Interações</th>
+                            <th>Mensagens</th>
+                            <th>Sentimento Médio</th>
+                            <th>Positividade</th>
+                            <th>Problemas</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            Object.keys(agentData).forEach(agent => {
+                const data = agentData[agent];
+                const avgScore = data.totalScore / data.messages;
+                const positivity = ((data.positive / data.messages) * 100).toFixed(1);
+                const sentiment = avgScore > 0.5 ? '😊' : avgScore < -0.5 ? '😞' : '😐';
+                
+                html += `
+                    <tr>
+                        <td>${agent}</td>
+                        <td>${data.interactions.size}</td>
+                        <td>${data.messages}</td>
+                        <td>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="font-size: 1.2rem;">${sentiment}</span>
+                                <span>${avgScore.toFixed(2)}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <div>${positivity}%</div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: ${positivity}%"></div>
+                            </div>
+                        </td>
+                        <td>${data.problems}</td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table>';
+            document.getElementById('agentsTable').innerHTML = html;
+        }
+
+        // =============================================
+        // FUNÇÕES AUXILIARES
+        // =============================================
+        function showAlert(message, type) {
+            const existingAlerts = document.querySelectorAll('.temp-alert');
+            existingAlerts.forEach(alert => alert.remove());
+            
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type} temp-alert`;
+            alert.innerHTML = `
                 <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'warning' ? 'exclamation-triangle' : type === 'error' ? 'times-circle' : 'info-circle'}"></i>
                 <div>${message}</div>
             `;
             
-            // Adicionar ao conteúdo principal
             const contentArea = document.getElementById('contentArea');
-            contentArea.insertBefore(notification, contentArea.firstChild);
+            contentArea.insertBefore(alert, contentArea.firstChild);
             
-            // Remover após 5 segundos
             setTimeout(() => {
-                notification.remove();
+                if (alert.parentNode) alert.parentNode.removeChild(alert);
             }, 5000);
+        }
+
+        // =============================================
+        // FUNÇÕES PLACEHOLDER
+        // =============================================
+        async function loadData() {
+            showAlert('📊 Carregando dados do Google Sheets...', 'info');
+        }
+
+        async function applyDateFilter() {
+            showAlert('📅 Aplicando filtro de data...', 'info');
+        }
+
+        async function refreshData() {
+            showAlert('🔄 Atualizando dados...', 'info');
+            calculateDailyStats();
+            updateStats();
+            updateMetrics();
+            renderCharts();
+            renderTables();
+            
+            if (appState.currentTab === 'words') {
+                updateWordAnalysis();
+            } else if (appState.currentTab === 'trends') {
+                renderTrendsChart();
+                renderCorrelationChart();
+                renderDailyTable();
+            }
+            
+            showAlert('✅ Dados atualizados!', 'success');
+        }
+
+        async function exportData() {
+            showAlert('💾 Exportando dados...', 'info');
+        }
+
+        async function exportTrendsData() {
+            if (Object.keys(appState.dailyStats).length === 0) {
+                showAlert('❌ Nenhum dado disponível para exportar', 'error');
+                return;
+            }
+            
+            const dates = Object.keys(appState.dailyStats).sort();
+            let csvContent = "Data,Total Mensagens,Positivas,Negativas,Problemas,Soluções,Agentes Únicos,Pontuação Média\n";
+            
+            dates.forEach(date => {
+                const day = appState.dailyStats[date];
+                csvContent += `${date},${day.total},${day.positive},${day.negative},${day.problems},${day.solutions},${day.agents},${day.avgScore.toFixed(2)}\n`;
+            });
+            
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", "tendencias_conversas.csv");
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showAlert('✅ Dados de tendências exportados com sucesso!', 'success');
+        }
+
+        async function exportAgents() {
+            showAlert('📊 Exportando relatório de agentes...', 'info');
         }
     </script>
 </body>

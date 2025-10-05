@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sentinela - Análise Inteligente de Conversas</title>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.min.js"></script>
@@ -988,6 +987,101 @@
             border-radius: var(--border-radius);
             margin: 15px 0;
         }
+
+        /* Novos estilos para melhorias */
+        .tooltip {
+            position: relative;
+            display: inline-block;
+            cursor: help;
+        }
+
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 200px;
+            background-color: var(--dark-gray);
+            color: var(--secondary-color);
+            text-align: center;
+            border-radius: var(--border-radius);
+            padding: 8px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -100px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 0.8rem;
+            font-weight: normal;
+        }
+
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+            gap: 5px;
+        }
+
+        .pagination button {
+            padding: 8px 12px;
+            border: 1px solid var(--medium-gray);
+            background: var(--secondary-color);
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        .pagination button.active {
+            background: var(--primary-color);
+            color: var(--secondary-color);
+        }
+
+        .pagination button:hover:not(.active) {
+            background: var(--light-gray);
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            flex-direction: column;
+            color: white;
+        }
+
+        .loading-overlay .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top: 3px solid white;
+        }
+
+        .validation-error {
+            border-color: var(--danger-color) !important;
+            box-shadow: 0 0 0 2px rgba(244, 67, 54, 0.2) !important;
+        }
+
+        .validation-message {
+            color: var(--danger-color);
+            font-size: 0.8rem;
+            margin-top: 5px;
+        }
+
+        .cache-indicator {
+            background: var(--info-color);
+            color: white;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 0.7rem;
+            margin-left: 5px;
+        }
     </style>
 </head>
 <body>
@@ -1605,6 +1699,220 @@
 
     <script>
         // =============================================
+        // SISTEMA DE CACHE PARA MELHOR PERFORMANCE
+        // =============================================
+        class AnalysisCache {
+            constructor() {
+                this.cache = new Map();
+                this.maxSize = 1000;
+                this.hits = 0;
+                this.misses = 0;
+            }
+
+            get(key) {
+                if (this.cache.has(key)) {
+                    this.hits++;
+                    const value = this.cache.get(key);
+                    this.cache.delete(key);
+                    this.cache.set(key, value);
+                    return value;
+                }
+                this.misses++;
+                return null;
+            }
+
+            set(key, value) {
+                if (this.cache.size >= this.maxSize) {
+                    const firstKey = this.cache.keys().next().value;
+                    this.cache.delete(firstKey);
+                }
+                this.cache.set(key, value);
+            }
+
+            clear() {
+                this.cache.clear();
+                this.hits = 0;
+                this.misses = 0;
+            }
+
+            size() {
+                return this.cache.size;
+            }
+
+            getStats() {
+                return {
+                    size: this.size(),
+                    hits: this.hits,
+                    misses: this.misses,
+                    hitRate: this.hits + this.misses > 0 ? (this.hits / (this.hits + this.misses) * 100).toFixed(2) : 0
+                };
+            }
+        }
+
+        // =============================================
+        // SISTEMA DE VALIDAÇÃO DE DADOS
+        // =============================================
+        class DataValidator {
+            static validateGoogleSheetId(sheetId) {
+                if (!sheetId || sheetId.trim() === '') {
+                    throw new Error('ID da planilha não pode estar vazio');
+                }
+                
+                const pattern = /^[a-zA-Z0-9-_]+$/;
+                if (!pattern.test(sheetId)) {
+                    throw new Error('ID da planilha contém caracteres inválidos');
+                }
+                
+                return true;
+            }
+
+            static validateDateRange(startDate, endDate) {
+                if (startDate && endDate) {
+                    const start = new Date(startDate);
+                    const end = new Date(endDate);
+                    
+                    if (start > end) {
+                        throw new Error('Data inicial não pode ser maior que data final');
+                    }
+                }
+                return true;
+            }
+
+            static validateFile(file, allowedTypes = ['.csv', '.xlsx', '.xls']) {
+                if (!file) {
+                    throw new Error('Nenhum arquivo selecionado');
+                }
+
+                const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+                if (!allowedTypes.includes(fileExtension)) {
+                    throw new Error(`Tipo de arquivo não suportado. Use: ${allowedTypes.join(', ')}`);
+                }
+
+                const maxSize = 10 * 1024 * 1024;
+                if (file.size > maxSize) {
+                    throw new Error('Arquivo muito grande. Tamanho máximo: 10MB');
+                }
+
+                return true;
+            }
+
+            static validateDataStructure(data) {
+                if (!Array.isArray(data)) {
+                    throw new Error('Dados devem ser um array');
+                }
+
+                if (data.length === 0) {
+                    throw new Error('Nenhum dado encontrado');
+                }
+
+                const requiredFields = ['Agente', 'Data', 'Texto'];
+                const sample = data[0];
+                
+                for (const field of requiredFields) {
+                    if (!(field in sample)) {
+                        throw new Error(`Campo obrigatório não encontrado: ${field}`);
+                    }
+                }
+
+                return true;
+            }
+        }
+
+        // =============================================
+        // SISTEMA DE TRATAMENTO DE ERROS
+        // =============================================
+        class ErrorHandler {
+            static setupGlobalErrorHandling() {
+                window.addEventListener('error', (event) => {
+                    console.error('Erro global:', event.error);
+                    this.showError('Ocorreu um erro inesperado no sistema');
+                });
+
+                window.addEventListener('unhandledrejection', (event) => {
+                    console.error('Promise rejeitada:', event.reason);
+                    this.showError('Operação falhou: ' + (event.reason?.message || 'Erro desconhecido'));
+                });
+            }
+
+            static async safeAsyncOperation(operation, errorMessage, showAlert = true) {
+                try {
+                    return await operation();
+                } catch (error) {
+                    console.error(`${errorMessage}:`, error);
+                    if (showAlert) {
+                        this.showError(`${errorMessage}: ${error.message}`);
+                    }
+                    throw error;
+                }
+            }
+
+            static showError(message) {
+                document.querySelectorAll('.temp-alert').forEach(alert => alert.remove());
+                
+                const alert = document.createElement('div');
+                alert.className = 'alert alert-error temp-alert';
+                alert.innerHTML = `
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <div>${message}</div>
+                `;
+                
+                const contentArea = document.getElementById('contentArea');
+                if (contentArea) {
+                    contentArea.insertBefore(alert, contentArea.firstChild);
+                    
+                    setTimeout(() => {
+                        if (alert.parentNode) {
+                            alert.parentNode.removeChild(alert);
+                        }
+                    }, 10000);
+                }
+            }
+        }
+
+        // =============================================
+        // SISTEMA DE LOADING E FEEDBACK
+        // =============================================
+        class LoadingManager {
+            static showGlobalLoading(message = 'Processando...') {
+                this.hideGlobalLoading();
+                
+                const loadingOverlay = document.createElement('div');
+                loadingOverlay.className = 'loading-overlay';
+                loadingOverlay.id = 'globalLoadingOverlay';
+                loadingOverlay.innerHTML = `
+                    <div class="spinner"></div>
+                    <p>${message}</p>
+                `;
+                
+                document.body.appendChild(loadingOverlay);
+            }
+
+            static hideGlobalLoading() {
+                const existingOverlay = document.getElementById('globalLoadingOverlay');
+                if (existingOverlay) {
+                    existingOverlay.remove();
+                }
+            }
+
+            static showButtonLoading(button, text = 'Processando...') {
+                button.disabled = true;
+                button.dataset.originalText = button.innerHTML;
+                button.innerHTML = `
+                    <div class="spinner" style="width: 16px; height: 16px; border-width: 2px;"></div>
+                    <span>${text}</span>
+                `;
+            }
+
+            static hideButtonLoading(button) {
+                button.disabled = false;
+                if (button.dataset.originalText) {
+                    button.innerHTML = button.dataset.originalText;
+                    delete button.dataset.originalText;
+                }
+            }
+        }
+
+        // =============================================
         // DICIONÁRIO AFINN PARA ANÁLISE DE SENTIMENTOS
         // =============================================
         const AFINN_PT = {
@@ -1695,7 +2003,7 @@
         };
 
         // =============================================
-        // ANALISADOR DE SENTIMENTOS
+        // ANALISADOR DE SENTIMENTOS (COM CACHE)
         // =============================================
         class SentimentAnalyzer {
             constructor() {
@@ -1705,11 +2013,18 @@
                     'muito': 1.5, 'extremamente': 2.0, 'totalmente': 1.8,
                     'completamente': 1.8, 'realmente': 1.3, 'demais': 1.5
                 };
+                this.cache = new AnalysisCache();
             }
 
             analyze(text) {
                 if (!text || typeof text !== 'string') {
                     return { score: 0, comparative: 0, sentiment: 'Neutro', confidence: 0 };
+                }
+
+                const cacheKey = `sentiment_${this.hashString(text)}`;
+                const cachedResult = this.cache.get(cacheKey);
+                if (cachedResult) {
+                    return { ...cachedResult, cached: true };
                 }
 
                 const words = this.tokenize(text);
@@ -1750,13 +2065,18 @@
                 const sentiment = this.getSentimentLabel(score, comparative);
                 const confidence = this.calculateConfidence(score, wordCount);
 
-                return {
+                const result = {
                     score: Math.round(score * 100) / 100,
                     comparative: Math.round(comparative * 100) / 100,
                     sentiment: sentiment,
                     confidence: Math.round(confidence * 100) / 100,
-                    wordCount: wordCount
+                    wordCount: wordCount,
+                    cached: false
                 };
+
+                this.cache.set(cacheKey, result);
+
+                return result;
             }
 
             tokenize(text) {
@@ -1781,17 +2101,36 @@
                 const wordCountConfidence = Math.min(wordCount / 10, 1);
                 return (baseConfidence * 0.7 + wordCountConfidence * 0.3);
             }
+
+            hashString(str) {
+                let hash = 0;
+                for (let i = 0; i < str.length; i++) {
+                    const char = str.charCodeAt(i);
+                    hash = ((hash << 5) - hash) + char;
+                    hash = hash & hash;
+                }
+                return Math.abs(hash).toString(36);
+            }
+
+            clearCache() {
+                this.cache.clear();
+            }
+
+            getCacheStats() {
+                return this.cache.getStats();
+            }
         }
 
         // =============================================
-        // ANALISADOR DE TEXTO AVANÇADO
+        // ANALISADOR DE TEXTO AVANÇADO (COM CACHE)
         // =============================================
         class TextAnalyzer {
             constructor() {
-                this.stopWords = new Set(["o", "a", "os", "as", "um", "uma", "uns", "umas", "de", "do", "da", "dos", "das", "em", "no", "na", "nos", "nas", "por", "para", "que", "e", "é", "ser", "se", "com", "como", "mas", "ou", "em", "na", "no", "nos", "nas", "por", "para", "com", "sem", "sob", "sobre", "entre", "até", "após", "desde", "quando", "onde", "porque", "porquê", "que", "quem", "qual", "quais", "cujo", "cuja", "cujos", "cujas", "quanto", "quanta", "quantos", "quantas", "qualquer", "quaisquer", "algum", "alguma", "alguns", "algumas", "todo", "toda", "todos", "todas", "outro", "outra", "outros", "outras", "mesmo", "mesma", "mesmos", "mesmas", "tal", "tais", "certo", "certa", "certos", "certas", "vário", "vária", "vários", "várias", "muito", "muita", "muitos", "muitas", "pouco", "pouca", "poucos", "poucas", "tanto", "tanta", "tantos", "tantas", "quanto", "quanta", "quantos", "quantas", "alguns", "algumas", "nenhum", "nenhuma", "nenhuns", "nenhumas", "todo", "toda", "todos", "todas", "outro", "outra", "outros", "outras", "qual", "quais", "cada", "qualquer", "quaisquer", "sim", "não", "já", "ainda", "só", "somente", "até", "mesmo", "também", "já", "já", "logo", "depois", "antes", "agora", "então", "assim", "bem", "mal", "aqui", "ali", "lá", "acolá", "cá", "onde", "quando", "como", "porque", "porquê", "pois", "que", "se", "embora", "conquanto", "contudo", "todavia", "entretanto", "no entanto", "portanto", "logo", "por conseguinte", "assim", "desse modo", "dessa forma", "alias", "aliás", "ou seja", "isto é", "a saber", "por exemplo", "e", "nem", "não só", "mas também", "ora", "já", "quer", "quer", "seja", "seja", "ou", "ou", "nem", "nem", "porque", "porquê", "pois", "que", "como", "quando", "onde", "donde", "aonde", "quem", "qual", "quais", "quanto", "quanta", "quantos", "quantas", "cujo", "cuja", "cujos", "cujas", "cada", "qualquer", "quaisquer", "algum", "alguma", "alguns", "algumas", "nenhum", "nenhuma", "nenhuns", "nenhumas", "todo", "toda", "todos", "todas", "outro", "outra", "outros", "outras", "mesmo", "mesma", "mesmos", "mesmas", "tal", "tais", "certo", "certa", "certos", "certas", "vário", "vária", "vários", "várias", "muito", "muita", "muitos", "muitas", "pouco", "pouca", "poucos", "poucas", "tanto", "tanta", "tantos", "tantas", "quanto", "quanta", "quantos", "quantas", "alguns", "algumas", "nenhum", "nenhuma", "nenhuns", "nenhumas", "todo", "toda", "todos", "todas", "outro", "outra", "outros", "outras", "qual", "quais", "cada", "qualquer", "quaisquer"]);
+                this.stopWords = new Set(["o", "a", "os", "as", "um", "uma", "uns", "umas", "de", "do", "da", "dos", "das", "em", "no", "na", "nos", "nas", "por", "para", "que", "e", "é", "ser", "se", "com", "como", "mas", "ou"]);
                 this.wordFrequencies = {};
                 this.bigramFrequencies = {};
                 this.searchIndex = null;
+                this.cache = new AnalysisCache();
             }
 
             tokenize(text) {
@@ -1811,6 +2150,15 @@
             }
 
             calculateFrequencies(data) {
+                const cacheKey = `frequencies_${this.hashString(JSON.stringify(data))}`;
+                const cachedResult = this.cache.get(cacheKey);
+                
+                if (cachedResult) {
+                    this.wordFrequencies = cachedResult.wordFrequencies;
+                    this.bigramFrequencies = cachedResult.bigramFrequencies;
+                    return;
+                }
+
                 this.wordFrequencies = {};
                 this.bigramFrequencies = {};
                 
@@ -1818,15 +2166,18 @@
                     const tokens = this.tokenize(item.Texto);
                     const bigrams = this.extractBigrams(tokens);
                     
-                    // Contar palavras
                     tokens.forEach(word => {
                         this.wordFrequencies[word] = (this.wordFrequencies[word] || 0) + 1;
                     });
                     
-                    // Contar bigramas
                     bigrams.forEach(bigram => {
                         this.bigramFrequencies[bigram] = (this.bigramFrequencies[bigram] || 0) + 1;
                     });
+                });
+
+                this.cache.set(cacheKey, {
+                    wordFrequencies: this.wordFrequencies,
+                    bigramFrequencies: this.bigramFrequencies
                 });
             }
 
@@ -1843,12 +2194,22 @@
             }
 
             setupSearchIndex(data) {
+                const cacheKey = `searchIndex_${this.hashString(JSON.stringify(data))}`;
+                const cachedResult = this.cache.get(cacheKey);
+                
+                if (cachedResult) {
+                    this.searchIndex = cachedResult;
+                    return;
+                }
+
                 const options = {
                     includeScore: true,
                     threshold: 0.3,
                     keys: ['Texto', 'Agente']
                 };
                 this.searchIndex = new Fuse(data, options);
+                
+                this.cache.set(cacheKey, this.searchIndex);
             }
 
             search(query, sentimentFilter = 'all', limit = 20) {
@@ -1856,7 +2217,6 @@
                 
                 let results = this.searchIndex.search(query);
                 
-                // Aplicar filtro de sentimento
                 if (sentimentFilter !== 'all') {
                     results = results.filter(result => {
                         const sentiment = result.item.Sentimento;
@@ -1900,6 +2260,24 @@
 
             getStopWords() {
                 return Array.from(this.stopWords).sort();
+            }
+
+            hashString(str) {
+                let hash = 0;
+                for (let i = 0; i < str.length; i++) {
+                    const char = str.charCodeAt(i);
+                    hash = ((hash << 5) - hash) + char;
+                    hash = hash & hash;
+                }
+                return Math.abs(hash).toString(36);
+            }
+
+            clearCache() {
+                this.cache.clear();
+            }
+
+            getCacheStats() {
+                return this.cache.getStats();
             }
         }
 
@@ -2273,119 +2651,52 @@
         const appState = {
             data: [],
             filteredData: [],
-            stopWords: ["o", "a", "os", "as", "um", "uma", "uns", "umas", "de", "do", "da", "dos", "das", "em", "no", "na", "nos", "nas", "por", "para", "que", "e", "é", "ser", "se"],
             metrics: {},
             currentTab: 'overview',
             isSidebarCollapsed: false,
             dailyStats: {},
-            textAnalyzer: new TextAnalyzer(),
-            aiAnalyzer: new AdvancedAIAnalyzer(),
-            audioTranscriber: null
+            textAnalyzer: null,
+            aiAnalyzer: null,
+            audioTranscriber: null,
+            sentimentAnalyzer: null,
+            currentPage: 1,
+            pageSize: 10
         };
 
-        let sentimentAnalyzer;
-
         // =============================================
-        // CONEXÃO COM GOOGLE SHEETS
+        // FUNÇÕES AUXILIARES
         // =============================================
-        async function loadGoogleSheetData() {
-            const sheetId = document.getElementById('sheetId').value.trim();
-            const sheetTab = document.getElementById('sheetTab').value.trim() || 'Página1';
+        function showAlert(message, type) {
+            const existingAlerts = document.querySelectorAll('.temp-alert');
+            existingAlerts.forEach(alert => alert.remove());
             
-            if (!sheetId) {
-                showAlert('⚠️ Digite o ID da planilha Google', 'warning');
-                return;
-            }
-
-            showAlert('📊 Conectando ao Google Sheets...', 'info');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type} temp-alert`;
+            alert.innerHTML = `
+                <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'warning' ? 'exclamation-triangle' : type === 'error' ? 'times-circle' : 'info-circle'}"></i>
+                <div>${message}</div>
+            `;
             
-            try {
-                const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetTab)}`;
-                
-                const response = await fetch(csvUrl);
-                if (!response.ok) {
-                    throw new Error('Erro ao carregar planilha');
-                }
-                
-                const csvText = await response.text();
-                const results = Papa.parse(csvText, {
-                    header: true,
-                    skipEmptyLines: true,
-                    transform: (value) => value.trim()
-                });
-                
-                if (results.errors.length > 0) {
-                    console.warn('Erros no parsing:', results.errors);
-                }
-                
-                if (results.data.length === 0) {
-                    throw new Error('Nenhum dado encontrado na planilha');
-                }
-                
-                appState.data = processDataWithSentiment(results.data);
-                appState.filteredData = appState.data;
-                
-                appState.textAnalyzer.setupSearchIndex(appState.filteredData);
-                calculateDailyStats();
-                updateStats();
-                updateMetrics();
-                renderCharts();
-                renderTables();
-                updateWordAnalysis();
-                updateStopWordsList();
-                
-                showAlert(`✅ Dados carregados: ${results.data.length} registros`, 'success');
-                
-            } catch (error) {
-                console.error('Erro ao carregar Google Sheet:', error);
-                showAlert('❌ Erro ao carregar planilha. Verifique o ID e se está publicada.', 'error');
-            }
+            const contentArea = document.getElementById('contentArea');
+            contentArea.insertBefore(alert, contentArea.firstChild);
+            
+            setTimeout(() => {
+                if (alert.parentNode) alert.parentNode.removeChild(alert);
+            }, 5000);
         }
 
-        // =============================================
-        // GRÁFICO DE TIMELINE PARA BUSCA DE PALAVRAS
-        // =============================================
-        function renderTimelineChart(query) {
-            if (!query || appState.filteredData.length === 0) return;
+        async function safeOperation(operation, loadingMessage, successMessage, errorMessage) {
+            LoadingManager.showGlobalLoading(loadingMessage);
             
-            const dailyCounts = {};
-            appState.filteredData.forEach(item => {
-                if (item.Texto.toLowerCase().includes(query.toLowerCase())) {
-                    const date = item.Data;
-                    dailyCounts[date] = (dailyCounts[date] || 0) + 1;
+            try {
+                const result = await ErrorHandler.safeAsyncOperation(operation, errorMessage);
+                if (successMessage) {
+                    showAlert(`✅ ${successMessage}`, 'success');
                 }
-            });
-            
-            const dates = Object.keys(dailyCounts).sort();
-            const counts = dates.map(date => dailyCounts[date]);
-            
-            if (dates.length === 0) {
-                document.getElementById('timelineChart').innerHTML = '<p class="text-center" style="color: #666;">Nenhuma ocorrência encontrada para esta busca</p>';
-                return;
+                return result;
+            } finally {
+                LoadingManager.hideGlobalLoading();
             }
-            
-            const data = [{
-                x: dates,
-                y: counts,
-                type: 'scatter',
-                mode: 'lines+markers',
-                line: { color: '#2196F3', width: 3 },
-                marker: { size: 8, color: '#2196F3' },
-                name: `Ocorrências de "${query}"`
-            }];
-            
-            const layout = {
-                height: 300,
-                xaxis: { 
-                    title: 'Data',
-                    tickangle: -45
-                },
-                yaxis: { title: 'Número de Ocorrências' },
-                margin: { t: 30, r: 30, l: 50, b: 70 },
-                showlegend: true
-            };
-            
-            Plotly.newPlot('timelineChart', data, layout, { displayModeBar: true });
         }
 
         // =============================================
@@ -2397,7 +2708,11 @@
 
         async function initializeApp() {
             try {
-                sentimentAnalyzer = new SentimentAnalyzer();
+                ErrorHandler.setupGlobalErrorHandling();
+                
+                appState.sentimentAnalyzer = new SentimentAnalyzer();
+                appState.textAnalyzer = new TextAnalyzer();
+                
                 setupEventListeners();
                 await loadSampleData();
                 
@@ -2411,7 +2726,7 @@
                 
             } catch (error) {
                 console.error('Erro ao inicializar:', error);
-                showAlert('❌ Erro ao carregar o Sentinela', 'error');
+                ErrorHandler.showError('Erro crítico ao inicializar o sistema');
             }
         }
 
@@ -2464,6 +2779,9 @@
 
         async function initializeAI() {
             try {
+                appState.aiAnalyzer = new AdvancedAIAnalyzer();
+                await appState.aiAnalyzer.initialize();
+                
                 const statusElement = document.getElementById('modelStatus');
                 if (statusElement) {
                     statusElement.innerHTML = '<i class="fas fa-check-circle"></i><span>Análise de IA Básica Disponível</span>';
@@ -2483,10 +2801,10 @@
         // =============================================
         function setupEventListeners() {
             document.getElementById('sidebarToggle').addEventListener('click', toggleSidebar);
-            document.getElementById('loadData').addEventListener('click', loadGoogleSheetData);
-            document.getElementById('applyFilter').addEventListener('click', applyDateFilter);
-            document.getElementById('refreshData').addEventListener('click', refreshData);
-            document.getElementById('exportData').addEventListener('click', exportData);
+            document.getElementById('loadData').addEventListener('click', handleLoadData);
+            document.getElementById('applyFilter').addEventListener('click', handleApplyFilter);
+            document.getElementById('refreshData').addEventListener('click', handleRefreshData);
+            document.getElementById('exportData').addEventListener('click', handleExportData);
             document.getElementById('fileUpload').addEventListener('change', handleFileUpload);
             
             document.getElementById('refreshWordCloud').addEventListener('click', updateWordAnalysis);
@@ -2495,6 +2813,7 @@
             document.getElementById('analyzePhrase').addEventListener('click', analyzePhrase);
             document.getElementById('addStopWord').addEventListener('click', addStopWord);
             document.getElementById('resetStopWords').addEventListener('click', resetStopWords);
+            
             document.getElementById('wordSearch').addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') performSearch();
             });
@@ -2527,6 +2846,8 @@
                     switchTab(this.dataset.tab);
                 });
             });
+
+            document.getElementById('exportTrends').addEventListener('click', exportTrendsData);
         }
 
         // =============================================
@@ -2569,14 +2890,15 @@
 
         function processDataWithSentiment(data) {
             return data.map(item => {
-                const analysis = sentimentAnalyzer.analyze(item.Texto);
+                const analysis = appState.sentimentAnalyzer.analyze(item.Texto);
                 return {
                     ...item,
                     Sentimento: analysis.sentiment,
                     Pontuacao: analysis.score,
                     Confianca: analysis.confidence,
                     Problemas: analysis.score < -0.5 ? 1 : 0,
-                    Solucoes: analysis.score > 0.5 ? 1 : 0
+                    Solucoes: analysis.score > 0.5 ? 1 : 0,
+                    Cached: analysis.cached
                 };
             });
         }
@@ -2617,13 +2939,105 @@
             }
         }
 
+        async function handleLoadData() {
+            await safeOperation(async () => {
+                const sheetId = document.getElementById('sheetId').value.trim();
+                const sheetTab = document.getElementById('sheetTab').value.trim() || 'Página1';
+                
+                DataValidator.validateGoogleSheetId(sheetId);
+                
+                const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetTab)}`;
+                
+                const response = await fetch(csvUrl);
+                if (!response.ok) {
+                    throw new Error('Erro ao carregar planilha');
+                }
+                
+                const csvText = await response.text();
+                const results = Papa.parse(csvText, {
+                    header: true,
+                    skipEmptyLines: true,
+                    transform: (value) => value.trim()
+                });
+                
+                DataValidator.validateDataStructure(results.data);
+                
+                appState.data = processDataWithSentiment(results.data);
+                appState.filteredData = appState.data;
+                
+                appState.textAnalyzer.setupSearchIndex(appState.filteredData);
+                calculateDailyStats();
+                updateStats();
+                updateMetrics();
+                renderCharts();
+                renderTables();
+                updateWordAnalysis();
+                updateStopWordsList();
+                
+                return results.data.length;
+            }, 'Conectando ao Google Sheets...', 'Dados carregados com sucesso', 'Erro ao carregar dados');
+        }
+
+        async function handleApplyFilter() {
+            await safeOperation(async () => {
+                const startDate = document.getElementById('startDate').value;
+                const endDate = document.getElementById('endDate').value;
+                
+                DataValidator.validateDateRange(startDate, endDate);
+                
+                if (startDate && endDate) {
+                    appState.filteredData = appState.data.filter(item => {
+                        const itemDate = new Date(item.Data.split('/').reverse().join('-'));
+                        const start = new Date(startDate);
+                        const end = new Date(endDate);
+                        return itemDate >= start && itemDate <= end;
+                    });
+                } else {
+                    appState.filteredData = appState.data;
+                }
+                
+                appState.textAnalyzer.setupSearchIndex(appState.filteredData);
+                calculateDailyStats();
+                updateStats();
+                updateMetrics();
+                renderCharts();
+                renderTables();
+                
+                if (appState.currentTab === 'words') {
+                    updateWordAnalysis();
+                }
+                
+                return appState.filteredData.length;
+            }, 'Aplicando filtros...', 'Filtros aplicados com sucesso', 'Erro ao aplicar filtros');
+        }
+
+        async function handleRefreshData() {
+            await safeOperation(async () => {
+                calculateDailyStats();
+                updateStats();
+                updateMetrics();
+                renderCharts();
+                renderTables();
+                
+                if (appState.currentTab === 'words') {
+                    updateWordAnalysis();
+                } else if (appState.currentTab === 'trends') {
+                    renderTrendsChart();
+                    renderCorrelationChart();
+                    renderDailyTable();
+                }
+                
+                return true;
+            }, 'Atualizando dados...', 'Dados atualizados com sucesso', 'Erro ao atualizar dados');
+        }
+
         async function handleFileUpload(event) {
             const file = event.target.files[0];
             if (!file) return;
             
-            showAlert(`📁 Processando ${file.name}...`, 'info');
-            
-            try {
+            await safeOperation(async () => {
+                DataValidator.validateFile(file);
+                
                 const fileExtension = file.name.split('.').pop().toLowerCase();
                 let parsedData = [];
                 
@@ -2631,9 +3045,9 @@
                     parsedData = await parseCSV(file);
                 } else if (fileExtension === 'xlsx' || fileExtension === 'xls') {
                     parsedData = await parseExcel(file);
-                } else {
-                    throw new Error('Formato não suportado');
                 }
+                
+                DataValidator.validateDataStructure(parsedData);
                 
                 appState.data = processDataWithSentiment(parsedData);
                 appState.filteredData = appState.data;
@@ -2647,12 +3061,8 @@
                 updateWordAnalysis();
                 updateStopWordsList();
                 
-                showAlert('✅ Arquivo processado com sucesso!', 'success');
-                
-            } catch (error) {
-                console.error('Erro ao processar arquivo:', error);
-                showAlert('❌ Erro ao processar arquivo', 'error');
-            }
+                return parsedData.length;
+            }, 'Processando arquivo...', 'Arquivo processado com sucesso', 'Erro ao processar arquivo');
         }
 
         async function parseCSV(file) {
@@ -2941,17 +3351,27 @@
                 </div>
             `;
             
-            results.forEach((result, index) => {
+            if (results.length > appState.pageSize) {
+                html += createPagination(results.length, appState.currentPage, appState.pageSize);
+            }
+            
+            const startIndex = (appState.currentPage - 1) * appState.pageSize;
+            const endIndex = startIndex + appState.pageSize;
+            const paginatedResults = results.slice(startIndex, endIndex);
+            
+            paginatedResults.forEach((result, index) => {
                 const item = result.item;
                 const highlightedText = appState.textAnalyzer.highlightText(item.Texto, query);
                 const sentimentIcon = getSentimentIcon(item.Sentimento);
+                const cacheIndicator = item.Cached ? '<span class="cache-indicator" title="Resultado em cache">⚡</span>' : '';
                 
                 html += `
                     <div class="search-result-item">
                         <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 8px;">
-                            <strong>${index + 1}. Agente: ${item.Agente}</strong>
+                            <strong>${startIndex + index + 1}. Agente: ${item.Agente}</strong>
                             <span style="display: flex; align-items: center; gap: 5px;">
                                 ${sentimentIcon}
+                                ${cacheIndicator}
                                 <small>${item.Data} ${item.Hora}</small>
                             </span>
                         </div>
@@ -2968,15 +3388,64 @@
             resultsContainer.innerHTML = html;
         }
 
-        function getSentimentIcon(sentiment) {
-            switch(sentiment) {
-                case 'Muito Positivo': return '😊';
-                case 'Positivo': return '🙂';
-                case 'Neutro': return '😐';
-                case 'Negativo': return '🙁';
-                case 'Muito Negativo': return '😞';
-                default: return '❓';
+        function createPagination(totalItems, currentPage, pageSize) {
+            const totalPages = Math.ceil(totalItems / pageSize);
+            let html = '<div class="pagination">';
+            
+            for (let i = 1; i <= totalPages; i++) {
+                html += `<button class="${i === currentPage ? 'active' : ''}" onclick="changePage(${i})">${i}</button>`;
             }
+            
+            html += '</div>';
+            return html;
+        }
+
+        function changePage(page) {
+            appState.currentPage = page;
+            performSearch();
+        }
+
+        function renderTimelineChart(query) {
+            if (!query || appState.filteredData.length === 0) return;
+            
+            const dailyCounts = {};
+            appState.filteredData.forEach(item => {
+                if (item.Texto.toLowerCase().includes(query.toLowerCase())) {
+                    const date = item.Data;
+                    dailyCounts[date] = (dailyCounts[date] || 0) + 1;
+                }
+            });
+            
+            const dates = Object.keys(dailyCounts).sort();
+            const counts = dates.map(date => dailyCounts[date]);
+            
+            if (dates.length === 0) {
+                document.getElementById('timelineChart').innerHTML = '<p class="text-center" style="color: #666;">Nenhuma ocorrência encontrada para esta busca</p>';
+                return;
+            }
+            
+            const data = [{
+                x: dates,
+                y: counts,
+                type: 'scatter',
+                mode: 'lines+markers',
+                line: { color: '#2196F3', width: 3 },
+                marker: { size: 8, color: '#2196F3' },
+                name: `Ocorrências de "${query}"`
+            }];
+            
+            const layout = {
+                height: 300,
+                xaxis: { 
+                    title: 'Data',
+                    tickangle: -45
+                },
+                yaxis: { title: 'Número de Ocorrências' },
+                margin: { t: 30, r: 30, l: 50, b: 70 },
+                showlegend: true
+            };
+            
+            Plotly.newPlot('timelineChart', data, layout, { displayModeBar: true });
         }
 
         async function analyzePhrase() {
@@ -2990,7 +3459,7 @@
             showAlert('🔍 Analisando frase...', 'info');
             
             try {
-                const sentiment = sentimentAnalyzer.analyze(phrase);
+                const sentiment = appState.sentimentAnalyzer.analyze(phrase);
                 const similarResults = appState.textAnalyzer.search(phrase, 'all', 5);
                 const phraseTokens = appState.textAnalyzer.tokenize(phrase);
                 const phraseBigrams = appState.textAnalyzer.extractBigrams(phraseTokens);
@@ -3128,6 +3597,18 @@
             document.getElementById('searchResults').innerHTML = '';
             document.getElementById('sentimentFilter').value = 'all';
             document.getElementById('timelineChart').innerHTML = '';
+            appState.currentPage = 1;
+        }
+
+        function getSentimentIcon(sentiment) {
+            switch(sentiment) {
+                case 'Muito Positivo': return '😊';
+                case 'Positivo': return '🙂';
+                case 'Neutro': return '😐';
+                case 'Negativo': return '🙁';
+                case 'Muito Negativo': return '😞';
+                default: return '❓';
+            }
         }
 
         // =============================================
@@ -3567,7 +4048,7 @@
             showAlert('⚡ Análise rápida de áudio...', 'info');
             
             try {
-                const sentiment = sentimentAnalyzer.analyze(transcription);
+                const sentiment = appState.sentimentAnalyzer.analyze(transcription);
                 
                 const resultsElement = document.getElementById('audioAnalysisResults');
                 resultsElement.innerHTML = `
@@ -4020,90 +4501,62 @@
         }
 
         // =============================================
-        // FUNÇÕES AUXILIARES
+        // FUNÇÕES DE EXPORTAÇÃO
         // =============================================
-        function showAlert(message, type) {
-            const existingAlerts = document.querySelectorAll('.temp-alert');
-            existingAlerts.forEach(alert => alert.remove());
-            
-            const alert = document.createElement('div');
-            alert.className = `alert alert-${type} temp-alert`;
-            alert.innerHTML = `
-                <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'warning' ? 'exclamation-triangle' : type === 'error' ? 'times-circle' : 'info-circle'}"></i>
-                <div>${message}</div>
-            `;
-            
-            const contentArea = document.getElementById('contentArea');
-            contentArea.insertBefore(alert, contentArea.firstChild);
-            
-            setTimeout(() => {
-                if (alert.parentNode) alert.parentNode.removeChild(alert);
-            }, 5000);
-        }
-
-        // =============================================
-        // FUNÇÕES PLACEHOLDER
-        // =============================================
-        async function loadData() {
-            showAlert('📊 Carregando dados do Google Sheets...', 'info');
-        }
-
-        async function applyDateFilter() {
-            showAlert('📅 Aplicando filtro de data...', 'info');
-        }
-
-        async function refreshData() {
-            showAlert('🔄 Atualizando dados...', 'info');
-            calculateDailyStats();
-            updateStats();
-            updateMetrics();
-            renderCharts();
-            renderTables();
-            
-            if (appState.currentTab === 'words') {
-                updateWordAnalysis();
-            } else if (appState.currentTab === 'trends') {
-                renderTrendsChart();
-                renderCorrelationChart();
-                renderDailyTable();
-            }
-            
-            showAlert('✅ Dados atualizados!', 'success');
-        }
-
-        async function exportData() {
-            showAlert('💾 Exportando dados...', 'info');
+        async function handleExportData() {
+            await safeOperation(async () => {
+                if (appState.filteredData.length === 0) {
+                    throw new Error('Nenhum dado disponível para exportar');
+                }
+                
+                const csvContent = convertToCSV(appState.filteredData);
+                downloadCSV(csvContent, 'dados_sentinela.csv');
+                
+                return appState.filteredData.length;
+            }, 'Preparando exportação...', 'Dados exportados com sucesso', 'Erro ao exportar dados');
         }
 
         async function exportTrendsData() {
-            if (Object.keys(appState.dailyStats).length === 0) {
-                showAlert('❌ Nenhum dado disponível para exportar', 'error');
-                return;
-            }
-            
-            const dates = Object.keys(appState.dailyStats).sort();
-            let csvContent = "Data,Total Mensagens,Positivas,Negativas,Problemas,Soluções,Agentes Únicos,Pontuação Média\n";
-            
-            dates.forEach(date => {
-                const day = appState.dailyStats[date];
-                csvContent += `${date},${day.total},${day.positive},${day.negative},${day.problems},${day.solutions},${day.agents},${day.avgScore.toFixed(2)}\n`;
-            });
-            
+            await safeOperation(async () => {
+                if (Object.keys(appState.dailyStats).length === 0) {
+                    throw new Error('Nenhum dado disponível para exportar');
+                }
+                
+                const dates = Object.keys(appState.dailyStats).sort();
+                let csvContent = "Data,Total Mensagens,Positivas,Negativas,Problemas,Soluções,Agentes Únicos,Pontuação Média\n";
+                
+                dates.forEach(date => {
+                    const day = appState.dailyStats[date];
+                    csvContent += `${date},${day.total},${day.positive},${day.negative},${day.problems},${day.solutions},${day.agents},${day.avgScore.toFixed(2)}\n`;
+                });
+                
+                downloadCSV(csvContent, "tendencias_conversas.csv");
+                
+                return dates.length;
+            }, 'Exportando tendências...', 'Tendências exportadas com sucesso', 'Erro ao exportar tendências');
+        }
+
+        function convertToCSV(data) {
+            const headers = Object.keys(data[0]).join(',');
+            const rows = data.map(item => 
+                Object.values(item).map(value => 
+                    `"${String(value).replace(/"/g, '""')}"`
+                ).join(',')
+            );
+            return [headers, ...rows].join('\n');
+        }
+
+        function downloadCSV(csvContent, filename) {
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a");
             const url = URL.createObjectURL(blob);
             link.setAttribute("href", url);
-            link.setAttribute("download", "tendencias_conversas.csv");
+            link.setAttribute("download", filename);
             link.style.visibility = 'hidden';
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            
-            showAlert('✅ Dados de tendências exportados com sucesso!', 'success');
-        }
-
-        async function exportAgents() {
-            showAlert('📊 Exportando relatório de agentes...', 'info');
+            URL.revokeObjectURL(url);
         }
     </script>
 </body>

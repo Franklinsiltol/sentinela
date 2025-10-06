@@ -1199,45 +1199,45 @@
                         <div class="metric-icon">🛡️</div>
                         <div class="metric-value" id="metricInteractions">0</div>
                         <div class="metric-label">Interações</div>
-                        <div class="metric-trend trend-up">
-                            <i class="fas fa-arrow-up"></i>
-                            <span>12% vs período anterior</span>
+                        <div class="metric-trend" id="metricInteractionsTrend">
+                            <i class="fas fa-minus"></i>
+                            <span>Carregando...</span>
                         </div>
                     </div>
                     <div class="metric-card">
                         <div class="metric-icon">💬</div>
                         <div class="metric-value" id="metricMessages">0</div>
                         <div class="metric-label">Mensagens</div>
-                        <div class="metric-trend trend-up">
-                            <i class="fas fa-arrow-up"></i>
-                            <span>8% vs período anterior</span>
+                        <div class="metric-trend" id="metricMessagesTrend">
+                            <i class="fas fa-minus"></i>
+                            <span>Carregando...</span>
                         </div>
                     </div>
                     <div class="metric-card">
                         <div class="metric-icon">✅</div>
                         <div class="metric-value" id="metricPositive">0</div>
                         <div class="metric-label">Positivas</div>
-                        <div class="metric-trend trend-up">
-                            <i class="fas fa-arrow-up"></i>
-                            <span>5% vs período anterior</span>
+                        <div class="metric-trend" id="metricPositiveTrend">
+                            <i class="fas fa-minus"></i>
+                            <span>Carregando...</span>
                         </div>
                     </div>
                     <div class="metric-card">
                         <div class="metric-icon">⚠️</div>
                         <div class="metric-value" id="metricNegative">0</div>
                         <div class="metric-label">Negativas</div>
-                        <div class="metric-trend trend-down">
-                            <i class="fas fa-arrow-down"></i>
-                            <span>3% vs período anterior</span>
+                        <div class="metric-trend" id="metricNegativeTrend">
+                            <i class="fas fa-minus"></i>
+                            <span>Carregando...</span>
                         </div>
                     </div>
                     <div class="metric-card">
                         <div class="metric-icon">🔍</div>
                         <div class="metric-value" id="metricProblems">0</div>
                         <div class="metric-label">Problemas</div>
-                        <div class="metric-trend trend-down">
-                            <i class="fas fa-arrow-down"></i>
-                            <span>7% vs período anterior</span>
+                        <div class="metric-trend" id="metricProblemsTrend">
+                            <i class="fas fa-minus"></i>
+                            <span>Carregando...</span>
                         </div>
                     </div>
                 </div>
@@ -1698,6 +1698,564 @@
     </div>
 
     <script>
+        // =============================================
+        // SISTEMA DE CÁLCULOS ESTATÍSTICOS REAIS
+        // =============================================
+        class StatisticalCalculator {
+            constructor() {
+                this.historicalData = [];
+                this.trendPeriods = 7; // Período para cálculo de tendências (7 dias)
+            }
+
+            // Cálculo de médias móveis para suavizar tendências
+            calculateMovingAverage(data, period = this.trendPeriods) {
+                if (data.length < period) return data;
+                
+                const result = [];
+                for (let i = 0; i < data.length; i++) {
+                    if (i < period - 1) {
+                        result.push(data[i]);
+                    } else {
+                        const slice = data.slice(i - period + 1, i + 1);
+                        const sum = slice.reduce((a, b) => a + b, 0);
+                        result.push(sum / period);
+                    }
+                }
+                return result;
+            }
+
+            // Cálculo de tendência linear usando regressão
+            calculateLinearTrend(data) {
+                if (data.length < 2) return { slope: 0, rSquared: 0 };
+                
+                const n = data.length;
+                let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+                
+                for (let i = 0; i < n; i++) {
+                    sumX += i;
+                    sumY += data[i];
+                    sumXY += i * data[i];
+                    sumX2 += i * i;
+                }
+                
+                const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+                const intercept = (sumY - slope * sumX) / n;
+                
+                // Cálculo do R² (coeficiente de determinação)
+                let ssTotal = 0, ssResidual = 0;
+                const meanY = sumY / n;
+                
+                for (let i = 0; i < n; i++) {
+                    const predicted = slope * i + intercept;
+                    ssTotal += Math.pow(data[i] - meanY, 2);
+                    ssResidual += Math.pow(data[i] - predicted, 2);
+                }
+                
+                const rSquared = 1 - (ssResidual / ssTotal);
+                
+                return {
+                    slope: slope,
+                    intercept: intercept,
+                    rSquared: isNaN(rSquared) ? 0 : Math.max(0, rSquared)
+                };
+            }
+
+            // Cálculo de variação percentual real
+            calculateRealPercentageChange(currentValue, previousValue) {
+                if (previousValue === 0) return currentValue > 0 ? 100 : 0;
+                return ((currentValue - previousValue) / Math.abs(previousValue)) * 100;
+            }
+
+            // Análise de sazonalidade (detecta padrões semanais)
+            analyzeSeasonality(dailyData, period = 7) {
+                if (dailyData.length < period * 2) return { seasonal: false, strength: 0 };
+                
+                const seasonalPattern = new Array(period).fill(0);
+                let total = 0;
+                
+                for (let i = 0; i < dailyData.length; i++) {
+                    const dayOfWeek = i % period;
+                    seasonalPattern[dayOfWeek] += dailyData[i];
+                    total += dailyData[i];
+                }
+                
+                // Normalizar o padrão sazonal
+                const avg = total / dailyData.length;
+                for (let i = 0; i < period; i++) {
+                    seasonalPattern[i] = seasonalPattern[i] / (dailyData.length / period) / avg;
+                }
+                
+                // Calcular força da sazonalidade (desvio padrão do padrão)
+                const meanPattern = seasonalPattern.reduce((a, b) => a + b, 0) / period;
+                const variance = seasonalPattern.reduce((a, b) => a + Math.pow(b - meanPattern, 2), 0) / period;
+                const strength = Math.sqrt(variance);
+                
+                return {
+                    seasonal: strength > 0.1, // Threshold para considerar sazonal
+                    strength: strength,
+                    pattern: seasonalPattern
+                };
+            }
+
+            // Previsão usando método Holt-Winters (para séries temporais)
+            forecastHoltWinters(data, periodsToForecast = 7) {
+                if (data.length < 2) return new Array(periodsToForecast).fill(data[0] || 0);
+                
+                const alpha = 0.3; // Parâmetro de suavização nível
+                const beta = 0.1;  // Parâmetro de suavização tendência
+                const gamma = 0.2; // Parâmetro de suavização sazonalidade
+                
+                const seasonLength = 7; // Semanal
+                const seasons = Math.floor(data.length / seasonLength);
+                
+                // Inicialização
+                let level = data[0];
+                let trend = (data[1] - data[0]) / 1;
+                const seasonal = new Array(seasonLength).fill(1);
+                
+                // Suavização
+                for (let i = 0; i < data.length; i++) {
+                    const seasonalIndex = i % seasonLength;
+                    const prevLevel = level;
+                    
+                    level = alpha * (data[i] / seasonal[seasonalIndex]) + (1 - alpha) * (level + trend);
+                    trend = beta * (level - prevLevel) + (1 - beta) * trend;
+                    seasonal[seasonalIndex] = gamma * (data[i] / level) + (1 - gamma) * seasonal[seasonalIndex];
+                }
+                
+                // Previsão
+                const forecast = [];
+                for (let i = 0; i < periodsToForecast; i++) {
+                    const seasonalIndex = (data.length + i) % seasonLength;
+                    forecast.push((level + (i + 1) * trend) * seasonal[seasonalIndex]);
+                }
+                
+                return forecast;
+            }
+
+            // Cálculo de correlação entre duas séries
+            calculateCorrelation(x, y) {
+                if (x.length !== y.length || x.length === 0) return 0;
+                
+                const n = x.length;
+                let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0, sumY2 = 0;
+                
+                for (let i = 0; i < n; i++) {
+                    sumX += x[i];
+                    sumY += y[i];
+                    sumXY += x[i] * y[i];
+                    sumX2 += x[i] * x[i];
+                    sumY2 += y[i] * y[i];
+                }
+                
+                const numerator = n * sumXY - sumX * sumY;
+                const denominator = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
+                
+                return denominator === 0 ? 0 : numerator / denominator;
+            }
+
+            // Detecção de outliers usando método IQR
+            detectOutliers(data) {
+                if (data.length < 4) return { outliers: [], cleanedData: data };
+                
+                const sorted = [...data].sort((a, b) => a - b);
+                const q1 = sorted[Math.floor(sorted.length * 0.25)];
+                const q3 = sorted[Math.floor(sorted.length * 0.75)];
+                const iqr = q3 - q1;
+                const lowerBound = q1 - 1.5 * iqr;
+                const upperBound = q3 + 1.5 * iqr;
+                
+                const outliers = data.filter(value => value < lowerBound || value > upperBound);
+                const cleanedData = data.filter(value => value >= lowerBound && value <= upperBound);
+                
+                return {
+                    outliers: outliers,
+                    cleanedData: cleanedData,
+                    bounds: { lower: lowerBound, upper: upperBound }
+                };
+            }
+
+            // Cálculo de estatísticas descritivas completas
+            calculateDescriptiveStats(data) {
+                if (data.length === 0) return null;
+                
+                const sorted = [...data].sort((a, b) => a - b);
+                const sum = sorted.reduce((a, b) => a + b, 0);
+                const mean = sum / sorted.length;
+                
+                // Mediana
+                const mid = Math.floor(sorted.length / 2);
+                const median = sorted.length % 2 === 0 ? 
+                    (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+                
+                // Moda
+                const frequency = {};
+                let maxFreq = 0;
+                let mode = sorted[0];
+                
+                sorted.forEach(value => {
+                    frequency[value] = (frequency[value] || 0) + 1;
+                    if (frequency[value] > maxFreq) {
+                        maxFreq = frequency[value];
+                        mode = value;
+                    }
+                });
+                
+                // Variância e desvio padrão
+                const variance = sorted.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / sorted.length;
+                const stdDev = Math.sqrt(variance);
+                
+                // Assimetria
+                const skewness = sorted.reduce((a, b) => a + Math.pow((b - mean) / stdDev, 3), 0) / sorted.length;
+                
+                // Curtose
+                const kurtosis = sorted.reduce((a, b) => a + Math.pow((b - mean) / stdDev, 4), 0) / sorted.length - 3;
+                
+                return {
+                    count: sorted.length,
+                    sum: sum,
+                    mean: mean,
+                    median: median,
+                    mode: mode,
+                    variance: variance,
+                    stdDev: stdDev,
+                    min: sorted[0],
+                    max: sorted[sorted.length - 1],
+                    range: sorted[sorted.length - 1] - sorted[0],
+                    skewness: skewness,
+                    kurtosis: kurtosis,
+                    cv: (stdDev / mean) * 100 // Coeficiente de variação
+                };
+            }
+
+            // Cálculo de probabilidades baseadas em dados históricos
+            calculateProbability(currentValue, historicalValues) {
+                if (historicalValues.length === 0) return 0;
+                
+                const aboveCount = historicalValues.filter(v => v > currentValue).length;
+                const belowCount = historicalValues.filter(v => v < currentValue).length;
+                const equalCount = historicalValues.filter(v => v === currentValue).length;
+                
+                return {
+                    pAbove: aboveCount / historicalValues.length,
+                    pBelow: belowCount / historicalValues.length,
+                    pEqual: equalCount / historicalValues.length,
+                    percentile: (belowCount + equalCount / 2) / historicalValues.length * 100
+                };
+            }
+
+            // Análise de crescimento composto
+            calculateCAGR(startValue, endValue, periods) {
+                if (startValue <= 0 || periods <= 0) return 0;
+                return (Math.pow(endValue / startValue, 1 / periods) - 1) * 100;
+            }
+
+            // Detecção de pontos de mudança (changepoints)
+            detectChangePoints(data, sensitivity = 2) {
+                if (data.length < 3) return [];
+                
+                const changePoints = [];
+                const mean = data.reduce((a, b) => a + b, 0) / data.length;
+                const stdDev = Math.sqrt(data.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / data.length);
+                
+                for (let i = 1; i < data.length - 1; i++) {
+                    const leftMean = data.slice(0, i).reduce((a, b) => a + b, 0) / i;
+                    const rightMean = data.slice(i).reduce((a, b) => a + b, 0) / (data.length - i);
+                    
+                    const diff = Math.abs(leftMean - rightMean);
+                    if (diff > sensitivity * stdDev) {
+                        changePoints.push({
+                            index: i,
+                            timestamp: i,
+                            magnitude: diff,
+                            confidence: Math.min(100, (diff / stdDev) * 50)
+                        });
+                    }
+                }
+                
+                return changePoints;
+            }
+        }
+
+        // =============================================
+        // SISTEMA DE ANÁLISE DE TENDÊNCIAS REAIS
+        // =============================================
+        class RealTrendAnalyzer {
+            constructor() {
+                this.calculator = new StatisticalCalculator();
+                this.historicalMetrics = {
+                    interactions: [],
+                    messages: [],
+                    positive: [],
+                    negative: [],
+                    problems: [],
+                    sentiment: []
+                };
+            }
+
+            // Atualiza métricas históricas para cálculo de tendências
+            updateHistoricalMetrics(currentMetrics, date) {
+                const timestamp = date || new Date().toISOString().split('T')[0];
+                
+                Object.keys(this.historicalMetrics).forEach(metric => {
+                    if (currentMetrics[metric] !== undefined) {
+                        this.historicalMetrics[metric].push({
+                            value: currentMetrics[metric],
+                            timestamp: timestamp,
+                            date: timestamp
+                        });
+                        
+                        // Manter apenas os últimos 90 dias para performance
+                        if (this.historicalMetrics[metric].length > 90) {
+                            this.historicalMetrics[metric].shift();
+                        }
+                    }
+                });
+            }
+
+            // Calcula tendências reais baseadas em dados históricos
+            calculateRealTrends(currentMetrics, period = 7) {
+                const trends = {};
+                const today = new Date();
+                
+                Object.keys(this.historicalMetrics).forEach(metric => {
+                    const historicalData = this.historicalMetrics[metric];
+                    
+                    if (historicalData.length < 2) {
+                        trends[metric] = {
+                            trend: 'stable',
+                            percentage: 0,
+                            direction: 'neutral',
+                            confidence: 0,
+                            description: 'Dados insuficientes'
+                        };
+                        return;
+                    }
+                    
+                    // Extrair valores dos últimos 'period' dias
+                    const recentValues = historicalData
+                        .slice(-period)
+                        .map(item => item.value);
+                    
+                    const currentValue = currentMetrics[metric] || 0;
+                    const previousValue = historicalData.length >= period + 1 ? 
+                        historicalData[historicalData.length - period - 1].value : 
+                        historicalData[0].value;
+                    
+                    // Cálculo de tendência linear
+                    const linearTrend = this.calculator.calculateLinearTrend(recentValues);
+                    const percentageChange = this.calculator.calculateRealPercentageChange(currentValue, previousValue);
+                    
+                    // Determinar direção e força da tendência
+                    let trend, direction, confidence;
+                    
+                    if (Math.abs(linearTrend.slope) < 0.1) {
+                        trend = 'stable';
+                        direction = 'neutral';
+                        confidence = Math.max(0, Math.min(100, linearTrend.rSquared * 100));
+                    } else if (linearTrend.slope > 0) {
+                        trend = 'up';
+                        direction = 'positive';
+                        confidence = Math.max(0, Math.min(100, linearTrend.rSquared * 100));
+                    } else {
+                        trend = 'down';
+                        direction = 'negative';
+                        confidence = Math.max(0, Math.min(100, linearTrend.rSquared * 100));
+                    }
+                    
+                    // Gerar descrição baseada na análise
+                    let description = '';
+                    if (trend === 'up') {
+                        if (percentageChange > 20) description = 'Crescimento forte';
+                        else if (percentageChange > 5) description = 'Crescimento moderado';
+                        else description = 'Crescimento leve';
+                    } else if (trend === 'down') {
+                        if (percentageChange < -20) description = 'Queda acentuada';
+                        else if (percentageChange < -5) description = 'Queda moderada';
+                        else description = 'Queda leve';
+                    } else {
+                        description = 'Estável';
+                    }
+                    
+                    trends[metric] = {
+                        trend: trend,
+                        percentage: percentageChange,
+                        direction: direction,
+                        confidence: Math.round(confidence),
+                        description: description,
+                        slope: linearTrend.slope,
+                        rSquared: linearTrend.rSquared,
+                        currentValue: currentValue,
+                        previousValue: previousValue
+                    };
+                });
+                
+                return trends;
+            }
+
+            // Previsão para os próximos dias
+            forecastMetrics(days = 7) {
+                const forecasts = {};
+                
+                Object.keys(this.historicalMetrics).forEach(metric => {
+                    const historicalData = this.historicalMetrics[metric].map(item => item.value);
+                    
+                    if (historicalData.length < 3) {
+                        forecasts[metric] = {
+                            forecast: [],
+                            confidence: 0,
+                            trend: 'unknown'
+                        };
+                        return;
+                    }
+                    
+                    const forecastValues = this.calculator.forecastHoltWinters(historicalData, days);
+                    const currentTrend = this.calculator.calculateLinearTrend(historicalData.slice(-7));
+                    
+                    forecasts[metric] = {
+                        forecast: forecastValues,
+                        confidence: Math.round(Math.max(0, Math.min(100, currentTrend.rSquared * 100))),
+                        trend: currentTrend.slope > 0 ? 'up' : currentTrend.slope < 0 ? 'down' : 'stable',
+                        nextValue: forecastValues[0],
+                        growth: forecastValues[0] - historicalData[historicalData.length - 1]
+                    };
+                });
+                
+                return forecasts;
+            }
+
+            // Análise de correlação entre métricas
+            analyzeCorrelations() {
+                const metrics = Object.keys(this.historicalMetrics);
+                const correlations = {};
+                
+                for (let i = 0; i < metrics.length; i++) {
+                    correlations[metrics[i]] = {};
+                    const valuesI = this.historicalMetrics[metrics[i]].map(item => item.value);
+                    
+                    for (let j = 0; j < metrics.length; j++) {
+                        if (i === j) {
+                            correlations[metrics[i]][metrics[j]] = 1;
+                            continue;
+                        }
+                        
+                        const valuesJ = this.historicalMetrics[metrics[j]].map(item => item.value);
+                        const minLength = Math.min(valuesI.length, valuesJ.length);
+                        
+                        if (minLength < 2) {
+                            correlations[metrics[i]][metrics[j]] = 0;
+                            continue;
+                        }
+                        
+                        const corr = this.calculator.calculateCorrelation(
+                            valuesI.slice(-minLength),
+                            valuesJ.slice(-minLength)
+                        );
+                        
+                        correlations[metrics[i]][metrics[j]] = isNaN(corr) ? 0 : corr;
+                    }
+                }
+                
+                return correlations;
+            }
+
+            // Detecção de anomalias
+            detectAnomalies(currentMetrics, threshold = 2) {
+                const anomalies = {};
+                
+                Object.keys(this.historicalMetrics).forEach(metric => {
+                    const historicalValues = this.historicalMetrics[metric].map(item => item.value);
+                    
+                    if (historicalValues.length < 5) {
+                        anomalies[metric] = {
+                            isAnomaly: false,
+                            severity: 0,
+                            description: 'Dados insuficientes'
+                        };
+                        return;
+                    }
+                    
+                    const stats = this.calculator.calculateDescriptiveStats(historicalValues);
+                    const zScore = Math.abs((currentMetrics[metric] - stats.mean) / stats.stdDev);
+                    
+                    anomalies[metric] = {
+                        isAnomaly: zScore > threshold,
+                        severity: Math.min(100, (zScore / threshold) * 100),
+                        zScore: zScore,
+                        description: zScore > threshold ? 
+                            `Valor ${currentMetrics[metric]} está ${zScore.toFixed(1)} desvios padrão da média` :
+                            'Comportamento normal',
+                        currentValue: currentMetrics[metric],
+                        expectedRange: {
+                            lower: stats.mean - threshold * stats.stdDev,
+                            upper: stats.mean + threshold * stats.stdDev
+                        }
+                    };
+                });
+                
+                return anomalies;
+            }
+
+            // Gera relatório completo de tendências
+            generateTrendReport(currentMetrics) {
+                const trends = this.calculateRealTrends(currentMetrics);
+                const forecasts = this.forecastMetrics();
+                const correlations = this.analyzeCorrelations();
+                const anomalies = this.detectAnomalies(currentMetrics);
+                
+                return {
+                    timestamp: new Date().toISOString(),
+                    currentMetrics: currentMetrics,
+                    trends: trends,
+                    forecasts: forecasts,
+                    correlations: correlations,
+                    anomalies: anomalies,
+                    summary: this.generateSummary(trends, anomalies)
+                };
+            }
+
+            // Gera resumo executivo das tendências
+            generateSummary(trends, anomalies) {
+                const strongTrends = Object.entries(trends)
+                    .filter(([_, trend]) => Math.abs(trend.percentage) > 10 && trend.confidence > 70)
+                    .map(([metric, trend]) => ({
+                        metric,
+                        direction: trend.direction,
+                        percentage: trend.percentage,
+                        description: trend.description
+                    }));
+                
+                const criticalAnomalies = Object.entries(anomalies)
+                    .filter(([_, anomaly]) => anomaly.isAnomaly && anomaly.severity > 80)
+                    .map(([metric, anomaly]) => ({
+                        metric,
+                        severity: anomaly.severity,
+                        description: anomaly.description
+                    }));
+                
+                let summary = '';
+                
+                if (strongTrends.length > 0) {
+                    summary += 'Tendências significativas: ';
+                    summary += strongTrends.map(t => 
+                        `${t.metric} (${t.direction === 'positive' ? '↗' : '↘'} ${Math.abs(t.percentage).toFixed(1)}%)`
+                    ).join(', ');
+                }
+                
+                if (criticalAnomalies.length > 0) {
+                    if (summary) summary += '\n';
+                    summary += 'Alertas críticos: ';
+                    summary += criticalAnomalies.map(a => a.metric).join(', ');
+                }
+                
+                if (!summary) {
+                    summary = 'Comportamento normal - sem tendências ou anomalias significativas';
+                }
+                
+                return summary;
+            }
+        }
+
         // =============================================
         // SISTEMA DE CACHE PARA MELHOR PERFORMANCE
         // =============================================
@@ -2659,8 +3217,11 @@
             aiAnalyzer: null,
             audioTranscriber: null,
             sentimentAnalyzer: null,
+            trendAnalyzer: new RealTrendAnalyzer(),
             currentPage: 1,
-            pageSize: 10
+            pageSize: 10,
+            currentTrends: {},
+            historicalData: []
         };
 
         // =============================================
@@ -2700,6 +3261,143 @@
         }
 
         // =============================================
+        // FUNÇÕES DE CÁLCULO DE MÉTRICAS REAIS
+        // =============================================
+        function calculateRealMetrics(data) {
+            const interactions = new Set(data.map(item => item.Agente + '_' + item.Data)).size;
+            const messages = data.length;
+            const positive = data.filter(item => 
+                item.Sentimento === 'Positivo' || item.Sentimento === 'Muito Positivo'
+            ).length;
+            const negative = data.filter(item => 
+                item.Sentimento === 'Negativo' || item.Sentimento === 'Muito Negativo'
+            ).length;
+            const problems = data.reduce((sum, item) => sum + (item.Problemas || 0), 0);
+            const avgSentiment = data.reduce((sum, item) => sum + (item.Pontuacao || 0), 0) / data.length;
+
+            const currentMetrics = {
+                interactions: interactions,
+                messages: messages,
+                positive: positive,
+                negative: negative,
+                problems: problems,
+                sentiment: isNaN(avgSentiment) ? 0 : avgSentiment
+            };
+
+            // Atualizar tendências com métricas atuais
+            appState.trendAnalyzer.updateHistoricalMetrics(currentMetrics);
+            appState.currentTrends = appState.trendAnalyzer.calculateRealTrends(currentMetrics);
+
+            return currentMetrics;
+        }
+
+        function updateMetrics() {
+            const currentMetrics = calculateRealMetrics(appState.filteredData);
+            
+            // Atualizar valores atuais
+            document.getElementById('metricInteractions').textContent = currentMetrics.interactions;
+            document.getElementById('metricMessages').textContent = currentMetrics.messages;
+            document.getElementById('metricPositive').textContent = currentMetrics.positive;
+            document.getElementById('metricNegative').textContent = currentMetrics.negative;
+            document.getElementById('metricProblems').textContent = currentMetrics.problems;
+            
+            // Atualizar tendências com cálculos reais
+            updateTrendDisplay('metricInteractionsTrend', appState.currentTrends.interactions);
+            updateTrendDisplay('metricMessagesTrend', appState.currentTrends.messages);
+            updateTrendDisplay('metricPositiveTrend', appState.currentTrends.positive);
+            updateTrendDisplay('metricNegativeTrend', appState.currentTrends.negative);
+            updateTrendDisplay('metricProblemsTrend', appState.currentTrends.problems);
+            
+            appState.metrics = currentMetrics;
+        }
+
+        function updateTrendDisplay(elementId, trendData) {
+            const element = document.getElementById(elementId);
+            if (!element || !trendData) return;
+
+            const percentage = trendData.percentage;
+            const confidence = trendData.confidence;
+            
+            let icon, trendClass, text;
+            
+            if (trendData.trend === 'up') {
+                icon = 'fas fa-arrow-up';
+                trendClass = 'trend-up';
+                text = `${Math.abs(percentage).toFixed(1)}% vs período anterior`;
+            } else if (trendData.trend === 'down') {
+                icon = 'fas fa-arrow-down';
+                trendClass = 'trend-down';
+                text = `${Math.abs(percentage).toFixed(1)}% vs período anterior`;
+            } else {
+                icon = 'fas fa-minus';
+                trendClass = '';
+                text = `${Math.abs(percentage).toFixed(1)}% vs período anterior`;
+            }
+
+            // Adicionar indicador de confiança se relevante
+            if (confidence > 70) {
+                text += ` (${confidence}% conf.)`;
+            }
+
+            element.innerHTML = `<i class="${icon}"></i><span>${text}</span>`;
+            element.className = `metric-trend ${trendClass}`;
+        }
+
+        function generateTrendReport() {
+            const currentMetrics = calculateRealMetrics(appState.filteredData);
+            const report = appState.trendAnalyzer.generateTrendReport(currentMetrics);
+            
+            return {
+                html: `
+                    <div class="insight-card">
+                        <div class="insight-header">
+                            <div class="insight-icon">📈</div>
+                            <h3>Relatório de Tendências - ${new Date().toLocaleDateString('pt-BR')}</h3>
+                        </div>
+                        <div class="insight-content">
+                            <h4>📊 Resumo Executivo</h4>
+                            <p>${report.summary}</p>
+                            
+                            <h4>🎯 Tendências Principais</h4>
+                            ${Object.entries(report.trends).map(([metric, trend]) => `
+                                <div style="margin: 10px 0; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 5px;">
+                                    <strong>${metric}:</strong> ${trend.description} 
+                                    <span style="float: right;">
+                                        ${trend.direction === 'positive' ? '↗' : trend.direction === 'negative' ? '↘' : '→'} 
+                                        ${Math.abs(trend.percentage).toFixed(1)}%
+                                    </span>
+                                </div>
+                            `).join('')}
+                            
+                            <h4>🔮 Previsões para Próximos 7 Dias</h4>
+                            ${Object.entries(report.forecasts).map(([metric, forecast]) => `
+                                <div style="margin: 5px 0;">
+                                    <strong>${metric}:</strong> ${forecast.nextValue?.toFixed(1) || 'N/A'} 
+                                    (${forecast.trend === 'up' ? '↗' : forecast.trend === 'down' ? '↘' : '→'})
+                                    <small>${forecast.confidence}% confiança</small>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `,
+                data: report
+            };
+        }
+
+        function exportTrendReport() {
+            const report = generateTrendReport();
+            const blob = new Blob([JSON.stringify(report.data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `relatorio_tendencias_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // =============================================
         // INICIALIZAÇÃO
         // =============================================
         document.addEventListener('DOMContentLoaded', function() {
@@ -2721,6 +3419,10 @@
                 
                 document.getElementById('loadingIndicator').classList.add('hidden');
                 document.getElementById('contentArea').classList.remove('hidden');
+                
+                // Gerar primeiro relatório de tendências
+                const trendReport = generateTrendReport();
+                console.log('Relatório de tendências inicial:', trendReport.data);
                 
                 showAlert('✅ Sentinela carregado com sucesso!', 'success');
                 
@@ -2847,7 +3549,10 @@
                 });
             });
 
-            document.getElementById('exportTrends').addEventListener('click', exportTrendsData);
+            document.getElementById('exportTrends').addEventListener('click', function() {
+                exportTrendReport();
+                showAlert('📈 Relatório de tendências exportado com sucesso!', 'success');
+            });
         }
 
         // =============================================
@@ -3114,35 +3819,6 @@
             document.getElementById('statInteractions').textContent = interactions;
             document.getElementById('statMessages').textContent = messages;
             document.getElementById('statAgents').textContent = agents;
-        }
-
-        function updateMetrics() {
-            const interactions = new Set(appState.filteredData.map(item => item.Agente + '_' + item.Data)).size;
-            const messages = appState.filteredData.length;
-            
-            const positive = appState.filteredData.filter(item => 
-                item.Sentimento === 'Positivo' || item.Sentimento === 'Muito Positivo'
-            ).length;
-            
-            const negative = appState.filteredData.filter(item => 
-                item.Sentimento === 'Negativo' || item.Sentimento === 'Muito Negativo'
-            ).length;
-            
-            const problems = appState.filteredData.reduce((sum, item) => sum + (item.Problemas || 0), 0);
-            
-            document.getElementById('metricInteractions').textContent = interactions;
-            document.getElementById('metricMessages').textContent = messages;
-            document.getElementById('metricPositive').textContent = positive;
-            document.getElementById('metricNegative').textContent = negative;
-            document.getElementById('metricProblems').textContent = problems;
-            
-            appState.metrics = {
-                total_interacoes: interactions,
-                total_mensagens: messages,
-                positivas: positive,
-                negativas: negative,
-                total_problemas: problems
-            };
         }
 
         // =============================================
@@ -4218,6 +4894,10 @@
             const problems = dates.map(date => appState.dailyStats[date].problems);
             const avgScores = dates.map(date => appState.dailyStats[date].avgScore);
             
+            // Calcular tendências usando o sistema estatístico
+            const trendAnalysis = appState.trendAnalyzer.calculator.calculateLinearTrend(totals);
+            const movingAverage = appState.trendAnalyzer.calculator.calculateMovingAverage(totals);
+            
             const trace1 = {
                 x: dates,
                 y: totals,
@@ -4256,27 +4936,36 @@
             
             const trace5 = {
                 x: dates,
-                y: avgScores,
+                y: movingAverage,
                 type: 'scatter',
-                mode: 'lines+markers',
-                name: 'Pontuação Média',
-                yaxis: 'y2',
-                line: { color: '#9C27B0', width: 3, dash: 'dot' }
+                mode: 'lines',
+                name: 'Média Móvel (7 dias)',
+                line: { color: '#9C27B0', width: 2, dash: 'dash' }
             };
             
-            const data = [trace1, trace2, trace3, trace4, trace5];
+            // Linha de tendência
+            const trendLine = dates.map((_, index) => 
+                trendAnalysis.slope * index + trendAnalysis.intercept
+            );
+            
+            const trace6 = {
+                x: dates,
+                y: trendLine,
+                type: 'scatter',
+                mode: 'lines',
+                name: `Tendência (R²: ${(trendAnalysis.rSquared * 100).toFixed(1)}%)`,
+                line: { color: '#000000', width: 2 }
+            };
+            
+            const data = [trace1, trace2, trace3, trace4, trace5, trace6];
             
             const layout = {
                 height: 400,
+                title: 'Evolução com Análise Estatística',
                 xaxis: { title: 'Data' },
                 yaxis: { title: 'Quantidade' },
-                yaxis2: {
-                    title: 'Pontuação',
-                    overlaying: 'y',
-                    side: 'right'
-                },
                 legend: { orientation: 'h', y: -0.2 },
-                margin: { t: 30, r: 50, l: 50, b: 80 }
+                margin: { t: 50, r: 50, l: 50, b: 80 }
             };
             
             Plotly.newPlot('trendsChart', data, layout, { displayModeBar: true });
@@ -4293,11 +4982,11 @@
             const avgScores = dates.map(date => appState.dailyStats[date].avgScore);
             
             const correlations = [
-                [1, correlation(totals, positives), correlation(totals, negatives), correlation(totals, problems), correlation(totals, avgScores)],
-                [correlation(positives, totals), 1, correlation(positives, negatives), correlation(positives, problems), correlation(positives, avgScores)],
-                [correlation(negatives, totals), correlation(negatives, positives), 1, correlation(negatives, problems), correlation(negatives, avgScores)],
-                [correlation(problems, totals), correlation(problems, positives), correlation(problems, negatives), 1, correlation(problems, avgScores)],
-                [correlation(avgScores, totals), correlation(avgScores, positives), correlation(avgScores, negatives), correlation(avgScores, problems), 1]
+                [1, appState.trendAnalyzer.calculator.calculateCorrelation(totals, positives), appState.trendAnalyzer.calculator.calculateCorrelation(totals, negatives), appState.trendAnalyzer.calculator.calculateCorrelation(totals, problems), appState.trendAnalyzer.calculator.calculateCorrelation(totals, avgScores)],
+                [appState.trendAnalyzer.calculator.calculateCorrelation(positives, totals), 1, appState.trendAnalyzer.calculator.calculateCorrelation(positives, negatives), appState.trendAnalyzer.calculator.calculateCorrelation(positives, problems), appState.trendAnalyzer.calculator.calculateCorrelation(positives, avgScores)],
+                [appState.trendAnalyzer.calculator.calculateCorrelation(negatives, totals), appState.trendAnalyzer.calculator.calculateCorrelation(negatives, positives), 1, appState.trendAnalyzer.calculator.calculateCorrelation(negatives, problems), appState.trendAnalyzer.calculator.calculateCorrelation(negatives, avgScores)],
+                [appState.trendAnalyzer.calculator.calculateCorrelation(problems, totals), appState.trendAnalyzer.calculator.calculateCorrelation(problems, positives), appState.trendAnalyzer.calculator.calculateCorrelation(problems, negatives), 1, appState.trendAnalyzer.calculator.calculateCorrelation(problems, avgScores)],
+                [appState.trendAnalyzer.calculator.calculateCorrelation(avgScores, totals), appState.trendAnalyzer.calculator.calculateCorrelation(avgScores, positives), appState.trendAnalyzer.calculator.calculateCorrelation(avgScores, negatives), appState.trendAnalyzer.calculator.calculateCorrelation(avgScores, problems), 1]
             ];
             
             const data = [{
@@ -4319,26 +5008,6 @@
             };
             
             Plotly.newPlot('correlationChart', data, layout, { displayModeBar: true });
-        }
-
-        function correlation(x, y) {
-            if (x.length !== y.length || x.length === 0) return 0;
-            
-            const n = x.length;
-            let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0, sumY2 = 0;
-            
-            for (let i = 0; i < n; i++) {
-                sumX += x[i];
-                sumY += y[i];
-                sumXY += x[i] * y[i];
-                sumX2 += x[i] * x[i];
-                sumY2 += y[i] * y[i];
-            }
-            
-            const numerator = n * sumXY - sumX * sumY;
-            const denominator = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
-            
-            return denominator === 0 ? 0 : Math.round((numerator / denominator) * 100) / 100;
         }
 
         function renderDailyTable() {
@@ -4514,26 +5183,6 @@
                 
                 return appState.filteredData.length;
             }, 'Preparando exportação...', 'Dados exportados com sucesso', 'Erro ao exportar dados');
-        }
-
-        async function exportTrendsData() {
-            await safeOperation(async () => {
-                if (Object.keys(appState.dailyStats).length === 0) {
-                    throw new Error('Nenhum dado disponível para exportar');
-                }
-                
-                const dates = Object.keys(appState.dailyStats).sort();
-                let csvContent = "Data,Total Mensagens,Positivas,Negativas,Problemas,Soluções,Agentes Únicos,Pontuação Média\n";
-                
-                dates.forEach(date => {
-                    const day = appState.dailyStats[date];
-                    csvContent += `${date},${day.total},${day.positive},${day.negative},${day.problems},${day.solutions},${day.agents},${day.avgScore.toFixed(2)}\n`;
-                });
-                
-                downloadCSV(csvContent, "tendencias_conversas.csv");
-                
-                return dates.length;
-            }, 'Exportando tendências...', 'Tendências exportadas com sucesso', 'Erro ao exportar tendências');
         }
 
         function convertToCSV(data) {

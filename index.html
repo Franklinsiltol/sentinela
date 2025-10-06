@@ -308,7 +308,6 @@
             padding: 20px;
             box-shadow: var(--box-shadow);
             transition: var(--transition);
-            position: relative;
         }
 
         .metric-card:hover {
@@ -331,9 +330,6 @@
         .metric-label {
             font-size: 0.9rem;
             color: var(--dark-gray);
-            display: flex;
-            align-items: center;
-            gap: 5px;
         }
 
         .metric-trend {
@@ -1088,18 +1084,6 @@
             font-size: 0.7rem;
             margin-left: 5px;
         }
-
-        /* Estilos para as novas métricas */
-        .metric-card:nth-child(6) { border-left: 4px solid #9C27B0; }
-        .metric-card:nth-child(7) { border-left: 4px solid #FF9800; }
-        .metric-card:nth-child(8) { border-left: 4px solid #2196F3; }
-
-        .nps-positive { color: #4CAF50 !important; }
-        .nps-negative { color: #F44336 !important; }
-
-        .sidebar.collapsed #statsContainer {
-            display: none;
-        }
     </style>
 </head>
 <body>
@@ -1165,33 +1149,15 @@
                     </h3>
                     <div id="statsContainer">
                         <div class="metric-card">
-                            <div class="metric-label">
-                                Total de Interações
-                                <span class="tooltip">
-                                    <i class="fas fa-question-circle"></i>
-                                    <span class="tooltiptext">Número total de conversas únicas entre agentes e clientes</span>
-                                </span>
-                            </div>
+                            <div class="metric-label">Total de Interações</div>
                             <div class="metric-value" id="statInteractions">0</div>
                         </div>
                         <div class="metric-card">
-                            <div class="metric-label">
-                                Total de Mensagens
-                                <span class="tooltip">
-                                    <i class="fas fa-question-circle"></i>
-                                    <span class="tooltiptext">Número total de mensagens trocadas em todas as conversas</span>
-                                </span>
-                            </div>
+                            <div class="metric-label">Total de Mensagens</div>
                             <div class="metric-value" id="statMessages">0</div>
                         </div>
                         <div class="metric-card">
-                            <div class="metric-label">
-                                Agentes Únicos
-                                <span class="tooltip">
-                                    <i class="fas fa-question-circle"></i>
-                                    <span class="tooltiptext">Número de agentes diferentes que participaram das conversas</span>
-                                </span>
-                            </div>
+                            <div class="metric-label">Agentes Únicos</div>
                             <div class="metric-value" id="statAgents">0</div>
                         </div>
                     </div>
@@ -1234,13 +1200,7 @@
                     <div class="metric-card">
                         <div class="metric-icon">🛡️</div>
                         <div class="metric-value" id="metricInteractions">0</div>
-                        <div class="metric-label">
-                            Interações
-                            <span class="tooltip">
-                                <i class="fas fa-question-circle"></i>
-                                <span class="tooltiptext">Número total de conversas únicas entre agentes e clientes</span>
-                            </span>
-                        </div>
+                        <div class="metric-label">Interações</div>
                         <div class="metric-trend" id="metricInteractionsTrend">
                             <i class="fas fa-minus"></i>
                             <span>Carregando...</span>
@@ -1249,13 +1209,7 @@
                     <div class="metric-card">
                         <div class="metric-icon">💬</div>
                         <div class="metric-value" id="metricMessages">0</div>
-                        <div class="metric-label">
-                            Mensagens
-                            <span class="tooltip">
-                                <i class="fas fa-question-circle"></i>
-                                <span class="tooltiptext">Número total de mensagens trocadas em todas as conversas</span>
-                            </span>
-                        </div>
+                        <div class="metric-label">Mensagens</div>
                         <div class="metric-trend" id="metricMessagesTrend">
                             <i class="fas fa-minus"></i>
                             <span>Carregando...</span>
@@ -1264,13 +1218,7 @@
                     <div class="metric-card">
                         <div class="metric-icon">✅</div>
                         <div class="metric-value" id="metricPositive">0</div>
-                        <div class="metric-label">
-                            Positivas
-                            <span class="tooltip">
-                                <i class="fas fa-question-circle"></i>
-                                <span class="tooltiptext">Mensagens com sentimento positivo identificado</span>
-                            </span>
-                        </div>
+                        <div class="metric-label">Positivas</div>
                         <div class="metric-trend" id="metricPositiveTrend">
                             <i class="fas fa-minus"></i>
                             <span>Carregando...</span>
@@ -1279,13 +1227,7 @@
                     <div class="metric-card">
                         <div class="metric-icon">⚠️</div>
                         <div class="metric-value" id="metricNegative">0</div>
-                        <div class="metric-label">
-                            Negativas
-                            <span class="tooltip">
-                                <i class="fas fa-question-circle"></i>
-                                <span class="tooltiptext">Mensagens com sentimento negativo identificado</span>
-                            </span>
-                        </div>
+                        <div class="metric-label">Negativas</div>
                         <div class="metric-trend" id="metricNegativeTrend">
                             <i class="fas fa-minus"></i>
                             <span>Carregando...</span>
@@ -1294,60 +1236,8 @@
                     <div class="metric-card">
                         <div class="metric-icon">🔍</div>
                         <div class="metric-value" id="metricProblems">0</div>
-                        <div class="metric-label">
-                            Problemas
-                            <span class="tooltip">
-                                <i class="fas fa-question-circle"></i>
-                                <span class="tooltiptext">Problemas ou dificuldades identificados nas conversas</span>
-                            </span>
-                        </div>
+                        <div class="metric-label">Problemas</div>
                         <div class="metric-trend" id="metricProblemsTrend">
-                            <i class="fas fa-minus"></i>
-                            <span>Carregando...</span>
-                        </div>
-                    </div>
-                    <!-- Novas Métricas -->
-                    <div class="metric-card">
-                        <div class="metric-icon">🎯</div>
-                        <div class="metric-value" id="metricResolutionRate">0%</div>
-                        <div class="metric-label">
-                            Taxa de Resolução
-                            <span class="tooltip">
-                                <i class="fas fa-question-circle"></i>
-                                <span class="tooltiptext">Percentual de problemas identificados que foram resolvidos<br>80%+: Excelente | 60-80%: Bom | &lt;60%: Melhorar</span>
-                            </span>
-                        </div>
-                        <div class="metric-trend" id="metricResolutionRateTrend">
-                            <i class="fas fa-minus"></i>
-                            <span>Carregando...</span>
-                        </div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-icon">⚡</div>
-                        <div class="metric-value" id="metricEfficiency">0</div>
-                        <div class="metric-label">
-                            Eficiência
-                            <span class="tooltip">
-                                <i class="fas fa-question-circle"></i>
-                                <span class="tooltiptext">Mensagens por interação (eficiência na comunicação)<br>2-4: Ideal | &gt;4: Muito longo | &lt;2: Muito curto</span>
-                            </span>
-                        </div>
-                        <div class="metric-trend" id="metricEfficiencyTrend">
-                            <i class="fas fa-minus"></i>
-                            <span>Carregando...</span>
-                        </div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-icon">😊</div>
-                        <div class="metric-value" id="metricNPS">0</div>
-                        <div class="metric-label">
-                            NPS Estimado
-                            <span class="tooltip">
-                                <i class="fas fa-question-circle"></i>
-                                <span class="tooltiptext">Pontuação baseada no sentimento (% Positivas - % Negativas) × 10<br>&gt;50: Excelente | 0-50: Bom | &lt;0: Crítico</span>
-                            </span>
-                        </div>
-                        <div class="metric-trend" id="metricNPSTrend">
                             <i class="fas fa-minus"></i>
                             <span>Carregando...</span>
                         </div>
@@ -2101,10 +1991,7 @@
                     positive: [],
                     negative: [],
                     problems: [],
-                    sentiment: [],
-                    resolutionRate: [],
-                    efficiency: [],
-                    nps: []
+                    sentiment: []
                 };
             }
 
@@ -2826,30 +2713,18 @@
         }
 
         // =============================================
-        // ANALISADOR DE TEXTO AVANÇADO (COM CACHE)
+        // ANALISADOR DE TEXTO AVANÇADO (COM CACHE) - CORRIGIDO
         // =============================================
-class TextAnalyzer {
-    constructor() {
-        this.stopWords = new Set(["o", "a", "os", "as", "um", "uma", "uns", "umas", "de", "do", "da", "dos", "das", "em", "no", "na", "nos", "nas", "por", "para", "que", "e", "é", "ser", "se", "com", "como", "mas", "ou"]);
-        this.wordFrequencies = {};
-        this.bigramFrequencies = {};
-        this.searchIndex = null;
-        this.cache = new AnalysisCache();
-    }
-    
-debugStopWords() {
-        console.log('Stop Words Atuais:', Array.from(this.stopWords));
-        console.log('Cache Stats:', this.getCacheStats());
-    }
-    
-    // ADICIONE ESTE MÉTODO AQUI:
-    forceRecalculate(data) {
-        this.clearCache();
-        this.calculateFrequencies(data);
-        this.setupSearchIndex(data);
-    }
+        class TextAnalyzer {
+            constructor() {
+                this.stopWords = new Set(["o", "a", "os", "as", "um", "uma", "uns", "umas", "de", "do", "da", "dos", "das", "em", "no", "na", "nos", "nas", "por", "para", "que", "e", "é", "ser", "se", "com", "como", "mas", "ou"]);
+                this.wordFrequencies = {};
+                this.bigramFrequencies = {};
+                this.searchIndex = null;
+                this.cache = new AnalysisCache();
+            }
 
-               tokenize(text) {
+            tokenize(text) {
                 return text
                     .toLowerCase()
                     .replace(/[^\w\sàáâãèéêìíîòóôõùúûç]/g, '')
@@ -2978,14 +2853,17 @@ debugStopWords() {
                 return Array.from(this.stopWords).sort();
             }
 
-            hashString(str) {
-                let hash = 0;
-                for (let i = 0; i < str.length; i++) {
-                    const char = str.charCodeAt(i);
-                    hash = ((hash << 5) - hash) + char;
-                    hash = hash & hash;
-                }
-                return Math.abs(hash).toString(36);
+            // NOVO MÉTODO ADICIONADO: Força recálculo das frequências
+            forceRecalculate(data) {
+                this.clearCache();
+                this.calculateFrequencies(data);
+                this.setupSearchIndex(data);
+            }
+
+            // NOVO MÉTODO ADICIONADO: Debug para verificar stop words
+            debugStopWords() {
+                console.log('Stop Words Atuais:', Array.from(this.stopWords));
+                console.log('Cache Stats:', this.getCacheStats());
             }
 
             clearCache() {
@@ -2994,6 +2872,16 @@ debugStopWords() {
 
             getCacheStats() {
                 return this.cache.getStats();
+            }
+
+            hashString(str) {
+                let hash = 0;
+                for (let i = 0; i < str.length; i++) {
+                    const char = str.charCodeAt(i);
+                    hash = ((hash << 5) - hash) + char;
+                    hash = hash & hash;
+                }
+                return Math.abs(hash).toString(36);
             }
         }
 
@@ -3525,13 +3413,7 @@ debugStopWords() {
                 item.Sentimento === 'Negativo' || item.Sentimento === 'Muito Negativo'
             ).length;
             const problems = data.reduce((sum, item) => sum + (item.Problemas || 0), 0);
-            const solutions = data.reduce((sum, item) => sum + (item.Solucoes || 0), 0);
             const avgSentiment = data.reduce((sum, item) => sum + (item.Pontuacao || 0), 0) / data.length;
-
-            // NOVAS MÉTRICAS
-            const resolutionRate = problems > 0 ? (solutions / problems) * 100 : 0;
-            const agentEfficiency = interactions > 0 ? (messages / interactions) : 0;
-            const npsScore = messages > 0 ? ((positive / messages) - (negative / messages)) * 100 : 0;
 
             const currentMetrics = {
                 interactions: interactions,
@@ -3539,10 +3421,7 @@ debugStopWords() {
                 positive: positive,
                 negative: negative,
                 problems: problems,
-                sentiment: isNaN(avgSentiment) ? 0 : avgSentiment,
-                resolutionRate: resolutionRate,
-                efficiency: agentEfficiency,
-                nps: npsScore
+                sentiment: isNaN(avgSentiment) ? 0 : avgSentiment
             };
 
             // Atualizar tendências com métricas atuais
@@ -3562,31 +3441,12 @@ debugStopWords() {
             document.getElementById('metricNegative').textContent = currentMetrics.negative;
             document.getElementById('metricProblems').textContent = currentMetrics.problems;
             
-            // NOVAS MÉTRICAS
-            document.getElementById('metricResolutionRate').textContent = currentMetrics.resolutionRate.toFixed(1) + '%';
-            document.getElementById('metricEfficiency').textContent = currentMetrics.efficiency.toFixed(1);
-            document.getElementById('metricNPS').textContent = currentMetrics.nps.toFixed(0);
-            
-            // Atualizar classe do NPS
-            const npsElement = document.getElementById('metricNPS');
-            npsElement.classList.remove('nps-positive', 'nps-negative');
-            if (currentMetrics.nps > 0) {
-                npsElement.classList.add('nps-positive');
-            } else if (currentMetrics.nps < 0) {
-                npsElement.classList.add('nps-negative');
-            }
-            
             // Atualizar tendências com cálculos reais
             updateTrendDisplay('metricInteractionsTrend', appState.currentTrends.interactions);
             updateTrendDisplay('metricMessagesTrend', appState.currentTrends.messages);
             updateTrendDisplay('metricPositiveTrend', appState.currentTrends.positive);
             updateTrendDisplay('metricNegativeTrend', appState.currentTrends.negative);
             updateTrendDisplay('metricProblemsTrend', appState.currentTrends.problems);
-            
-            // NOVAS TENDÊNCIAS
-            updateTrendDisplay('metricResolutionRateTrend', appState.currentTrends.resolutionRate);
-            updateTrendDisplay('metricEfficiencyTrend', appState.currentTrends.efficiency);
-            updateTrendDisplay('metricNPSTrend', appState.currentTrends.nps);
             
             appState.metrics = currentMetrics;
         }
@@ -3678,35 +3538,6 @@ debugStopWords() {
         }
 
         // =============================================
-        // FUNÇÕES PARA ATUALIZAR SIDEBAR E LIMPAR CACHE
-        // =============================================
-        function updateSidebarStats() {
-            if (!appState.filteredData || appState.filteredData.length === 0) {
-                document.getElementById('statInteractions').textContent = '0';
-                document.getElementById('statMessages').textContent = '0';
-                document.getElementById('statAgents').textContent = '0';
-                return;
-            }
-
-            const interactions = new Set(appState.filteredData.map(item => item.Agente + '_' + item.Data)).size;
-            const messages = appState.filteredData.length;
-            const agents = new Set(appState.filteredData.map(item => item.Agente)).size;
-
-            document.getElementById('statInteractions').textContent = interactions;
-            document.getElementById('statMessages').textContent = messages;
-            document.getElementById('statAgents').textContent = agents;
-        }
-
-        function clearAllCaches() {
-            if (appState.sentimentAnalyzer) {
-                appState.sentimentAnalyzer.clearCache();
-            }
-            if (appState.textAnalyzer) {
-                appState.textAnalyzer.clearCache();
-            }
-        }
-
-        // =============================================
         // INICIALIZAÇÃO
         // =============================================
         document.addEventListener('DOMContentLoaded', function() {
@@ -3733,7 +3564,7 @@ debugStopWords() {
                 const trendReport = generateTrendReport();
                 console.log('Relatório de tendências inicial:', trendReport.data);
                 
-                showAlert('✅ Sentinela carregado com sucesso! Sistema completo com 8 métricas.', 'success');
+                showAlert('✅ Sentinela carregado com sucesso! Sistema de pontuação corrigido.', 'success');
                 
             } catch (error) {
                 console.error('Erro ao inicializar:', error);
@@ -3935,14 +3766,18 @@ debugStopWords() {
                     { Agente: "pedro.souza@empresa.com", Data: "26/09/2024", Hora: "16:46:15", Texto: "Obrigado pelo feedback positivo! Isso nos motiva a continuar melhorando." }
                 ];
 
+                // LIMPAR CACHE ANTES DE PROCESSAR
+                if (appState.textAnalyzer) {
+                    appState.textAnalyzer.clearCache();
+                }
+                
                 appState.data = processDataWithSentiment(sampleData);
                 appState.filteredData = [...appState.data];
                 
-                appState.textAnalyzer.calculateFrequencies(appState.data);
-                appState.textAnalyzer.setupSearchIndex(appState.data);
+                // FORÇAR RECÁLCULO DAS FREQUÊNCIAS
+                appState.textAnalyzer.forceRecalculate(appState.data);
                 
                 updateMetrics();
-                updateSidebarStats();
                 renderCharts();
                 renderAgentsTable();
                 updateWordAnalysis();
@@ -3986,14 +3821,16 @@ debugStopWords() {
                 
                 DataValidator.validateDataStructure(result.data);
                 
+                // LIMPAR CACHE ANTES DE PROCESSAR
+                appState.textAnalyzer.clearCache();
+                
                 appState.data = processDataWithSentiment(result.data);
                 appState.filteredData = [...appState.data];
                 
-                appState.textAnalyzer.calculateFrequencies(appState.data);
-                appState.textAnalyzer.setupSearchIndex(appState.data);
+                // FORÇAR RECÁLCULO DAS FREQUÊNCIAS
+                appState.textAnalyzer.forceRecalculate(appState.data);
                 
                 updateMetrics();
-                updateSidebarStats();
                 renderCharts();
                 renderAgentsTable();
                 updateWordAnalysis();
@@ -4027,14 +3864,16 @@ debugStopWords() {
                     
                     DataValidator.validateDataStructure(data);
                     
+                    // LIMPAR CACHE ANTES DE PROCESSAR
+                    appState.textAnalyzer.clearCache();
+                    
                     appState.data = processDataWithSentiment(data);
                     appState.filteredData = [...appState.data];
                     
-                    appState.textAnalyzer.calculateFrequencies(appState.data);
-                    appState.textAnalyzer.setupSearchIndex(appState.data);
+                    // FORÇAR RECÁLCULO DAS FREQUÊNCIAS
+                    appState.textAnalyzer.forceRecalculate(appState.data);
                     
                     updateMetrics();
-                    updateSidebarStats();
                     renderCharts();
                     renderAgentsTable();
                     updateWordAnalysis();
@@ -4098,7 +3937,6 @@ debugStopWords() {
                 });
                 
                 updateMetrics();
-                updateSidebarStats();
                 renderCharts();
                 renderAgentsTable();
                 
@@ -4110,15 +3948,9 @@ debugStopWords() {
         }
 
         function parseDate(dateString) {
-            if (!dateString) return new Date();
-            
             if (dateString.includes('/')) {
-                const parts = dateString.split('/');
-                if (parts.length === 3) {
-                    // Formato DD/MM/YYYY
-                    const [day, month, year] = parts;
-                    return new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`);
-                }
+                const [day, month, year] = dateString.split('/');
+                return new Date(`${year}-${month}-${day}`);
             }
             return new Date(dateString);
         }
@@ -4129,7 +3961,6 @@ debugStopWords() {
             document.getElementById('endDate').value = '';
             
             updateMetrics();
-            updateSidebarStats();
             renderCharts();
             renderAgentsTable();
             
@@ -4152,72 +3983,74 @@ debugStopWords() {
         }
 
         // =============================================
-        // FUNÇÕES DE ANÁLISE DE TEXTO
+        // FUNÇÕES DE ANÁLISE DE TEXTO - CORRIGIDAS
         // =============================================
-       function updateWordAnalysis() {
-    if (!appState.textAnalyzer || !appState.data || appState.data.length === 0) {
-        console.warn('Não há dados disponíveis para análise de texto');
-        return;
-    }
-    
-    try {
-        // LIMPAR CACHE PARA GARANTIR DADOS ATUALIZADOS
-        appState.textAnalyzer.clearCache();
-        
-        renderWordCloud();
-        renderWordFrequencyChart();
-        updateStopWordsList();
-    } catch (error) {
-        console.error('Erro ao atualizar análise de texto:', error);
-        showAlert('❌ Erro ao atualizar análise de texto', 'error');
-    }
-}
+        function updateWordAnalysis() {
+            if (!appState.textAnalyzer || !appState.data || appState.data.length === 0) {
+                console.warn('Não há dados disponíveis para análise de texto');
+                return;
+            }
+            
+            try {
+                // LIMPAR CACHE PARA GARANTIR DADOS ATUALIZADOS
+                appState.textAnalyzer.clearCache();
+                
+                renderWordCloud();
+                renderWordFrequencyChart();
+                updateStopWordsList();
+            } catch (error) {
+                console.error('Erro ao atualizar análise de texto:', error);
+                showAlert('❌ Erro ao atualizar análise de texto', 'error');
+            }
+        }
+
         function renderWordCloud() {
-    const container = document.getElementById('wordCloud');
-    if (!container) return;
-    
-    // DEBUG: Verificar stop words atuais
-    console.log('Renderizando nuvem de palavras...');
-    if (appState.textAnalyzer) {
-        appState.textAnalyzer.debugStopWords();
-    }
-    
-    const topWords = appState.textAnalyzer.getTopWords(30);
-    console.log('Top palavras antes do filtro:', topWords);
-    
-    // FILTRAR STOP WORDS MANUALMENTE (backup)
-    const filteredWords = topWords.filter(([word, frequency]) => {
-        return !appState.textAnalyzer.stopWords.has(word.toLowerCase());
-    });
-    
-    console.log('Top palavras após filtro:', filteredWords);
-    
-    container.innerHTML = '';
-    
-    filteredWords.forEach(([word, frequency]) => {
-        const size = Math.min(30, Math.max(12, frequency * 2));
-        const color = getColorByFrequency(frequency);
-        
-        const wordElement = document.createElement('div');
-        wordElement.className = 'word-item';
-        wordElement.textContent = word;
-        wordElement.style.fontSize = `${size}px`;
-        wordElement.style.color = color;
-        wordElement.style.opacity = Math.min(1, 0.3 + frequency / Math.max(...filteredWords.map(w => w[1])) * 0.7);
-        
-        wordElement.addEventListener('click', () => {
-            document.getElementById('wordSearch').value = word;
-            performSearch();
-        });
-        
-        container.appendChild(wordElement);
-    });
-    
-    // Se não houver palavras, mostrar mensagem
-    if (filteredWords.length === 0) {
-        container.innerHTML = '<p style="color: #666; text-align: center;">Nenhuma palavra encontrada após aplicar filtros</p>';
-    }
-}
+            const container = document.getElementById('wordCloud');
+            if (!container) return;
+            
+            // DEBUG: Verificar stop words atuais
+            console.log('Renderizando nuvem de palavras...');
+            if (appState.textAnalyzer) {
+                appState.textAnalyzer.debugStopWords();
+            }
+            
+            const topWords = appState.textAnalyzer.getTopWords(30);
+            console.log('Top palavras antes do filtro:', topWords);
+            
+            // FILTRAR STOP WORDS MANUALMENTE (backup)
+            const filteredWords = topWords.filter(([word, frequency]) => {
+                return !appState.textAnalyzer.stopWords.has(word.toLowerCase());
+            });
+            
+            console.log('Top palavras após filtro:', filteredWords);
+            
+            container.innerHTML = '';
+            
+            filteredWords.forEach(([word, frequency]) => {
+                const size = Math.min(30, Math.max(12, frequency * 2));
+                const color = getColorByFrequency(frequency);
+                
+                const wordElement = document.createElement('div');
+                wordElement.className = 'word-item';
+                wordElement.textContent = word;
+                wordElement.style.fontSize = `${size}px`;
+                wordElement.style.color = color;
+                wordElement.style.opacity = Math.min(1, 0.3 + frequency / Math.max(...filteredWords.map(w => w[1])) * 0.7);
+                
+                wordElement.addEventListener('click', () => {
+                    document.getElementById('wordSearch').value = word;
+                    performSearch();
+                });
+                
+                container.appendChild(wordElement);
+            });
+            
+            // Se não houver palavras, mostrar mensagem
+            if (filteredWords.length === 0) {
+                container.innerHTML = '<p style="color: #666; text-align: center;">Nenhuma palavra encontrada após aplicar filtros</p>';
+            }
+        }
+
         function renderWordFrequencyChart() {
             const topWords = appState.textAnalyzer.getTopWords(15);
             const words = topWords.map(([word]) => word);
@@ -4387,39 +4220,39 @@ debugStopWords() {
             document.getElementById('phraseAnalysis').innerHTML = analysisResult;
         }
 
+        // FUNÇÕES CORRIGIDAS PARA STOP WORDS
         function addStopWord() {
-    const word = document.getElementById('newStopWord').value.trim();
-    if (!word) {
-        showAlert('⚠️ Por favor, digite uma palavra', 'warning');
-        return;
-    }
-    
-    if (appState.textAnalyzer.addStopWord(word)) {
-        showAlert(`✅ Palavra "${word}" adicionada às stop words`, 'success');
-        document.getElementById('newStopWord').value = '';
-        updateStopWordsList();
-        
-        // FORÇAR ATUALIZAÇÃO DA ANÁLISE DE TEXTO
-        if (appState.data && appState.data.length > 0) {
-            appState.textAnalyzer.forceRecalculate(appState.data);
-            updateWordAnalysis();
+            const word = document.getElementById('newStopWord').value.trim();
+            if (!word) {
+                showAlert('⚠️ Por favor, digite uma palavra', 'warning');
+                return;
+            }
+            
+            if (appState.textAnalyzer.addStopWord(word)) {
+                showAlert(`✅ Palavra "${word}" adicionada às stop words`, 'success');
+                document.getElementById('newStopWord').value = '';
+                updateStopWordsList();
+                
+                // FORÇAR ATUALIZAÇÃO DA ANÁLISE DE TEXTO
+                if (appState.data && appState.data.length > 0) {
+                    appState.textAnalyzer.forceRecalculate(appState.data);
+                    updateWordAnalysis();
+                }
+            } else {
+                showAlert(`⚠️ Palavra "${word}" já está na lista ou é inválida`, 'warning');
+            }
         }
-    } else {
-        showAlert(`⚠️ Palavra "${word}" já está na lista ou é inválida`, 'warning');
-    }
-}
 
         function resetStopWords() {
-    appState.textAnalyzer.resetStopWords();
-    showAlert('✅ Stop words restauradas para o padrão', 'success');
-    updateStopWordsList();
-    
-    // FORÇAR ATUALIZAÇÃO DA ANÁLISE DE TEXTO
-    if (appState.data && appState.data.length > 0) {
-        appState.textAnalyzer.forceRecalculate(appState.data);
-        updateWordAnalysis();
-    }
-}
+            appState.textAnalyzer.resetStopWords();
+            showAlert('✅ Stop words restauradas para o padrão', 'success');
+            updateStopWordsList();
+            
+            // FORÇAR ATUALIZAÇÃO DA ANÁLISE DE TEXTO
+            if (appState.data && appState.data.length > 0) {
+                appState.textAnalyzer.forceRecalculate(appState.data);
+                updateWordAnalysis();
+            }
         }
 
         function updateStopWordsList() {

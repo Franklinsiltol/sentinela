@@ -2828,16 +2828,28 @@
         // =============================================
         // ANALISADOR DE TEXTO AVANÇADO (COM CACHE)
         // =============================================
-        class TextAnalyzer {
-            constructor() {
-                this.stopWords = new Set(["o", "a", "os", "as", "um", "uma", "uns", "umas", "de", "do", "da", "dos", "das", "em", "no", "na", "nos", "nas", "por", "para", "que", "e", "é", "ser", "se", "com", "como", "mas", "ou"]);
-                this.wordFrequencies = {};
-                this.bigramFrequencies = {};
-                this.searchIndex = null;
-                this.cache = new AnalysisCache();
-            }
+class TextAnalyzer {
+    constructor() {
+        this.stopWords = new Set(["o", "a", "os", "as", "um", "uma", "uns", "umas", "de", "do", "da", "dos", "das", "em", "no", "na", "nos", "nas", "por", "para", "que", "e", "é", "ser", "se", "com", "como", "mas", "ou"]);
+        this.wordFrequencies = {};
+        this.bigramFrequencies = {};
+        this.searchIndex = null;
+        this.cache = new AnalysisCache();
+    }
+    
+debugStopWords() {
+        console.log('Stop Words Atuais:', Array.from(this.stopWords));
+        console.log('Cache Stats:', this.getCacheStats());
+    }
+    
+    // ADICIONE ESTE MÉTODO AQUI:
+    forceRecalculate(data) {
+        this.clearCache();
+        this.calculateFrequencies(data);
+        this.setupSearchIndex(data);
+    }
 
-            tokenize(text) {
+               tokenize(text) {
                 return text
                     .toLowerCase()
                     .replace(/[^\w\sàáâãèéêìíîòóôõùúûç]/g, '')
@@ -4142,41 +4154,70 @@
         // =============================================
         // FUNÇÕES DE ANÁLISE DE TEXTO
         // =============================================
-        function updateWordAnalysis() {
-            if (!appState.textAnalyzer) return;
-            
-            renderWordCloud();
-            renderWordFrequencyChart();
-            updateStopWordsList();
-        }
-
+       function updateWordAnalysis() {
+    if (!appState.textAnalyzer || !appState.data || appState.data.length === 0) {
+        console.warn('Não há dados disponíveis para análise de texto');
+        return;
+    }
+    
+    try {
+        // LIMPAR CACHE PARA GARANTIR DADOS ATUALIZADOS
+        appState.textAnalyzer.clearCache();
+        
+        renderWordCloud();
+        renderWordFrequencyChart();
+        updateStopWordsList();
+    } catch (error) {
+        console.error('Erro ao atualizar análise de texto:', error);
+        showAlert('❌ Erro ao atualizar análise de texto', 'error');
+    }
+}
         function renderWordCloud() {
-            const container = document.getElementById('wordCloud');
-            if (!container) return;
-            
-            const topWords = appState.textAnalyzer.getTopWords(30);
-            container.innerHTML = '';
-            
-            topWords.forEach(([word, frequency]) => {
-                const size = Math.min(30, Math.max(12, frequency * 2));
-                const color = getColorByFrequency(frequency);
-                
-                const wordElement = document.createElement('div');
-                wordElement.className = 'word-item';
-                wordElement.textContent = word;
-                wordElement.style.fontSize = `${size}px`;
-                wordElement.style.color = color;
-                wordElement.style.opacity = Math.min(1, 0.3 + frequency / Math.max(...topWords.map(w => w[1])) * 0.7);
-                
-                wordElement.addEventListener('click', () => {
-                    document.getElementById('wordSearch').value = word;
-                    performSearch();
-                });
-                
-                container.appendChild(wordElement);
-            });
-        }
-
+    const container = document.getElementById('wordCloud');
+    if (!container) return;
+    
+    // DEBUG: Verificar stop words atuais
+    console.log('Renderizando nuvem de palavras...');
+    if (appState.textAnalyzer) {
+        appState.textAnalyzer.debugStopWords();
+    }
+    
+    const topWords = appState.textAnalyzer.getTopWords(30);
+    console.log('Top palavras antes do filtro:', topWords);
+    
+    // FILTRAR STOP WORDS MANUALMENTE (backup)
+    const filteredWords = topWords.filter(([word, frequency]) => {
+        return !appState.textAnalyzer.stopWords.has(word.toLowerCase());
+    });
+    
+    console.log('Top palavras após filtro:', filteredWords);
+    
+    container.innerHTML = '';
+    
+    filteredWords.forEach(([word, frequency]) => {
+        const size = Math.min(30, Math.max(12, frequency * 2));
+        const color = getColorByFrequency(frequency);
+        
+        const wordElement = document.createElement('div');
+        wordElement.className = 'word-item';
+        wordElement.textContent = word;
+        wordElement.style.fontSize = `${size}px`;
+        wordElement.style.color = color;
+        wordElement.style.opacity = Math.min(1, 0.3 + frequency / Math.max(...filteredWords.map(w => w[1])) * 0.7);
+        
+        wordElement.addEventListener('click', () => {
+            document.getElementById('wordSearch').value = word;
+            performSearch();
+        });
+        
+        container.appendChild(wordElement);
+    });
+    
+    // Se não houver palavras, mostrar mensagem
+    if (filteredWords.length === 0) {
+        container.innerHTML = '<p style="color: #666; text-align: center;">Nenhuma palavra encontrada após aplicar filtros</p>';
+    }
+}
         function renderWordFrequencyChart() {
             const topWords = appState.textAnalyzer.getTopWords(15);
             const words = topWords.map(([word]) => word);
@@ -4347,27 +4388,38 @@
         }
 
         function addStopWord() {
-            const word = document.getElementById('newStopWord').value.trim();
-            if (!word) {
-                showAlert('⚠️ Por favor, digite uma palavra', 'warning');
-                return;
-            }
-            
-            if (appState.textAnalyzer.addStopWord(word)) {
-                showAlert(`✅ Palavra "${word}" adicionada às stop words`, 'success');
-                document.getElementById('newStopWord').value = '';
-                updateStopWordsList();
-                updateWordAnalysis();
-            } else {
-                showAlert(`⚠️ Palavra "${word}" já está na lista ou é inválida', 'warning`);
-            }
+    const word = document.getElementById('newStopWord').value.trim();
+    if (!word) {
+        showAlert('⚠️ Por favor, digite uma palavra', 'warning');
+        return;
+    }
+    
+    if (appState.textAnalyzer.addStopWord(word)) {
+        showAlert(`✅ Palavra "${word}" adicionada às stop words`, 'success');
+        document.getElementById('newStopWord').value = '';
+        updateStopWordsList();
+        
+        // FORÇAR ATUALIZAÇÃO DA ANÁLISE DE TEXTO
+        if (appState.data && appState.data.length > 0) {
+            appState.textAnalyzer.forceRecalculate(appState.data);
+            updateWordAnalysis();
         }
+    } else {
+        showAlert(`⚠️ Palavra "${word}" já está na lista ou é inválida`, 'warning');
+    }
+}
 
         function resetStopWords() {
-            appState.textAnalyzer.resetStopWords();
-            showAlert('✅ Stop words restauradas para o padrão', 'success');
-            updateStopWordsList();
-            updateWordAnalysis();
+    appState.textAnalyzer.resetStopWords();
+    showAlert('✅ Stop words restauradas para o padrão', 'success');
+    updateStopWordsList();
+    
+    // FORÇAR ATUALIZAÇÃO DA ANÁLISE DE TEXTO
+    if (appState.data && appState.data.length > 0) {
+        appState.textAnalyzer.forceRecalculate(appState.data);
+        updateWordAnalysis();
+    }
+}
         }
 
         function updateStopWordsList() {

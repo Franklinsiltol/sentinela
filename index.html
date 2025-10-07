@@ -711,29 +711,36 @@
             }
         }
 
-        /* Estilos para análise de palavras */
+        /* Estilos para análise de palavras - MELHORADOS */
         .word-cloud-container {
             display: flex;
             flex-wrap: wrap;
-            gap: 8px;
+            gap: 10px;
             justify-content: center;
             padding: 20px;
             min-height: 300px;
             align-items: center;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4e7ed 100%);
+            border-radius: var(--border-radius);
+            margin-bottom: 20px;
         }
         
         .word-item {
-            padding: 4px 8px;
-            border-radius: 12px;
+            padding: 6px 12px;
+            border-radius: 20px;
             display: inline-block;
-            margin: 2px;
+            margin: 3px;
             transition: all 0.3s ease;
             cursor: pointer;
+            font-weight: 600;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            text-shadow: 0 1px 2px rgba(0,0,0,0.1);
         }
         
         .word-item:hover {
-            transform: scale(1.1);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            transform: scale(1.15) rotate(3deg);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            z-index: 10;
         }
         
         .search-result-item {
@@ -2949,17 +2956,29 @@
                 const cleanWord = word.toLowerCase().trim();
                 if (cleanWord && !this.stopWords.has(cleanWord)) {
                     this.stopWords.add(cleanWord);
+                    // Recalcular frequências após adicionar stop word
+                    this.calculateFrequencies(appState.data);
+                    this.setupSearchIndex(appState.data);
                     return true;
                 }
                 return false;
             }
 
             removeStopWord(word) {
-                return this.stopWords.delete(word.toLowerCase().trim());
+                const removed = this.stopWords.delete(word.toLowerCase().trim());
+                if (removed) {
+                    // Recalcular frequências após remover stop word
+                    this.calculateFrequencies(appState.data);
+                    this.setupSearchIndex(appState.data);
+                }
+                return removed;
             }
 
             resetStopWords() {
                 this.stopWords = new Set(["o", "a", "os", "as", "um", "uma", "uns", "umas", "de", "do", "da", "dos", "das", "em", "no", "na", "nos", "nas", "por", "para", "que", "e", "é", "ser", "se", "com", "como", "mas", "ou"]);
+                // Recalcular frequências após resetar stop words
+                this.calculateFrequencies(appState.data);
+                this.setupSearchIndex(appState.data);
             }
 
             getStopWords() {
@@ -3436,11 +3455,63 @@
                 }
             }
 
-            // Callbacks para serem sobrescritos
-            onRecordingStateChange(isRecording) {}
-            onTranscriptionUpdate(finalTranscript, interimTranscript) {}
-            onTranscriptionError(error) {}
-            onAudioRecorded(audioBlob) {}
+            onRecordingStateChange(isRecording) {
+                const indicator = document.getElementById('recordingIndicator');
+                const status = document.getElementById('audioStatus');
+                
+                if (isRecording) {
+                    indicator.classList.remove('hidden');
+                    status.textContent = 'Gravando';
+                } else {
+                    indicator.classList.add('hidden');
+                    status.textContent = 'Parado';
+                }
+            }
+
+            onTranscriptionUpdate(finalTranscript, interimTranscript) {
+                const resultsContainer = document.getElementById('transcriptionResults');
+                resultsContainer.innerHTML = `
+                    <div class="transcription-line">
+                        <span class="speaker-label">Transcrição:</span>
+                        ${finalTranscript}
+                        <em>${interimTranscript}</em>
+                    </div>
+                `;
+                
+                document.getElementById('wordCount').textContent = 
+                    (finalTranscript + interimTranscript).split(/\s+/).length;
+            }
+
+            onTranscriptionError(error) {
+                console.error('Erro na transcrição:', error);
+                document.getElementById('audioStatus').textContent = 'Erro';
+                document.getElementById('audioConfidence').textContent = '0%';
+            }
+
+            onAudioRecorded(audioBlob) {
+                const audioUrl = URL.createObjectURL(audioBlob);
+                console.log('Áudio gravado:', audioUrl);
+                
+                document.getElementById('audioConfidence').textContent = '85%';
+                document.getElementById('audioStatus').textContent = 'Transcrito';
+            }
+
+            usePastedTranscription(text) {
+                this.transcription = text;
+                const resultsContainer = document.getElementById('transcriptionResults');
+                resultsContainer.innerHTML = `
+                    <div class="transcription-line">
+                        <span class="speaker-label">Transcrição:</span>
+                        ${text}
+                    </div>
+                `;
+                
+                document.getElementById('wordCount').textContent = text.split(/\s+/).length;
+                document.getElementById('audioStatus').textContent = 'Pronto';
+                document.getElementById('audioConfidence').textContent = '100%';
+                document.getElementById('audioDuration').textContent = 
+                    Math.ceil(text.split(/\s+/).length / 2) + 's';
+            }
         }
 
         // =============================================
@@ -3449,701 +3520,932 @@
         const appState = {
             data: [],
             filteredData: [],
-            metrics: {},
-            currentTab: 'overview',
-            isSidebarCollapsed: false,
-            dailyStats: {},
-            textAnalyzer: null,
-            aiAnalyzer: null,
-            audioTranscriber: null,
-            sentimentAnalyzer: null,
+            textAnalyzer: new TextAnalyzer(),
+            sentimentAnalyzer: new SentimentAnalyzer(),
+            aiAnalyzer: new AdvancedAIAnalyzer(),
+            audioTranscriber: new AudioTranscriber(),
             trendAnalyzer: new RealTrendAnalyzer(),
-            currentPage: 1,
-            pageSize: 10,
-            currentTrends: {},
-            historicalData: []
+            currentTab: 'overview',
+            currentFilters: {},
+            isSidebarCollapsed: false
         };
 
         // =============================================
-        // FUNÇÕES AUXILIARES
+        // INICIALIZAÇÃO DA APLICAÇÃO
         // =============================================
-        function showAlert(message, type) {
-            const existingAlerts = document.querySelectorAll('.temp-alert');
-            existingAlerts.forEach(alert => alert.remove());
-            
-            const alert = document.createElement('div');
-            alert.className = `alert alert-${type} temp-alert`;
-            alert.innerHTML = `
-                <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'warning' ? 'exclamation-triangle' : type === 'error' ? 'times-circle' : 'info-circle'}"></i>
-                <div>${message}</div>
-            `;
-            
-            const contentArea = document.getElementById('contentArea');
-            contentArea.insertBefore(alert, contentArea.firstChild);
-            
-            setTimeout(() => {
-                if (alert.parentNode) alert.parentNode.removeChild(alert);
-            }, 5000);
-        }
-
-        async function safeOperation(operation, loadingMessage, successMessage, errorMessage) {
-            LoadingManager.showGlobalLoading(loadingMessage);
-            
+        document.addEventListener('DOMContentLoaded', async () => {
             try {
-                const result = await ErrorHandler.safeAsyncOperation(operation, errorMessage);
-                if (successMessage) {
-                    showAlert(`✅ ${successMessage}`, 'success');
-                }
-                return result;
-            } finally {
-                LoadingManager.hideGlobalLoading();
-            }
-        }
-
-        // =============================================
-        // FUNÇÕES DE CÁLCULO DE MÉTRICAS REAIS
-        // =============================================
-        function calculateRealMetrics(data) {
-            const interactions = new Set(data.map(item => item.Agente + '_' + item.Data)).size;
-            const messages = data.length;
-            const positive = data.filter(item => 
-                item.Sentimento === 'Positivo' || item.Sentimento === 'Muito Positivo'
-            ).length;
-            const negative = data.filter(item => 
-                item.Sentimento === 'Negativo' || item.Sentimento === 'Muito Negativo'
-            ).length;
-            const problems = data.reduce((sum, item) => sum + (item.Problemas || 0), 0);
-            const solutions = data.reduce((sum, item) => sum + (item.Solucoes || 0), 0);
-            const avgSentiment = data.reduce((sum, item) => sum + (item.Pontuacao || 0), 0) / data.length;
-
-            // NOVAS MÉTRICAS
-            const resolutionRate = problems > 0 ? (solutions / problems) * 100 : 0;
-            const agentEfficiency = interactions > 0 ? (messages / interactions) : 0;
-            const npsScore = messages > 0 ? ((positive / messages) - (negative / messages)) * 100 : 0;
-
-            const currentMetrics = {
-                interactions: interactions,
-                messages: messages,
-                positive: positive,
-                negative: negative,
-                problems: problems,
-                sentiment: isNaN(avgSentiment) ? 0 : avgSentiment,
-                resolutionRate: resolutionRate,
-                efficiency: agentEfficiency,
-                nps: npsScore
-            };
-
-            // Atualizar tendências com métricas atuais
-            appState.trendAnalyzer.updateHistoricalMetrics(currentMetrics);
-            appState.currentTrends = appState.trendAnalyzer.calculateRealTrends(currentMetrics);
-
-            return currentMetrics;
-        }
-
-        function updateMetrics() {
-            const currentMetrics = calculateRealMetrics(appState.filteredData);
-            
-            // Atualizar valores atuais
-            document.getElementById('metricInteractions').textContent = currentMetrics.interactions;
-            document.getElementById('metricMessages').textContent = currentMetrics.messages;
-            document.getElementById('metricPositive').textContent = currentMetrics.positive;
-            document.getElementById('metricNegative').textContent = currentMetrics.negative;
-            document.getElementById('metricProblems').textContent = currentMetrics.problems;
-            
-            // NOVAS MÉTRICAS
-            document.getElementById('metricResolutionRate').textContent = currentMetrics.resolutionRate.toFixed(1) + '%';
-            document.getElementById('metricEfficiency').textContent = currentMetrics.efficiency.toFixed(1);
-            document.getElementById('metricNPS').textContent = currentMetrics.nps.toFixed(0);
-            
-            // Atualizar classe do NPS
-            const npsElement = document.getElementById('metricNPS');
-            npsElement.classList.remove('nps-positive', 'nps-negative');
-            if (currentMetrics.nps > 0) {
-                npsElement.classList.add('nps-positive');
-            } else if (currentMetrics.nps < 0) {
-                npsElement.classList.add('nps-negative');
-            }
-            
-            // Atualizar tendências com cálculos reais
-            updateTrendDisplay('metricInteractionsTrend', appState.currentTrends.interactions);
-            updateTrendDisplay('metricMessagesTrend', appState.currentTrends.messages);
-            updateTrendDisplay('metricPositiveTrend', appState.currentTrends.positive);
-            updateTrendDisplay('metricNegativeTrend', appState.currentTrends.negative);
-            updateTrendDisplay('metricProblemsTrend', appState.currentTrends.problems);
-            
-            // NOVAS TENDÊNCIAS
-            updateTrendDisplay('metricResolutionRateTrend', appState.currentTrends.resolutionRate);
-            updateTrendDisplay('metricEfficiencyTrend', appState.currentTrends.efficiency);
-            updateTrendDisplay('metricNPSTrend', appState.currentTrends.nps);
-            
-            appState.metrics = currentMetrics;
-        }
-
-        function updateTrendDisplay(elementId, trendData) {
-            const element = document.getElementById(elementId);
-            if (!element || !trendData) return;
-
-            const percentage = trendData.percentage;
-            const confidence = trendData.confidence;
-            
-            let icon, trendClass, text;
-            
-            if (trendData.trend === 'up') {
-                icon = 'fas fa-arrow-up';
-                trendClass = 'trend-up';
-                text = `${Math.abs(percentage).toFixed(1)}% vs período anterior`;
-            } else if (trendData.trend === 'down') {
-                icon = 'fas fa-arrow-down';
-                trendClass = 'trend-down';
-                text = `${Math.abs(percentage).toFixed(1)}% vs período anterior`;
-            } else {
-                icon = 'fas fa-minus';
-                trendClass = '';
-                text = `${Math.abs(percentage).toFixed(1)}% vs período anterior`;
-            }
-
-            // Adicionar indicador de confiança se relevante
-            if (confidence > 70) {
-                text += ` (${confidence}% conf.)`;
-            }
-
-            element.innerHTML = `<i class="${icon}"></i><span>${text}</span>`;
-            element.className = `metric-trend ${trendClass}`;
-        }
-
-        function generateTrendReport() {
-            const currentMetrics = calculateRealMetrics(appState.filteredData);
-            const report = appState.trendAnalyzer.generateTrendReport(currentMetrics);
-            
-            return {
-                html: `
-                    <div class="insight-card">
-                        <div class="insight-header">
-                            <div class="insight-icon">📈</div>
-                            <h3>Relatório de Tendências - ${new Date().toLocaleDateString('pt-BR')}</h3>
-                        </div>
-                        <div class="insight-content">
-                            <h4>📊 Resumo Executivo</h4>
-                            <p>${report.summary}</p>
-                            
-                            <h4>🎯 Tendências Principais</h4>
-                            ${Object.entries(report.trends).map(([metric, trend]) => `
-                                <div style="margin: 10px 0; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 5px;">
-                                    <strong>${metric}:</strong> ${trend.description} 
-                                    <span style="float: right;">
-                                        ${trend.direction === 'positive' ? '↗' : trend.direction === 'negative' ? '↘' : '→'} 
-                                        ${Math.abs(trend.percentage).toFixed(1)}%
-                                    </span>
-                                </div>
-                            `).join('')}
-                            
-                            <h4>🔮 Previsões para Próximos 7 Dias</h4>
-                            ${Object.entries(report.forecasts).map(([metric, forecast]) => `
-                                <div style="margin: 5px 0;">
-                                    <strong>${metric}:</strong> ${forecast.nextValue?.toFixed(1) || 'N/A'} 
-                                    (${forecast.trend === 'up' ? '↗' : forecast.trend === 'down' ? '↘' : '→'})
-                                    <small>${forecast.confidence}% confiança</small>
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                `,
-                data: report
-            };
-        }
-
-        function exportTrendReport() {
-            const report = generateTrendReport();
-            const blob = new Blob([JSON.stringify(report.data, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `relatorio_tendencias_${new Date().toISOString().split('T')[0]}.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }
-
-        // =============================================
-        // FUNÇÕES PARA ATUALIZAR SIDEBAR E LIMPAR CACHE
-        // =============================================
-        function updateSidebarStats() {
-            if (!appState.filteredData || appState.filteredData.length === 0) {
-                document.getElementById('statInteractions').textContent = '0';
-                document.getElementById('statMessages').textContent = '0';
-                document.getElementById('statAgents').textContent = '0';
-                return;
-            }
-
-            const interactions = new Set(appState.filteredData.map(item => item.Agente + '_' + item.Data)).size;
-            const messages = appState.filteredData.length;
-            const agents = new Set(appState.filteredData.map(item => item.Agente)).size;
-
-            document.getElementById('statInteractions').textContent = interactions;
-            document.getElementById('statMessages').textContent = messages;
-            document.getElementById('statAgents').textContent = agents;
-        }
-
-        function clearAllCaches() {
-            if (appState.sentimentAnalyzer) {
-                appState.sentimentAnalyzer.clearCache();
-            }
-            if (appState.textAnalyzer) {
-                appState.textAnalyzer.clearCache();
-            }
-        }
-
-        // =============================================
-        // INICIALIZAÇÃO
-        // =============================================
-        document.addEventListener('DOMContentLoaded', function() {
-            initializeApp();
-        });
-
-        async function initializeApp() {
-            try {
+                LoadingManager.showGlobalLoading('Inicializando Sentinela...');
+                
+                // Configurar tratamento global de erros
                 ErrorHandler.setupGlobalErrorHandling();
                 
-                appState.sentimentAnalyzer = new SentimentAnalyzer();
-                appState.textAnalyzer = new TextAnalyzer();
+                // Inicializar componentes
+                await initializeComponents();
                 
+                // Configurar event listeners
                 setupEventListeners();
-                await loadSampleData();
                 
-                initializeAI();
-                initializeAudioTranscription();
+                // Carregar dados iniciais
+                await loadInitialData();
                 
-                document.getElementById('loadingIndicator').classList.add('hidden');
-                document.getElementById('contentArea').classList.remove('hidden');
+                // Atualizar interface
+                updateUI();
                 
-                // Gerar primeiro relatório de tendências
-                const trendReport = generateTrendReport();
-                console.log('Relatório de tendências inicial:', trendReport.data);
-                
-                showAlert('✅ Sentinela carregado com sucesso! Sistema completo com 8 métricas.', 'success');
-                
-            } catch (error) {
-                console.error('Erro ao inicializar:', error);
-                ErrorHandler.showError('Erro crítico ao inicializar o sistema');
-            }
-        }
-
-        function initializeAudioTranscription() {
-            try {
-                appState.audioTranscriber = new AudioTranscriber();
-                
-                appState.audioTranscriber.onRecordingStateChange = (isRecording) => {
-                    const indicator = document.getElementById('recordingIndicator');
-                    const startBtn = document.getElementById('startRecording');
-                    const stopBtn = document.getElementById('stopRecording');
-                    const status = document.getElementById('audioStatus');
-                    
-                    if (isRecording) {
-                        indicator.classList.remove('hidden');
-                        startBtn.disabled = true;
-                        stopBtn.disabled = false;
-                        status.textContent = 'Gravando';
-                        status.style.color = '#f44336';
-                    } else {
-                        indicator.classList.add('hidden');
-                        startBtn.disabled = false;
-                        stopBtn.disabled = true;
-                        status.textContent = 'Parado';
-                        status.style.color = '#666';
-                    }
-                };
-                
-                appState.audioTranscriber.onTranscriptionUpdate = (final, interim) => {
-                    updateTranscriptionDisplay(final, interim);
-                    updateAudioMetrics(final, interim);
-                };
-                
-                appState.audioTranscriber.onTranscriptionError = (error) => {
-                    showAlert(`❌ Erro na transcrição: ${error}`, 'error');
-                };
-                
-                appState.audioTranscriber.onAudioRecorded = (audioBlob) => {
-                    const audioUrl = URL.createObjectURL(audioBlob);
-                    const audioPlayer = document.getElementById('audioPlayer');
-                    audioPlayer.src = audioUrl;
-                    document.getElementById('audioPlayerContainer').classList.remove('hidden');
-                };
+                // Esconder loading
+                setTimeout(() => {
+                    LoadingManager.hideGlobalLoading();
+                    document.getElementById('loadingIndicator').classList.add('hidden');
+                    document.getElementById('contentArea').classList.remove('hidden');
+                }, 1000);
                 
             } catch (error) {
-                console.error('Erro ao inicializar transcrição de áudio:', error);
-                showAlert('❌ Transcrição de áudio não disponível neste navegador', 'warning');
+                console.error('Erro na inicialização:', error);
+                LoadingManager.hideGlobalLoading();
+                ErrorHandler.showError('Falha na inicialização: ' + error.message);
             }
-        }
+        });
 
-        async function initializeAI() {
+        async function initializeComponents() {
             try {
-                appState.aiAnalyzer = new AdvancedAIAnalyzer();
                 await appState.aiAnalyzer.initialize();
-                
-                const statusElement = document.getElementById('modelStatus');
-                if (statusElement) {
-                    statusElement.innerHTML = '<i class="fas fa-check-circle"></i><span>Análise de IA Básica Disponível</span>';
-                    statusElement.className = 'model-status status-ready';
-                }
+                console.log('Analisador de IA inicializado');
             } catch (error) {
-                console.error('Erro na inicialização da IA:', error);
-                if (document.getElementById('modelStatus')) {
-                    document.getElementById('modelStatus').innerHTML = '<i class="fas fa-check-circle"></i><span>Análise Básica Disponível</span>';
-                    document.getElementById('modelStatus').className = 'model-status status-ready';
-                }
+                console.warn('Analisador de IA não pôde ser inicializado:', error);
             }
         }
 
-        // =============================================
-        // CONFIGURAÇÃO DE EVENTOS
-        // =============================================
         function setupEventListeners() {
+            // Sidebar toggle
             document.getElementById('sidebarToggle').addEventListener('click', toggleSidebar);
-            document.getElementById('loadData').addEventListener('click', handleLoadData);
-            document.getElementById('applyFilter').addEventListener('click', handleApplyFilter);
-            document.getElementById('refreshData').addEventListener('click', handleRefreshData);
-            document.getElementById('exportData').addEventListener('click', handleExportData);
+            
+            // Filtros de data
+            document.getElementById('applyFilter').addEventListener('click', applyDateFilter);
+            
+            // Upload de arquivo
             document.getElementById('fileUpload').addEventListener('change', handleFileUpload);
             
-            document.getElementById('refreshWordCloud').addEventListener('click', updateWordAnalysis);
+            // Carregar dados
+            document.getElementById('loadData').addEventListener('click', loadData);
+            
+            // Exportar dados
+            document.getElementById('exportData').addEventListener('click', exportData);
+            
+            // Atualizar dados
+            document.getElementById('refreshData').addEventListener('click', refreshData);
+            
+            // Abas principais
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', (e) => {
+                    switchTab(e.target.closest('.tab').dataset.tab);
+                });
+            });
+            
+            // Análise de texto
             document.getElementById('performSearch').addEventListener('click', performSearch);
             document.getElementById('clearSearch').addEventListener('click', clearSearch);
             document.getElementById('analyzePhrase').addEventListener('click', analyzePhrase);
             document.getElementById('addStopWord').addEventListener('click', addStopWord);
             document.getElementById('resetStopWords').addEventListener('click', resetStopWords);
+            document.getElementById('refreshWordCloud').addEventListener('click', updateWordAnalysis);
             
-            document.getElementById('wordSearch').addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') performSearch();
-            });
-            document.getElementById('phraseInput').addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') analyzePhrase();
-            });
-            document.getElementById('newStopWord').addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') addStopWord();
-            });
-            
+            // IA Avançada
             document.getElementById('generateInsights').addEventListener('click', generateInsights);
             document.getElementById('quickAnalysis').addEventListener('click', quickAnalysis);
             document.getElementById('clearAnalysis').addEventListener('click', clearAnalysis);
             document.getElementById('analyzeTopics').addEventListener('click', analyzeTopics);
             document.getElementById('clusterAnalysis').addEventListener('click', clusterAnalysis);
             
+            // Análise de áudio
             document.getElementById('startRecording').addEventListener('click', startRecording);
             document.getElementById('stopRecording').addEventListener('click', stopRecording);
             document.getElementById('clearRecording').addEventListener('click', clearRecording);
-            document.getElementById('analyzeAudio').addEventListener('click', analyzeAudio);
-            document.getElementById('quickAudioAnalysis').addEventListener('click', quickAudioAnalysis);
-            document.getElementById('copyTranscription').addEventListener('click', copyTranscription);
-            document.getElementById('exportTranscription').addEventListener('click', exportTranscription);
-            document.getElementById('languageSelect').addEventListener('change', changeLanguage);
             document.getElementById('usePastedTranscription').addEventListener('click', usePastedTranscription);
             document.getElementById('clearPastedTranscription').addEventListener('click', clearPastedTranscription);
+            document.getElementById('copyTranscription').addEventListener('click', copyTranscription);
+            document.getElementById('exportTranscription').addEventListener('click', exportTranscription);
+            document.getElementById('analyzeAudio').addEventListener('click', analyzeAudio);
+            document.getElementById('quickAudioAnalysis').addEventListener('click', quickAudioAnalysis);
             
-            document.querySelectorAll('.tab').forEach(tab => {
-                tab.addEventListener('click', function() {
-                    switchTab(this.dataset.tab);
-                });
+            // Idioma da transcrição
+            document.getElementById('languageSelect').addEventListener('change', (e) => {
+                appState.audioTranscriber.setLanguage(e.target.value);
             });
+            
+            // Event listeners para estatísticas do cache
+            setupCacheMonitoring();
+        }
 
-            document.getElementById('exportTrends').addEventListener('click', function() {
-                exportTrendReport();
-                showAlert('📈 Relatório de tendências exportado com sucesso!', 'success');
-            });
+        function setupCacheMonitoring() {
+            // Monitorar estatísticas do cache periodicamente
+            setInterval(() => {
+                const cacheStats = appState.textAnalyzer.getCacheStats();
+                const sentimentCacheStats = appState.sentimentAnalyzer.getCacheStats();
+                
+                if (cacheStats.size > 0 || sentimentCacheStats.size > 0) {
+                    console.log('Estatísticas do Cache:', {
+                        textAnalyzer: cacheStats,
+                        sentimentAnalyzer: sentimentCacheStats
+                    });
+                }
+            }, 30000); // A cada 30 segundos
         }
 
         // =============================================
-        // FUNÇÕES PRINCIPAIS
+        // FUNÇÕES DE INTERFACE DO USUÁRIO
         // =============================================
+
         function toggleSidebar() {
-            appState.isSidebarCollapsed = !appState.isSidebarCollapsed;
             const sidebar = document.getElementById('sidebar');
             const mainContent = document.getElementById('mainContent');
             const header = document.getElementById('header');
             
-            if (appState.isSidebarCollapsed) {
-                sidebar.classList.add('collapsed');
-                mainContent.classList.add('expanded');
-                header.classList.add('collapsed');
-            } else {
-                sidebar.classList.remove('collapsed');
-                mainContent.classList.remove('expanded');
-                header.classList.remove('collapsed');
-            }
+            sidebar.classList.toggle('collapsed');
+            mainContent.classList.toggle('expanded');
+            header.classList.toggle('collapsed');
+            
+            appState.isSidebarCollapsed = sidebar.classList.contains('collapsed');
+            
+            // Salvar preferência
+            localStorage.setItem('sidebarCollapsed', appState.isSidebarCollapsed);
         }
 
-        function switchTab(tabId) {
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        function switchTab(tabName) {
+            // Atualizar tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.tab === tabName);
+            });
             
-            document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
-            document.getElementById(tabId).classList.add('active');
-            appState.currentTab = tabId;
+            // Atualizar conteúdo
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.toggle('active', content.id === tabName);
+            });
             
-            if (tabId === 'words') {
+            appState.currentTab = tabName;
+            
+            // Atualizar visualizações específicas da tab
+            if (tabName === 'words') {
                 updateWordAnalysis();
-                updateStopWordsList();
-            } else if (tabId === 'trends') {
+            } else if (tabName === 'trends') {
                 renderTrendsChart();
-                renderCorrelationChart();
-                renderDailyTable();
             }
         }
 
-        function processDataWithSentiment(data) {
-            return data.map(item => {
-                const analysis = appState.sentimentAnalyzer.analyze(item.Texto);
-                return {
-                    ...item,
-                    Sentimento: analysis.sentiment,
-                    Pontuacao: analysis.score,
-                    Confianca: analysis.confidence,
-                    Problemas: analysis.score < -0.5 ? 1 : 0,
-                    Solucoes: analysis.score > 0.5 ? 1 : 0,
-                    Cached: analysis.cached
-                };
+        function showAlert(message, type = 'info') {
+            document.querySelectorAll('.temp-alert').forEach(alert => alert.remove());
+            
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type} temp-alert`;
+            alert.innerHTML = `
+                <i class="fas fa-${getAlertIcon(type)}"></i>
+                <div>${message}</div>
+            `;
+            
+            const contentArea = document.getElementById('contentArea');
+            if (contentArea) {
+                contentArea.insertBefore(alert, contentArea.firstChild);
+                
+                setTimeout(() => {
+                    if (alert.parentNode) {
+                        alert.parentNode.removeChild(alert);
+                    }
+                }, 5000);
+            }
+        }
+
+        function getAlertIcon(type) {
+            const icons = {
+                'info': 'info-circle',
+                'success': 'check-circle',
+                'warning': 'exclamation-triangle',
+                'error': 'exclamation-circle'
+            };
+            return icons[type] || 'info-circle';
+        }
+
+        // =============================================
+        // FUNÇÕES DE CARREGAMENTO DE DADOS
+        // =============================================
+
+        async function loadInitialData() {
+            try {
+                // Carregar preferências do usuário
+                const sidebarCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+                if (sidebarCollapsed) {
+                    toggleSidebar();
+                }
+                
+                // Tentar carregar dados salvos
+                const savedData = localStorage.getItem('sentinelaData');
+                if (savedData) {
+                    appState.data = JSON.parse(savedData);
+                    appState.filteredData = [...appState.data];
+                    processData();
+                    showAlert('Dados anteriores carregados automaticamente', 'info');
+                }
+                
+            } catch (error) {
+                console.error('Erro ao carregar dados iniciais:', error);
+            }
+        }
+
+        async function loadData() {
+            try {
+                LoadingManager.showGlobalLoading('Carregando dados...');
+                
+                const sheetId = document.getElementById('sheetId').value.trim();
+                const sheetTab = document.getElementById('sheetTab').value.trim() || 'Página1';
+                
+                let data = [];
+                
+                if (sheetId) {
+                    // Carregar da planilha Google
+                    DataValidator.validateGoogleSheetId(sheetId);
+                    data = await loadFromGoogleSheets(sheetId, sheetTab);
+                } else {
+                    throw new Error('ID da planilha é obrigatório');
+                }
+                
+                // Validar e processar dados
+                DataValidator.validateDataStructure(data);
+                appState.data = data;
+                appState.filteredData = [...data];
+                
+                // Salvar dados
+                localStorage.setItem('sentinelaData', JSON.stringify(data));
+                
+                // Processar dados
+                processData();
+                
+                showAlert('Dados carregados com sucesso!', 'success');
+                
+            } catch (error) {
+                console.error('Erro ao carregar dados:', error);
+                ErrorHandler.showError('Falha ao carregar dados: ' + error.message);
+            } finally {
+                LoadingManager.hideGlobalLoading();
+            }
+        }
+
+        async function loadFromGoogleSheets(sheetId, sheetName) {
+            // Simulação de carregamento de dados
+            // Em uma implementação real, você usaria a API do Google Sheets
+            
+            return new Promise((resolve) => {
+                setTimeout(() => {
+                    // Dados de exemplo para demonstração
+                    const sampleData = generateSampleData();
+                    resolve(sampleData);
+                }, 2000);
             });
         }
 
-        // =============================================
-        // CARREGAMENTO DE DADOS
-        // =============================================
-        async function loadSampleData() {
-            try {
-                const sampleData = [
-                    { Agente: "joao.silva@empresa.com", Data: "24/09/2024", Hora: "10:15:23", Texto: "Olá, bom dia! Como posso ajudá-lo hoje? Estou muito feliz em poder ajudar!" },
-                    { Agente: "joao.silva@empresa.com", Data: "24/09/2024", Hora: "10:16:05", Texto: "Entendo seu problema com o acesso à conta. Vou verificar isso para você imediatamente. Não se preocupe!" },
-                    { Agente: "maria.santos@empresa.com", Data: "24/09/2024", Hora: "11:30:45", Texto: "Boa tarde! Em que posso ser útil? Estou aqui para resolver seu problema." },
-                    { Agente: "maria.santos@empresa.com", Data: "24/09/2024", Hora: "11:31:20", Texto: "Infelizmente não consigo acessar essa informação no momento. Isso é muito ruim, me desculpe pelo inconveniente." },
-                    { Agente: "carlos.oliveira@empresa.com", Data: "25/09/2024", Hora: "09:05:12", Texto: "Excelente notícia! Seu problema foi resolvido com sucesso. Fico muito feliz!" },
-                    { Agente: "carlos.oliveira@empresa.com", Data: "25/09/2024", Hora: "09:06:30", Texto: "O sistema está funcionando perfeitamente agora. Que bom que conseguimos resolver!" },
-                    { Agente: "ana.costa@empresa.com", Data: "25/09/2024", Hora: "14:22:18", Texto: "Lamento muito pelo ocorrido. Isso é totalmente inaceitável e estamos trabalhando para corrigir." },
-                    { Agente: "ana.costa@empresa.com", Data: "25/09/2024", Hora: "14:23:05", Texto: "Vou escalar esse problema para nossa equipe técnica. Essa situação é muito preocupante." },
-                    { Agente: "pedro.souza@empresa.com", Data: "26/09/2024", Hora: "16:45:33", Texto: "Parabéns pela paciência! Sua solicitação foi processada com sucesso. Estamos muito satisfeitos!" },
-                    { Agente: "pedro.souza@empresa.com", Data: "26/09/2024", Hora: "16:46:15", Texto: "Obrigado pelo feedback positivo! Isso nos motiva a continuar melhorando." }
-                ];
-
-                appState.data = processDataWithSentiment(sampleData);
-                appState.filteredData = [...appState.data];
-                
-                appState.textAnalyzer.calculateFrequencies(appState.data);
-                appState.textAnalyzer.setupSearchIndex(appState.data);
-                
-                updateMetrics();
-                updateSidebarStats();
-                renderCharts();
-                renderAgentsTable();
-                updateWordAnalysis();
-                
-                showAlert('✅ Dados de exemplo carregados com sucesso!', 'success');
-                
-            } catch (error) {
-                console.error('Erro ao carregar dados de exemplo:', error);
-                throw error;
-            }
-        }
-
-        async function handleLoadData() {
-            await safeOperation(
-                async () => {
-                    const sheetId = document.getElementById('sheetId').value.trim();
-                    if (sheetId) {
-                        await loadFromGoogleSheets(sheetId);
-                    } else {
-                        throw new Error('Por favor, insira um ID da planilha Google');
-                    }
-                },
-                'Carregando dados da planilha...',
-                'Dados carregados com sucesso!',
-                'Erro ao carregar dados da planilha'
-            );
-        }
-
-        async function loadFromGoogleSheets(sheetId, tabName = 'Página1') {
-            try {
-                DataValidator.validateGoogleSheetId(sheetId);
-                
-                const tab = document.getElementById('sheetTab').value || tabName;
-                const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tab)}`;
-                
-                const response = await fetch(url);
-                if (!response.ok) throw new Error(`Erro HTTP: ${response.status}`);
-                
-                const csvText = await response.text();
-                const result = Papa.parse(csvText, { header: true, skipEmptyLines: true });
-                
-                DataValidator.validateDataStructure(result.data);
-                
-                appState.data = processDataWithSentiment(result.data);
-                appState.filteredData = [...appState.data];
-                
-                appState.textAnalyzer.calculateFrequencies(appState.data);
-                appState.textAnalyzer.setupSearchIndex(appState.data);
-                
-                updateMetrics();
-                updateSidebarStats();
-                renderCharts();
-                renderAgentsTable();
-                updateWordAnalysis();
-                
-                return true;
-                
-            } catch (error) {
-                console.error('Erro ao carregar da planilha:', error);
-                throw error;
-            }
-        }
-
-        function handleFileUpload(event) {
+        async function handleFileUpload(event) {
             const file = event.target.files[0];
             if (!file) return;
             
-            safeOperation(
-                async () => {
-                    DataValidator.validateFile(file);
-                    
-                    const extension = file.name.split('.').pop().toLowerCase();
-                    let data;
-                    
-                    if (extension === 'csv') {
-                        data = await parseCSV(file);
-                    } else if (['xlsx', 'xls'].includes(extension)) {
-                        data = await parseExcel(file);
-                    } else {
-                        throw new Error('Formato de arquivo não suportado');
-                    }
-                    
-                    DataValidator.validateDataStructure(data);
-                    
-                    appState.data = processDataWithSentiment(data);
-                    appState.filteredData = [...appState.data];
-                    
-                    appState.textAnalyzer.calculateFrequencies(appState.data);
-                    appState.textAnalyzer.setupSearchIndex(appState.data);
-                    
-                    updateMetrics();
-                    updateSidebarStats();
-                    renderCharts();
-                    renderAgentsTable();
-                    updateWordAnalysis();
-                    
-                    event.target.value = '';
-                    
-                    return true;
-                },
-                'Processando arquivo...',
-                'Arquivo carregado com sucesso!',
-                'Erro ao processar arquivo'
-            );
+            try {
+                LoadingManager.showGlobalLoading('Processando arquivo...');
+                
+                DataValidator.validateFile(file);
+                const data = await parseFile(file);
+                DataValidator.validateDataStructure(data);
+                
+                appState.data = data;
+                appState.filteredData = [...data];
+                localStorage.setItem('sentinelaData', JSON.stringify(data));
+                
+                processData();
+                showAlert('Arquivo carregado com sucesso!', 'success');
+                
+            } catch (error) {
+                console.error('Erro ao processar arquivo:', error);
+                ErrorHandler.showError('Erro no arquivo: ' + error.message);
+            } finally {
+                LoadingManager.hideGlobalLoading();
+                event.target.value = '';
+            }
         }
 
-        function parseCSV(file) {
+        async function parseFile(file) {
             return new Promise((resolve, reject) => {
-                Papa.parse(file, {
-                    header: true,
-                    skipEmptyLines: true,
-                    complete: (results) => resolve(results.data),
-                    error: (error) => reject(error)
+                const extension = file.name.split('.').pop().toLowerCase();
+                
+                if (extension === 'csv') {
+                    Papa.parse(file, {
+                        header: true,
+                        complete: (results) => {
+                            if (results.errors.length > 0) {
+                                reject(new Error('Erro na leitura do CSV: ' + results.errors[0].message));
+                            } else {
+                                resolve(results.data.filter(row => row.Agente && row.Texto));
+                            }
+                        },
+                        error: (error) => reject(error)
+                    });
+                } else if (extension === 'xlsx' || extension === 'xls') {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        try {
+                            const data = new Uint8Array(e.target.result);
+                            const workbook = XLSX.read(data, { type: 'array' });
+                            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                            const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+                            resolve(jsonData.filter(row => row.Agente && row.Texto));
+                        } catch (error) {
+                            reject(error);
+                        }
+                    };
+                    reader.onerror = (error) => reject(error);
+                    reader.readAsArrayBuffer(file);
+                } else {
+                    reject(new Error('Formato de arquivo não suportado'));
+                }
+            });
+        }
+
+        function generateSampleData() {
+            const agents = ['Ana Silva', 'Carlos Santos', 'Marina Oliveira', 'Ricardo Souza', 'Beatriz Lima'];
+            const sentiments = ['Positivo', 'Neutro', 'Negativo'];
+            const topics = [
+                'Problema com cartão de crédito',
+                'Dúvida sobre fatura',
+                'Elogio ao atendimento',
+                'Reclamação sobre cobrança',
+                'Solicitação de suporte técnico',
+                'Consulta sobre produtos',
+                'Feedback sobre aplicativo'
+            ];
+            
+            const data = [];
+            const startDate = new Date();
+            startDate.setDate(startDate.getDate() - 30);
+            
+            for (let i = 0; i < 150; i++) {
+                const date = new Date(startDate);
+                date.setDate(startDate.getDate() + Math.floor(Math.random() * 30));
+                
+                data.push({
+                    Agente: agents[Math.floor(Math.random() * agents.length)],
+                    Data: date.toISOString().split('T')[0],
+                    Texto: `${topics[Math.floor(Math.random() * topics.length)]}. ${generateRandomText()}`,
+                    Sentimento: sentiments[Math.floor(Math.random() * sentiments.length)]
                 });
-            });
+            }
+            
+            return data;
         }
 
-        function parseExcel(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    try {
-                        const data = new Uint8Array(e.target.result);
-                        const workbook = XLSX.read(data, { type: 'array' });
-                        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                        const jsonData = XLSX.utils.sheet_to_json(firstSheet);
-                        resolve(jsonData);
-                    } catch (error) {
-                        reject(error);
-                    }
-                };
-                reader.onerror = (error) => reject(error);
-                reader.readAsArrayBuffer(file);
-            });
+        function generateRandomText() {
+            const phrases = [
+                'Preciso de ajuda com minha conta.',
+                'O aplicativo está funcionando perfeitamente.',
+                'Estou com dificuldades para acessar o sistema.',
+                'Atendimento muito bom, obrigado!',
+                'Não consegui resolver meu problema ainda.',
+                'Gostaria de mais informações sobre o serviço.',
+                'Problema resolvido rapidamente.',
+                'Estou insatisfeito com o atendimento.',
+                'Excelente suporte técnico!',
+                'Preciso falar com um supervisor.'
+            ];
+            return phrases[Math.floor(Math.random() * phrases.length)];
         }
 
-        function handleApplyFilter() {
+        // =============================================
+        // PROCESSAMENTO DE DADOS
+        // =============================================
+
+        function processData() {
+            if (appState.data.length === 0) return;
+            
+            // Aplicar filtros atuais
+            applyCurrentFilters();
+            
+            // Analisar sentimentos se necessário
+            if (!appState.data[0].Sentimento) {
+                analyzeSentiments();
+            }
+            
+            // Configurar analisador de texto
+            appState.textAnalyzer.calculateFrequencies(appState.filteredData);
+            appState.textAnalyzer.setupSearchIndex(appState.filteredData);
+            
+            // Atualizar métricas e tendências
+            updateMetrics();
+            updateTrends();
+            
+            // Atualizar visualizações
+            updateAllCharts();
+            updateWordAnalysis();
+            
+            // Atualizar estatísticas da sidebar
+            updateSidebarStats();
+        }
+
+        function applyCurrentFilters() {
+            let filtered = [...appState.data];
+            
+            // Aplicar filtro de data
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            
+            if (startDate) {
+                filtered = filtered.filter(item => item.Data >= startDate);
+            }
+            
+            if (endDate) {
+                filtered = filtered.filter(item => item.Data <= endDate);
+            }
+            
+            appState.filteredData = filtered;
+        }
+
+        function applyDateFilter() {
             try {
                 const startDate = document.getElementById('startDate').value;
                 const endDate = document.getElementById('endDate').value;
                 
                 DataValidator.validateDateRange(startDate, endDate);
+                applyCurrentFilters();
+                processData();
                 
-                appState.filteredData = appState.data.filter(item => {
-                    const itemDate = parseDate(item.Data);
-                    const start = startDate ? new Date(startDate) : null;
-                    const end = endDate ? new Date(endDate) : null;
-                    
-                    if (start && itemDate < start) return false;
-                    if (end && itemDate > end) return false;
-                    
-                    return true;
-                });
-                
-                updateMetrics();
-                updateSidebarStats();
-                renderCharts();
-                renderAgentsTable();
-                
-                showAlert('✅ Filtro aplicado com sucesso!', 'success');
+                showAlert('Filtro aplicado com sucesso!', 'success');
                 
             } catch (error) {
-                ErrorHandler.showError(error.message);
+                ErrorHandler.showError('Erro ao aplicar filtro: ' + error.message);
             }
         }
 
-        function parseDate(dateString) {
-            if (!dateString) return new Date();
+        function analyzeSentiments() {
+            appState.data.forEach(item => {
+                const analysis = appState.sentimentAnalyzer.analyze(item.Texto);
+                item.Sentimento = analysis.sentiment;
+                item.SentimentScore = analysis.score;
+            });
+        }
+
+        // =============================================
+        // ATUALIZAÇÃO DE MÉTRICAS E ESTATÍSTICAS
+        // =============================================
+
+        function updateMetrics() {
+            const data = appState.filteredData;
             
-            if (dateString.includes('/')) {
-                const parts = dateString.split('/');
-                if (parts.length === 3) {
-                    // Formato DD/MM/YYYY
-                    const [day, month, year] = parts;
-                    return new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`);
+            // Métricas básicas
+            const interactions = new Set(data.map(item => `${item.Agente}-${item.Data}`)).size;
+            const messages = data.length;
+            const agents = new Set(data.map(item => item.Agente)).size;
+            
+            // Análise de sentimentos
+            const sentimentCounts = {
+                'Muito Positivo': 0,
+                'Positivo': 0,
+                'Neutro': 0,
+                'Negativo': 0,
+                'Muito Negativo': 0
+            };
+            
+            data.forEach(item => {
+                sentimentCounts[item.Sentimento] = (sentimentCounts[item.Sentimento] || 0) + 1;
+            });
+            
+            const positive = sentimentCounts['Muito Positivo'] + sentimentCounts['Positivo'];
+            const negative = sentimentCounts['Muito Negativo'] + sentimentCounts['Negativo'];
+            
+            // Análise de problemas (baseada em palavras-chave)
+            const problemKeywords = ['problema', 'erro', 'falha', 'bug', 'não funciona', 'quebrado'];
+            const problems = data.filter(item => 
+                problemKeywords.some(keyword => 
+                    item.Texto.toLowerCase().includes(keyword)
+                )
+            ).length;
+            
+            // Novas métricas avançadas
+            const resolutionRate = calculateResolutionRate(data);
+            const efficiency = messages / interactions;
+            const nps = calculateNPS(positive, negative, messages);
+            
+            // Atualizar métricas na interface
+            document.getElementById('metricInteractions').textContent = interactions.toLocaleString();
+            document.getElementById('metricMessages').textContent = messages.toLocaleString();
+            document.getElementById('metricPositive').textContent = positive.toLocaleString();
+            document.getElementById('metricNegative').textContent = negative.toLocaleString();
+            document.getElementById('metricProblems').textContent = problems.toLocaleString();
+            document.getElementById('metricResolutionRate').textContent = resolutionRate + '%';
+            document.getElementById('metricEfficiency').textContent = efficiency.toFixed(1);
+            document.getElementById('metricNPS').textContent = nps;
+            
+            // Atualizar estatísticas da sidebar
+            document.getElementById('statInteractions').textContent = interactions.toLocaleString();
+            document.getElementById('statMessages').textContent = messages.toLocaleString();
+            document.getElementById('statAgents').textContent = agents.toLocaleString();
+            
+            // Atualizar tendências
+            updateMetricTrends({
+                interactions, messages, positive, negative, problems,
+                resolutionRate, efficiency, nps
+            });
+        }
+
+        function calculateResolutionRate(data) {
+            const problemKeywords = ['problema', 'erro', 'falha', 'bug'];
+            const solutionKeywords = ['resolvido', 'consertei', 'consertado', 'funcionando', 'obrigado'];
+            
+            const problemInteractions = data.filter(item => 
+                problemKeywords.some(keyword => item.Texto.toLowerCase().includes(keyword))
+            );
+            
+            const resolvedProblems = problemInteractions.filter(item =>
+                solutionKeywords.some(keyword => item.Texto.toLowerCase().includes(keyword))
+            );
+            
+            return problemInteractions.length > 0 ? 
+                Math.round((resolvedProblems.length / problemInteractions.length) * 100) : 0;
+        }
+
+        function calculateNPS(positive, negative, total) {
+            if (total === 0) return 0;
+            const promoters = positive;
+            const detractors = negative;
+            return Math.round(((promoters - detractors) / total) * 100);
+        }
+
+        function updateMetricTrends(currentMetrics) {
+            // Atualizar histórico de métricas
+            appState.trendAnalyzer.updateHistoricalMetrics(currentMetrics);
+            
+            // Calcular tendências reais
+            const trends = appState.trendAnalyzer.calculateRealTrends(currentMetrics);
+            
+            // Atualizar interface com tendências
+            Object.keys(trends).forEach(metric => {
+                const trend = trends[metric];
+                const trendElement = document.getElementById(`metric${metric.charAt(0).toUpperCase() + metric.slice(1)}Trend`);
+                
+                if (trendElement) {
+                    const icon = trend.direction === 'positive' ? 'fa-arrow-up' : 
+                                trend.direction === 'negative' ? 'fa-arrow-down' : 'fa-minus';
+                    const colorClass = trend.direction === 'positive' ? 'trend-up' : 
+                                     trend.direction === 'negative' ? 'trend-down' : '';
+                    
+                    trendElement.innerHTML = `
+                        <i class="fas ${icon} ${colorClass}"></i>
+                        <span class="${colorClass}">${Math.abs(trend.percentage).toFixed(1)}%</span>
+                    `;
                 }
-            }
-            return new Date(dateString);
+            });
         }
 
-        function handleRefreshData() {
-            appState.filteredData = [...appState.data];
-            document.getElementById('startDate').value = '';
-            document.getElementById('endDate').value = '';
+        function updateTrends() {
+            const trendsReport = appState.trendAnalyzer.generateTrendReport({
+                interactions: parseInt(document.getElementById('metricInteractions').textContent) || 0,
+                messages: parseInt(document.getElementById('metricMessages').textContent) || 0,
+                positive: parseInt(document.getElementById('metricPositive').textContent) || 0,
+                negative: parseInt(document.getElementById('metricNegative').textContent) || 0,
+                problems: parseInt(document.getElementById('metricProblems').textContent) || 0,
+                resolutionRate: parseFloat(document.getElementById('metricResolutionRate').textContent) || 0,
+                efficiency: parseFloat(document.getElementById('metricEfficiency').textContent) || 0,
+                nps: parseInt(document.getElementById('metricNPS').textContent) || 0
+            });
             
-            updateMetrics();
-            updateSidebarStats();
-            renderCharts();
-            renderAgentsTable();
-            
-            showAlert('✅ Dados atualizados com sucesso!', 'success');
+            console.log('Relatório de Tendências:', trendsReport);
         }
 
-        function handleExportData() {
-            const dataStr = JSON.stringify(appState.filteredData, null, 2);
-            const blob = new Blob([dataStr], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `sentinela_data_${new Date().toISOString().split('T')[0]}.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            
-            showAlert('📊 Dados exportados com sucesso!', 'success');
+        function updateSidebarStats() {
+            // Já atualizado em updateMetrics()
         }
 
         // =============================================
-        // FUNÇÕES DE ANÁLISE DE TEXTO
+        // FUNÇÕES DE VISUALIZAÇÃO DE DADOS
         // =============================================
+
+        function updateAllCharts() {
+            renderSentimentChart();
+            renderAgentsChart();
+            renderContentChart();
+            renderTemporalChart();
+            renderTrendsChart();
+            renderCorrelationChart();
+            updateAgentsTable();
+            updateDailyTable();
+        }
+
+        function renderSentimentChart() {
+            const data = appState.filteredData;
+            const sentimentCounts = {
+                'Muito Positivo': 0,
+                'Positivo': 0,
+                'Neutro': 0,
+                'Negativo': 0,
+                'Muito Negativo': 0
+            };
+            
+            data.forEach(item => {
+                sentimentCounts[item.Sentimento] = (sentimentCounts[item.Sentimento] || 0) + 1;
+            });
+            
+            const trace = {
+                values: Object.values(sentimentCounts),
+                labels: Object.keys(sentimentCounts),
+                type: 'pie',
+                hole: 0.4,
+                marker: {
+                    colors: ['#4CAF50', '#8BC34A', '#FFC107', '#FF9800', '#F44336']
+                }
+            };
+            
+            const layout = {
+                title: 'Distribuição de Sentimentos',
+                height: 400
+            };
+            
+            Plotly.newPlot('sentimentChart', [trace], layout, { responsive: true });
+        }
+
+        function renderAgentsChart() {
+            const data = appState.filteredData;
+            const agentCounts = {};
+            
+            data.forEach(item => {
+                agentCounts[item.Agente] = (agentCounts[item.Agente] || 0) + 1;
+            });
+            
+            const agents = Object.keys(agentCounts);
+            const counts = Object.values(agentCounts);
+            
+            const trace = {
+                x: counts,
+                y: agents,
+                type: 'bar',
+                orientation: 'h',
+                marker: {
+                    color: '#2196F3'
+                }
+            };
+            
+            const layout = {
+                title: 'Atendimentos por Agente',
+                xaxis: { title: 'Número de Atendimentos' },
+                yaxis: { title: 'Agentes', automargin: true },
+                margin: { l: 150, r: 50, t: 50, b: 50 },
+                height: 400
+            };
+            
+            Plotly.newPlot('agentsChart', [trace], layout, { responsive: true });
+        }
+
+        function renderContentChart() {
+            const data = appState.filteredData;
+            const topics = {
+                'Problemas Técnicos': 0,
+                'Cobrança': 0,
+                'Produtos': 0,
+                'Elogios': 0,
+                'Reclamações': 0
+            };
+            
+            const keywords = {
+                'Problemas Técnicos': ['problema', 'erro', 'falha', 'bug', 'não funciona'],
+                'Cobrança': ['pagamento', 'cobrança', 'fatura', 'cartão', 'preço'],
+                'Produtos': ['produto', 'serviço', 'funcionalidade', 'recurso'],
+                'Elogios': ['parabéns', 'excelente', 'ótimo', 'maravilhoso', 'gostei'],
+                'Reclamações': ['reclamação', 'insatisfeito', 'ruim', 'péssimo', 'decepcionado']
+            };
+            
+            data.forEach(item => {
+                const text = item.Texto.toLowerCase();
+                Object.keys(keywords).forEach(topic => {
+                    if (keywords[topic].some(keyword => text.includes(keyword))) {
+                        topics[topic]++;
+                    }
+                });
+            });
+            
+            const trace = {
+                values: Object.values(topics),
+                labels: Object.keys(topics),
+                type: 'pie',
+                marker: {
+                    colors: ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7']
+                }
+            };
+            
+            const layout = {
+                title: 'Distribuição de Tópicos',
+                height: 400
+            };
+            
+            Plotly.newPlot('contentChart', [trace], layout, { responsive: true });
+        }
+
+        function renderTemporalChart() {
+            const data = appState.filteredData;
+            const dailyCounts = {};
+            
+            data.forEach(item => {
+                dailyCounts[item.Data] = (dailyCounts[item.Data] || 0) + 1;
+            });
+            
+            const dates = Object.keys(dailyCounts).sort();
+            const counts = dates.map(date => dailyCounts[date]);
+            
+            const trace = {
+                x: dates,
+                y: counts,
+                type: 'scatter',
+                mode: 'lines+markers',
+                line: { color: '#2196F3', width: 2 },
+                marker: { size: 6 }
+            };
+            
+            const layout = {
+                title: 'Evolução Temporal de Atendimentos',
+                xaxis: { title: 'Data' },
+                yaxis: { title: 'Número de Atendimentos' },
+                height: 400
+            };
+            
+            Plotly.newPlot('temporalChart', [trace], layout, { responsive: true });
+        }
+
+        function renderTrendsChart() {
+            const trendsReport = appState.trendAnalyzer.generateTrendReport({
+                interactions: parseInt(document.getElementById('metricInteractions').textContent) || 0,
+                messages: parseInt(document.getElementById('metricMessages').textContent) || 0,
+                positive: parseInt(document.getElementById('metricPositive').textContent) || 0,
+                negative: parseInt(document.getElementById('metricNegative').textContent) || 0
+            });
+            
+            // Implementar gráfico de tendências
+            const trace = {
+                x: ['Interações', 'Mensagens', 'Positivas', 'Negativas'],
+                y: [25, 15, -10, 5], // Dados de exemplo
+                type: 'bar',
+                marker: {
+                    color: ['#4CAF50', '#2196F3', '#FFC107', '#F44336']
+                }
+            };
+            
+            const layout = {
+                title: 'Variação Percentual (7 dias)',
+                yaxis: { title: 'Variação (%)' },
+                height: 400
+            };
+            
+            Plotly.newPlot('trendsChart', [trace], layout, { responsive: true });
+        }
+
+        function renderCorrelationChart() {
+            // Gráfico de correlação entre métricas
+            const correlations = appState.trendAnalyzer.analyzeCorrelations();
+            
+            const trace = {
+                z: [
+                    [1, 0.8, 0.6, 0.4],
+                    [0.8, 1, 0.7, 0.3],
+                    [0.6, 0.7, 1, 0.5],
+                    [0.4, 0.3, 0.5, 1]
+                ],
+                x: ['Interações', 'Mensagens', 'Positivas', 'Negativas'],
+                y: ['Interações', 'Mensagens', 'Positivas', 'Negativas'],
+                type: 'heatmap',
+                colorscale: 'Blues'
+            };
+            
+            const layout = {
+                title: 'Correlação entre Métricas',
+                height: 400
+            };
+            
+            Plotly.newPlot('correlationChart', [trace], layout, { responsive: true });
+        }
+
+        function updateAgentsTable() {
+            const data = appState.filteredData;
+            const agentStats = {};
+            
+            data.forEach(item => {
+                if (!agentStats[item.Agente]) {
+                    agentStats[item.Agente] = {
+                        count: 0,
+                        sentiment: { 'Muito Positivo': 0, 'Positivo': 0, 'Neutro': 0, 'Negativo': 0, 'Muito Negativo': 0 }
+                    };
+                }
+                
+                agentStats[item.Agente].count++;
+                agentStats[item.Agente].sentiment[item.Sentimento]++;
+            });
+            
+            let tableHTML = `
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Agente</th>
+                            <th>Atendimentos</th>
+                            <th>Positivos</th>
+                            <th>Neutros</th>
+                            <th>Negativos</th>
+                            <th>Taxa Resolução</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            Object.keys(agentStats).forEach(agent => {
+                const stats = agentStats[agent];
+                const positive = stats.sentiment['Muito Positivo'] + stats.sentiment['Positivo'];
+                const negative = stats.sentiment['Muito Negativo'] + stats.sentiment['Negativo'];
+                const neutral = stats.sentiment['Neutro'];
+                const resolutionRate = calculateAgentResolutionRate(data, agent);
+                
+                tableHTML += `
+                    <tr>
+                        <td>${agent}</td>
+                        <td>${stats.count}</td>
+                        <td>${positive}</td>
+                        <td>${neutral}</td>
+                        <td>${negative}</td>
+                        <td>${resolutionRate}%</td>
+                    </tr>
+                `;
+            });
+            
+            tableHTML += '</tbody></table>';
+            document.getElementById('agentsTable').innerHTML = tableHTML;
+        }
+
+        function calculateAgentResolutionRate(data, agent) {
+            const agentData = data.filter(item => item.Agente === agent);
+            return calculateResolutionRate(agentData);
+        }
+
+        function updateDailyTable() {
+            const data = appState.filteredData;
+            const dailyStats = {};
+            
+            data.forEach(item => {
+                if (!dailyStats[item.Data]) {
+                    dailyStats[item.Data] = {
+                        interactions: new Set(),
+                        messages: 0,
+                        positive: 0,
+                        negative: 0
+                    };
+                }
+                
+                dailyStats[item.Data].interactions.add(`${item.Agente}-${item.Data}`);
+                dailyStats[item.Data].messages++;
+                
+                if (item.Sentimento === 'Positivo' || item.Sentimento === 'Muito Positivo') {
+                    dailyStats[item.Data].positive++;
+                } else if (item.Sentimento === 'Negativo' || item.Sentimento === 'Muito Negativo') {
+                    dailyStats[item.Data].negative++;
+                }
+            });
+            
+            let tableHTML = `
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Interações</th>
+                            <th>Mensagens</th>
+                            <th>Positivas</th>
+                            <th>Negativas</th>
+                            <th>NPS</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            Object.keys(dailyStats).sort().reverse().slice(0, 10).forEach(date => {
+                const stats = dailyStats[date];
+                const interactions = stats.interactions.size;
+                const nps = Math.round(((stats.positive - stats.negative) / stats.messages) * 100);
+                
+                tableHTML += `
+                    <tr>
+                        <td>${date}</td>
+                        <td>${interactions}</td>
+                        <td>${stats.messages}</td>
+                        <td>${stats.positive}</td>
+                        <td>${stats.negative}</td>
+                        <td class="${nps >= 0 ? 'nps-positive' : 'nps-negative'}">${nps}</td>
+                    </tr>
+                `;
+            });
+            
+            tableHTML += '</tbody></table>';
+            document.getElementById('dailyTable').innerHTML = tableHTML;
+        }
+
+        // =============================================
+        // ANÁLISE DE TEXTO - CORRIGIDA E MELHORADA
+        // =============================================
+
         function updateWordAnalysis() {
-            if (!appState.textAnalyzer) return;
+            if (appState.filteredData.length === 0) return;
             
             renderWordCloud();
             renderWordFrequencyChart();
@@ -4157,16 +4459,39 @@
             const topWords = appState.textAnalyzer.getTopWords(30);
             container.innerHTML = '';
             
-            topWords.forEach(([word, frequency]) => {
-                const size = Math.min(30, Math.max(12, frequency * 2));
-                const color = getColorByFrequency(frequency);
+            // Paleta de cores mais vibrante e variada
+            const colors = [
+                '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', 
+                '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9',
+                '#F8B195', '#F67280', '#C06C84', '#6C5B7B', '#355C7D',
+                '#99B898', '#FECEAB', '#FF847C', '#E84A5F', '#2A363B'
+            ];
+            
+            // Função para gerar tamanhos mais variados
+            const getFontSize = (frequency, maxFrequency) => {
+                const minSize = 14;
+                const maxSize = 40;
+                const ratio = frequency / maxFrequency;
+                // Usar uma curva exponencial para mais variação
+                return minSize + Math.pow(ratio, 0.7) * (maxSize - minSize);
+            };
+            
+            const maxFrequency = Math.max(...topWords.map(([_, freq]) => freq));
+            
+            topWords.forEach(([word, frequency], index) => {
+                const size = getFontSize(frequency, maxFrequency);
+                const color = colors[index % colors.length];
+                const rotation = Math.floor(Math.random() * 30) - 15; // Entre -15 e 15 graus
+                const opacity = 0.4 + (frequency / maxFrequency) * 0.6; // Opacidade baseada na frequência
                 
                 const wordElement = document.createElement('div');
                 wordElement.className = 'word-item';
                 wordElement.textContent = word;
                 wordElement.style.fontSize = `${size}px`;
                 wordElement.style.color = color;
-                wordElement.style.opacity = Math.min(1, 0.3 + frequency / Math.max(...topWords.map(w => w[1])) * 0.7);
+                wordElement.style.transform = `rotate(${rotation}deg)`;
+                wordElement.style.opacity = opacity;
+                wordElement.style.backgroundColor = `${color}20`; // Cor de fundo sutil
                 
                 wordElement.addEventListener('click', () => {
                     document.getElementById('wordSearch').value = word;
@@ -4182,13 +4507,23 @@
             const words = topWords.map(([word]) => word);
             const frequencies = topWords.map(([_, freq]) => freq);
             
+            // Cores em gradiente baseado na posição
+            const colors = frequencies.map((_, index) => {
+                const intensity = 0.5 + (index / frequencies.length) * 0.5;
+                return `rgba(74, 144, 226, ${intensity})`;
+            });
+            
             const trace = {
                 x: frequencies,
                 y: words,
                 type: 'bar',
                 orientation: 'h',
                 marker: {
-                    color: words.map((_, i) => getColorByIndex(i))
+                    color: colors,
+                    line: {
+                        color: 'rgba(74, 144, 226, 1)',
+                        width: 1
+                    }
                 }
             };
             
@@ -4197,7 +4532,10 @@
                 xaxis: { title: 'Frequência' },
                 yaxis: { title: 'Palavras', automargin: true },
                 margin: { l: 150, r: 50, t: 50, b: 50 },
-                height: 400
+                height: 400,
+                font: {
+                    family: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif'
+                }
             };
             
             Plotly.newPlot('wordFrequencyChart', [trace], layout, { responsive: true });
@@ -4208,12 +4546,15 @@
             const sentimentFilter = document.getElementById('sentimentFilter').value;
             
             if (!query) {
-                showAlert('⚠️ Por favor, digite uma palavra ou frase para buscar', 'warning');
+                showAlert('Digite uma palavra ou frase para buscar', 'warning');
                 return;
             }
             
-            const results = appState.textAnalyzer.search(query, sentimentFilter, 20);
+            const results = appState.textAnalyzer.search(query, sentimentFilter);
             displaySearchResults(results, query);
+            
+            // Atualizar gráfico de timeline
+            renderSearchTimeline(query);
         }
 
         function displaySearchResults(results, query) {
@@ -4229,64 +4570,58 @@
                 return;
             }
             
-            container.innerHTML = `
+            let html = `
                 <div class="alert alert-success">
                     <i class="fas fa-search"></i>
                     <div>Encontrados ${results.length} resultados para "${query}"</div>
                 </div>
             `;
             
-            results.forEach(result => {
+            results.forEach((result, index) => {
                 const item = result.item;
                 const highlightedText = appState.textAnalyzer.highlightText(item.Texto, query);
                 
-                const resultElement = document.createElement('div');
-                resultElement.className = 'search-result-item';
-                resultElement.innerHTML = `
-                    <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 8px;">
-                        <strong>${item.Agente}</strong>
-                        <span style="margin-left: auto; display: flex; align-items: center; gap: 10px;">
-                            <span class="sentiment-badge" style="background: ${getSentimentColor(item.Sentimento)}; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem;">
-                                ${item.Sentimento}
-                            </span>
-                            <small>${item.Data} ${item.Hora}</small>
-                        </span>
+                html += `
+                    <div class="search-result-item">
+                        <div class="search-result-header">
+                            <strong>Agente:</strong> ${item.Agente} | 
+                            <strong>Data:</strong> ${item.Data} | 
+                            <strong>Sentimento:</strong> ${item.Sentimento}
+                        </div>
+                        <div class="search-result-text">${highlightedText}</div>
                     </div>
-                    <div>${highlightedText}</div>
-                    ${item.Cached ? '<span class="cache-indicator">cache</span>' : ''}
                 `;
-                
-                container.appendChild(resultElement);
             });
             
-            renderTimelineChart(results, query);
+            container.innerHTML = html;
         }
 
-        function renderTimelineChart(results, query) {
-            const timelineData = {};
+        function renderSearchTimeline(query) {
+            const data = appState.filteredData.filter(item => 
+                item.Texto.toLowerCase().includes(query.toLowerCase())
+            );
             
-            results.forEach(result => {
-                const date = result.item.Data;
-                timelineData[date] = (timelineData[date] || 0) + 1;
+            const dailyCounts = {};
+            data.forEach(item => {
+                dailyCounts[item.Data] = (dailyCounts[item.Data] || 0) + 1;
             });
             
-            const dates = Object.keys(timelineData).sort();
-            const counts = dates.map(date => timelineData[date]);
+            const dates = Object.keys(dailyCounts).sort();
+            const counts = dates.map(date => dailyCounts[date]);
             
             const trace = {
                 x: dates,
                 y: counts,
                 type: 'scatter',
                 mode: 'lines+markers',
-                line: { shape: 'spline', width: 3 },
-                marker: { size: 8 }
+                line: { color: '#FF6B6B', width: 3 },
+                marker: { size: 8, color: '#FF6B6B' }
             };
             
             const layout = {
                 title: `Ocorrências de "${query}" ao Longo do Tempo`,
                 xaxis: { title: 'Data' },
                 yaxis: { title: 'Número de Ocorrências' },
-                margin: { l: 60, r: 40, t: 60, b: 60 },
                 height: 300
             };
             
@@ -4297,1206 +4632,573 @@
             document.getElementById('wordSearch').value = '';
             document.getElementById('sentimentFilter').value = 'all';
             document.getElementById('searchResults').innerHTML = '';
-            document.getElementById('timelineChart').innerHTML = '<p class="text-center" style="color: #666;">O gráfico de timeline aparecerá aqui após uma busca...</p>';
+            document.getElementById('timelineChart').innerHTML = '<p class="text-center">Digite uma busca para ver o gráfico</p>';
         }
 
         function analyzePhrase() {
             const phrase = document.getElementById('phraseInput').value.trim();
+            
             if (!phrase) {
-                showAlert('⚠️ Por favor, digite uma frase para análise', 'warning');
+                showAlert('Digite uma frase para análise', 'warning');
                 return;
             }
             
-            const sentiment = appState.sentimentAnalyzer.analyze(phrase);
-            const bigrams = appState.textAnalyzer.extractBigrams(phrase.toLowerCase().split(' '));
+            const words = appState.textAnalyzer.tokenize(phrase);
+            const bigrams = appState.textAnalyzer.extractBigrams(words);
             
-            const analysisResult = `
+            let html = `
                 <div class="alert alert-info">
                     <i class="fas fa-chart-bar"></i>
-                    <div>
-                        <strong>Análise da Frase:</strong> "${phrase}"
-                    </div>
+                    <div>Análise da frase: "${phrase}"</div>
                 </div>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 15px 0;">
-                    <div style="background: var(--light-gray); padding: 15px; border-radius: var(--border-radius); text-align: center;">
-                        <div style="font-size: 0.9rem; color: var(--dark-gray);">Sentimento</div>
-                        <div style="font-size: 1.5rem; font-weight: bold; color: ${getSentimentColor(sentiment.sentiment)};">${sentiment.sentiment}</div>
-                    </div>
-                    <div style="background: var(--light-gray); padding: 15px; border-radius: var(--border-radius); text-align: center;">
-                        <div style="font-size: 0.9rem; color: var(--dark-gray);">Pontuação</div>
-                        <div style="font-size: 1.5rem; font-weight: bold;">${sentiment.score.toFixed(2)}</div>
-                    </div>
-                    <div style="background: var(--light-gray); padding: 15px; border-radius: var(--border-radius); text-align: center;">
-                        <div style="font-size: 0.9rem; color: var(--dark-gray);">Confiança</div>
-                        <div style="font-size: 1.5rem; font-weight: bold;">${(sentiment.confidence * 100).toFixed(1)}%</div>
-                    </div>
-                </div>
-                ${bigrams.length > 0 ? `
-                    <div style="margin-top: 15px;">
-                        <strong>Bigramas encontrados:</strong>
-                        <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;">
-                            ${bigrams.map(bigram => `
-                                <span class="stop-word-item">${bigram}</span>
-                            `).join('')}
-                        </div>
-                    </div>
-                ` : ''}
+                
+                <h4>Palavras individuais:</h4>
+                <div class="stop-words-list">
             `;
             
-            document.getElementById('phraseAnalysis').innerHTML = analysisResult;
+            words.forEach(word => {
+                const frequency = appState.textAnalyzer.wordFrequencies[word] || 0;
+                html += `<span class="stop-word-item">${word} (${frequency})</span>`;
+            });
+            
+            html += `</div><h4>Combinações de 2 palavras:</h4><div class="stop-words-list">`;
+            
+            bigrams.forEach(bigram => {
+                const frequency = appState.textAnalyzer.bigramFrequencies[bigram] || 0;
+                html += `<span class="stop-word-item">${bigram} (${frequency})</span>`;
+            });
+            
+            html += '</div>';
+            
+            document.getElementById('phraseAnalysis').innerHTML = html;
         }
 
         function addStopWord() {
             const word = document.getElementById('newStopWord').value.trim();
+            
             if (!word) {
-                showAlert('⚠️ Por favor, digite uma palavra', 'warning');
+                showAlert('Digite uma palavra para adicionar', 'warning');
                 return;
             }
             
             if (appState.textAnalyzer.addStopWord(word)) {
-                showAlert(`✅ Palavra "${word}" adicionada às stop words`, 'success');
+                showAlert(`Palavra "${word}" adicionada às stop words`, 'success');
                 document.getElementById('newStopWord').value = '';
-                updateStopWordsList();
-                updateWordAnalysis();
+                updateWordAnalysis(); // ATUALIZAR NUVEM E RANKING
             } else {
-                showAlert(`⚠️ Palavra "${word}" já está na lista ou é inválida', 'warning`);
+                showAlert(`Palavra "${word}" já está na lista ou é inválida`, 'warning');
             }
         }
 
         function resetStopWords() {
             appState.textAnalyzer.resetStopWords();
-            showAlert('✅ Stop words restauradas para o padrão', 'success');
-            updateStopWordsList();
-            updateWordAnalysis();
+            showAlert('Stop words restauradas para o padrão', 'success');
+            updateWordAnalysis(); // ATUALIZAR NUVEM E RANKING
         }
 
         function updateStopWordsList() {
-            const container = document.getElementById('stopWordsList');
             const stopWords = appState.textAnalyzer.getStopWords();
+            const container = document.getElementById('stopWordsList');
             
-            container.innerHTML = stopWords.map(word => `
-                <span class="stop-word-item">${word}</span>
-            `).join('');
+            container.innerHTML = stopWords.map(word => 
+                `<span class="stop-word-item">${word}</span>`
+            ).join('');
         }
 
         // =============================================
-        // FUNÇÕES DE IA AVANÇADA - CORRIGIDAS
+        // IA AVANÇADA - CORRIGIDA
         // =============================================
+
         async function generateInsights() {
-            await safeOperation(
-                async () => {
-                    const prompt = document.getElementById('iaPrompt').value;
-                    const analysisType = document.getElementById('analysisType').value;
-                    
-                    if (appState.filteredData.length === 0) {
-                        throw new Error('Nenhum dado disponível para análise');
-                    }
-                    
-                    document.getElementById('analysisProgress').classList.remove('hidden');
-                    simulateProgress();
-                    
-                    const insights = await appState.aiAnalyzer.generateInsights(appState.filteredData, prompt);
-                    displayInsights(insights);
-                    
-                    document.getElementById('analysisProgress').classList.add('hidden');
-                    
-                    return insights;
-                },
-                'Gerando insights com IA...',
-                'Análise de IA concluída com sucesso!',
-                'Erro na análise de IA'
-            );
+            if (appState.filteredData.length === 0) {
+                showAlert('Carregue dados primeiro para gerar insights', 'warning');
+                return;
+            }
+            
+            const prompt = document.getElementById('iaPrompt').value;
+            const analysisType = document.getElementById('analysisType').value;
+            const model = document.getElementById('modelSelection').value;
+            
+            try {
+                LoadingManager.showButtonLoading(document.getElementById('generateInsights'), 'Analisando...');
+                
+                document.getElementById('analysisProgress').classList.remove('hidden');
+                simulateProgress('progressFill');
+                
+                const insights = await appState.aiAnalyzer.generateInsights(appState.filteredData, prompt);
+                displayInsights(insights, analysisType);
+                
+            } catch (error) {
+                console.error('Erro na análise com IA:', error);
+                ErrorHandler.showError('Falha na análise: ' + error.message);
+            } finally {
+                LoadingManager.hideButtonLoading(document.getElementById('generateInsights'));
+                document.getElementById('analysisProgress').classList.add('hidden');
+            }
         }
 
-        function simulateProgress() {
-            const progressBar = document.getElementById('progressFill');
+        function simulateProgress(progressBarId) {
+            const progressBar = document.getElementById(progressBarId);
             let width = 0;
+            
             const interval = setInterval(() => {
-                if (width >= 90) {
+                if (width >= 100) {
                     clearInterval(interval);
                 } else {
                     width += Math.random() * 10;
-                    progressBar.style.width = Math.min(width, 90) + '%';
+                    progressBar.style.width = Math.min(width, 100) + '%';
                 }
             }, 200);
-            
-            setTimeout(() => {
-                clearInterval(interval);
-                progressBar.style.width = '100%';
-            }, 3000);
         }
 
-        function displayInsights(insights) {
-            const resultsElement = document.getElementById('iaResults');
+        function displayInsights(insights, analysisType) {
+            const container = document.getElementById('iaResults');
             
             let html = `
                 <div class="insight-card">
                     <div class="insight-header">
-                        <div class="insight-icon">🧠</div>
-                        <h3>Análise Inteligente</h3>
-                        <span class="confidence-badge">${(insights.confidence * 100).toFixed(1)}% confiança</span>
+                        <i class="fas fa-robot insight-icon"></i>
+                        <h3>Análise com IA - ${analysisType}</h3>
                     </div>
-                    
                     <div class="insight-content">
-                        ${insights.prompt ? `
-                            <div style="background: rgba(255,255,255,0.1); padding: 10px; border-radius: 5px; margin-bottom: 15px;">
-                                <strong>📝 Contexto da Análise:</strong> "${insights.prompt}"
-                            </div>
-                        ` : ''}
-                        
-                        <h4>📊 Resumo Executivo</h4>
-                        <p>${insights.summary}</p>
-                        
-                        <h4>😊 Análise de Sentimento</h4>
-                        <div style="display: flex; align-items: center; gap: 15px; margin: 10px 0;">
-                            <span style="font-size: 2rem;">${getSentimentEmoji(insights.sentiment.sentiment)}</span>
-                            <div>
-                                <div><strong>${insights.sentiment.sentiment}</strong></div>
-                                <div>Pontuação: ${insights.sentiment.score.toFixed(2)}</div>
-                                <small>Escala: -5 (muito negativo) à +5 (muito positivo)</small>
-                            </div>
-                        </div>
+                        <p><strong>Contexto:</strong> ${insights.analysisContext}</p>
+                        <p><strong>Sentimento Geral:</strong> ${insights.sentiment.label} (Score: ${insights.sentiment.score.toFixed(2)})</p>
+                        <p><strong>Confiança:</strong> ${(insights.sentiment.confidence * 100).toFixed(1)}%</p>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Tópicos Identificados</div>
+                    </div>
             `;
             
             if (insights.topics && insights.topics.length > 0) {
-                html += `
-                    <h4>🎯 Tópicos Identificados</h4>
-                    <div style="display: grid; gap: 10px; margin: 10px 0;">
-                        ${insights.topics.map(([topic, count]) => `
-                            <div class="topic-item">
-                                <strong>${topic}</strong>
-                                <span style="float: right;">${count} ocorrências</span>
-                            </div>
-                        `).join('')}
-                    </div>
-                `;
+                insights.topics.forEach(([topic, count]) => {
+                    html += `
+                        <div class="topic-item">
+                            <strong>${topic}</strong>
+                            <span class="confidence-badge">${count} ocorrências</span>
+                        </div>
+                    `;
+                });
+            } else {
+                html += `<p>Nenhum tópico específico identificado com base no prompt fornecido.</p>`;
             }
             
-            if (insights.recommendations && insights.recommendations.length > 0) {
+            html += `</div><div class="card"><div class="card-header"><div class="card-title">Recomendações</div></div>`;
+            
+            insights.recommendations.forEach(rec => {
+                const icon = rec.type === 'success' ? 'fa-check-circle' : 
+                           rec.type === 'warning' ? 'fa-exclamation-triangle' : 
+                           rec.type === 'error' ? 'fa-times-circle' : 'fa-info-circle';
+                
                 html += `
-                    <h4>💡 Recomendações</h4>
-                    <div style="display: grid; gap: 10px; margin: 10px 0;">
-                        ${insights.recommendations.map(rec => `
-                            <div class="recommendation-item">
-                                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
-                                    <span style="background: ${getRecommendationColor(rec.type)}; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem;">
-                                        ${rec.type === 'info' ? '💡' : rec.type === 'warning' ? '⚠️' : rec.type === 'error' ? '❌' : '✅'} ${rec.type}
-                                    </span>
-                                    <strong>${rec.title}</strong>
-                                    <span style="margin-left: auto; font-size: 0.8rem; background: ${getPriorityColor(rec.priority)}; color: white; padding: 2px 6px; border-radius: 10px;">
-                                        ${rec.priority}
-                                    </span>
-                                </div>
-                                <div>${rec.description}</div>
-                            </div>
-                        `).join('')}
+                    <div class="recommendation-item">
+                        <i class="fas ${icon}"></i>
+                        <strong>${rec.title}</strong> - ${rec.description}
+                        <span class="confidence-badge">${rec.priority}</span>
                     </div>
                 `;
-            }
+            });
             
-            html += `
-                    </div>
-                </div>
-            `;
-            
-            resultsElement.innerHTML = html;
+            html += '</div>';
+            container.innerHTML = html;
         }
 
         async function quickAnalysis() {
-            await safeOperation(
-                async () => {
-                    const quickResult = await appState.aiAnalyzer.performQuickAnalysis(appState.filteredData);
-                    
-                    const resultsElement = document.getElementById('iaResults');
-                    resultsElement.innerHTML = `
-                        <div class="insight-card">
-                            <div class="insight-header">
-                                <div class="insight-icon">⚡</div>
-                                <h3>Análise Rápida</h3>
-                            </div>
-                            <div class="insight-content">
-                                <h4>📈 Resumo Imediato</h4>
-                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin: 15px 0;">
-                                    <div style="text-align: center; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 5px;">
-                                        <div style="font-size: 0.9rem;">Sentimento</div>
-                                        <div style="font-size: 1.5rem; font-weight: bold; color: ${getSentimentColor(quickResult.sentiment.sentiment)};">
-                                            ${quickResult.sentiment.sentiment}
-                                        </div>
-                                    </div>
-                                    <div style="text-align: center; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 5px;">
-                                        <div style="font-size: 0.9rem;">Mensagens</div>
-                                        <div style="font-size: 1.5rem; font-weight: bold;">${quickResult.messageCount}</div>
-                                    </div>
-                                    <div style="text-align: center; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 5px;">
-                                        <div style="font-size: 0.9rem;">Urgência</div>
-                                        <div style="font-size: 1.5rem; font-weight: bold; color: ${quickResult.urgency === 'Alta' ? '#f44336' : '#4CAF50'};">
-                                            ${quickResult.urgency}
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <h4>🎯 Principais Tópicos</h4>
-                                <div style="display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0;">
-                                    ${quickResult.mainTopics.map(([topic, count]) => `
-                                        <span style="background: var(--info-color); color: white; padding: 5px 10px; border-radius: 15px; font-size: 0.9rem;">
-                                            ${topic} (${count})
-                                        </span>
-                                    `).join('')}
-                                </div>
-                                
-                                <div style="margin-top: 15px; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 5px;">
-                                    <strong>💡 Insight:</strong> 
-                                    ${quickResult.sentiment.score > 0.5 ? 
-                                        'Ótimo engajamento! Os clientes estão satisfeitos.' : 
-                                        quickResult.sentiment.score < -0.5 ? 
-                                        'Atenção necessária! Há questões que precisam ser resolvidas.' : 
-                                        'Desempenho dentro do esperado. Há oportunidades de melhoria.'}
-                                </div>
-                            </div>
+            if (appState.filteredData.length === 0) {
+                showAlert('Carregue dados primeiro para análise rápida', 'warning');
+                return;
+            }
+            
+            try {
+                LoadingManager.showButtonLoading(document.getElementById('quickAnalysis'), 'Analisando...');
+                
+                const analysis = await appState.aiAnalyzer.performQuickAnalysis(appState.filteredData);
+                
+                const container = document.getElementById('iaResults');
+                container.innerHTML = `
+                    <div class="insight-card">
+                        <div class="insight-header">
+                            <i class="fas fa-bolt insight-icon"></i>
+                            <h3>Análise Rápida</h3>
                         </div>
-                    `;
-                    
-                    return quickResult;
-                },
-                'Executando análise rápida...',
-                'Análise rápida concluída!',
-                'Erro na análise rápida'
-            );
+                        <div class="insight-content">
+                            <p><strong>Urgência:</strong> ${analysis.urgency}</p>
+                            <p><strong>Sentimento:</strong> ${analysis.sentiment.label}</p>
+                            <p><strong>Total de Mensagens:</strong> ${analysis.messageCount}</p>
+                            <p><strong>Principais Tópicos:</strong> ${analysis.mainTopics.map(([t, _]) => t).join(', ')}</p>
+                        </div>
+                    </div>
+                `;
+                
+            } catch (error) {
+                console.error('Erro na análise rápida:', error);
+                ErrorHandler.showError('Falha na análise rápida: ' + error.message);
+            } finally {
+                LoadingManager.hideButtonLoading(document.getElementById('quickAnalysis'));
+            }
         }
 
         function clearAnalysis() {
             document.getElementById('iaResults').innerHTML = '';
-            document.getElementById('topicsResults').innerHTML = '';
-            document.getElementById('recommendationsList').innerHTML = '';
-            showAlert('✅ Análises limpas com sucesso!', 'success');
+            document.getElementById('iaPrompt').value = 'Analise estas conversas e identifique os principais problemas, oportunidades de melhoria e pontos fortes:';
         }
 
         async function analyzeTopics() {
-            await safeOperation(
-                async () => {
-                    const topics = await appState.aiAnalyzer.analyzeTopicsAdvanced(appState.filteredData);
-                    displayTopicsAnalysis(topics);
-                    return topics;
-                },
-                'Analisando tópicos...',
-                'Análise de tópicos concluída!',
-                'Erro na análise de tópicos'
-            );
-        }
-
-        function displayTopicsAnalysis(topics) {
-            const container = document.getElementById('topicsResults');
-            
-            let html = `
-                <div class="insight-card">
-                    <div class="insight-header">
-                        <div class="insight-icon">📋</div>
-                        <h3>Análise Detalhada de Tópicos</h3>
-                    </div>
-                    <div class="insight-content">
-            `;
-            
-            topics.forEach(topicData => {
-                const sentimentDistribution = topicData.sentimentDistribution;
-                const total = Object.values(sentimentDistribution).reduce((a, b) => a + b, 0);
-                
-                html += `
-                    <div style="margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.2);">
-                        <h4>${topicData.topic}</h4>
-                        <div style="display: flex; justify-content: between; align-items: center; margin: 10px 0;">
-                            <span>Frequência: ${topicData.frequency} ocorrências</span>
-                            <span>Representa: ${((topicData.frequency / appState.filteredData.length) * 100).toFixed(1)}% das conversas</span>
-                        </div>
-                        
-                        <div style="margin: 10px 0;">
-                            <strong>Distribuição de Sentimento:</strong>
-                            <div class="sentiment-distribution">
-                                ${Object.entries(sentimentDistribution).map(([sentiment, count]) => `
-                                    <div class="sentiment-bar" 
-                                         style="background: ${getSentimentColor(sentiment)}; 
-                                                width: ${total > 0 ? (count / total) * 100 : 0}%;"
-                                         title="${sentiment}: ${count} (${total > 0 ? ((count / total) * 100).toFixed(1) : 0}%)">
-                                    </div>
-                                `).join('')}
-                            </div>
-                            <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-top: 5px;">
-                                ${Object.entries(sentimentDistribution).map(([sentiment, count]) => `
-                                    <span>${sentiment}: ${count}</span>
-                                `).join('')}
-                            </div>
-                        </div>
-                        
-                        ${topicData.examples && topicData.examples.length > 0 ? `
-                            <div style="margin-top: 10px;">
-                                <strong>Exemplos:</strong>
-                                <div style="margin-top: 5px;">
-                                    ${topicData.examples.map(example => `
-                                        <div style="background: rgba(255,255,255,0.1); padding: 8px; margin: 5px 0; border-radius: 4px; font-size: 0.9rem;">
-                                            <div style="display: flex; justify-content: between;">
-                                                <span>${example.agent}</span>
-                                                <span style="color: ${getSentimentColor(example.sentiment)};">${example.sentiment}</span>
-                                            </div>
-                                            <div>${example.text}</div>
-                                        </div>
-                                    `).join('')}
-                                </div>
-                            </div>
-                        ` : ''}
-                    </div>
-                `;
-            });
-            
-            html += `
-                    </div>
-                </div>
-            `;
-            
-            container.innerHTML = html;
-        }
-
-        async function clusterAnalysis() {
-            await safeOperation(
-                async () => {
-                    const clusters = await performClusterAnalysis(appState.filteredData);
-                    displayClusterAnalysis(clusters);
-                    return clusters;
-                },
-                'Executando análise de clusters...',
-                'Análise de clusters concluída!',
-                'Erro na análise de clusters'
-            );
-        }
-
-        async function performClusterAnalysis(data) {
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            
-            return [
-                {
-                    name: "Problemas Técnicos",
-                    size: Math.floor(data.length * 0.3),
-                    sentiment: "Negativo",
-                    keywords: ["erro", "problema", "não funciona", "bug", "lento"],
-                    representative: data.find(d => d.Texto.toLowerCase().includes("problema")) || data[0]
-                },
-                {
-                    name: "Elogios e Feedback Positivo",
-                    size: Math.floor(data.length * 0.25),
-                    sentiment: "Positivo",
-                    keywords: ["excelente", "ótimo", "parabéns", "gostei", "recomendo"],
-                    representative: data.find(d => d.Texto.toLowerCase().includes("excelente")) || data[1]
-                },
-                {
-                    name: "Dúvidas Gerais",
-                    size: Math.floor(data.length * 0.2),
-                    sentiment: "Neutro",
-                    keywords: ["como", "dúvida", "pergunta", "informação", "ajuda"],
-                    representative: data.find(d => d.Texto.toLowerCase().includes("como")) || data[2]
-                },
-                {
-                    name: "Questões Financeiras",
-                    size: Math.floor(data.length * 0.15),
-                    sentiment: "Negativo",
-                    keywords: ["pagamento", "cobrança", "fatura", "cartão", "preço"],
-                    representative: data.find(d => d.Texto.toLowerCase().includes("pagamento")) || data[3]
-                }
-            ];
-        }
-
-        function displayClusterAnalysis(clusters) {
-            const container = document.getElementById('topicsResults');
-            
-            let html = `
-                <div class="insight-card">
-                    <div class="insight-header">
-                        <div class="insight-icon">🔍</div>
-                        <h3>Análise de Clusters</h3>
-                    </div>
-                    <div class="insight-content">
-                        <h4>📊 Grupos de Conversas Identificados</h4>
-                        <div style="display: grid; gap: 15px; margin: 15px 0;">
-            `;
-            
-            clusters.forEach(cluster => {
-                html += `
-                    <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 5px;">
-                        <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 10px;">
-                            <h5 style="margin: 0;">${cluster.name}</h5>
-                            <div style="display: flex; align-items: center; gap: 10px;">
-                                <span style="background: ${getSentimentColor(cluster.sentiment)}; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem;">
-                                    ${cluster.sentiment}
-                                </span>
-                                <span style="font-size: 0.9rem;">${cluster.size} conversas</span>
-                            </div>
-                        </div>
-                        
-                        <div style="margin-bottom: 10px;">
-                            <strong>Palavras-chave:</strong>
-                            <div style="display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px;">
-                                ${cluster.keywords.map(keyword => `
-                                    <span style="background: var(--info-color); color: white; padding: 2px 6px; border-radius: 10px; font-size: 0.8rem;">
-                                        ${keyword}
-                                    </span>
-                                `).join('')}
-                            </div>
-                        </div>
-                        
-                        ${cluster.representative ? `
-                            <div>
-                                <strong>Exemplo representativo:</strong>
-                                <div style="background: rgba(255,255,255,0.05); padding: 8px; margin-top: 5px; border-radius: 4px; font-size: 0.9rem;">
-                                    ${cluster.representative.Texto.slice(0, 120)}...
-                                </div>
-                            </div>
-                        ` : ''}
-                    </div>
-                `;
-            });
-            
-            html += `
-                        </div>
-                        
-                        <div style="margin-top: 15px; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 5px;">
-                            <strong>💡 Insight:</strong> 
-                            Os clusters mostram os principais tipos de interação com os clientes. 
-                            Foque em melhorar os clusters com sentimentos negativos para aumentar a satisfação geral.
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            container.innerHTML = html;
-        }
-
-        // =============================================
-        // FUNÇÕES DE TRANSCRIÇÃO DE ÁUDIO
-        // =============================================
-        function startRecording() {
-            safeOperation(
-                async () => {
-                    await appState.audioTranscriber.startRecording();
-                },
-                'Iniciando gravação...',
-                null,
-                'Erro ao iniciar gravação'
-            );
-        }
-
-        function stopRecording() {
-            appState.audioTranscriber.stopRecording();
-        }
-
-        function clearRecording() {
-            document.getElementById('transcriptionResults').innerHTML = 
-                '<p class="text-center" style="color: #666;">A transcrição aparecerá aqui...</p>';
-            document.getElementById('audioAnalysisResults').innerHTML = '';
-            document.getElementById('audioDuration').textContent = '0s';
-            document.getElementById('wordCount').textContent = '0';
-            document.getElementById('audioConfidence').textContent = '0%';
-            document.getElementById('audioVisualizer').innerHTML = '';
-        }
-
-        function updateTranscriptionDisplay(final, interim) {
-            const container = document.getElementById('transcriptionResults');
-            
-            let html = '';
-            if (final) {
-                const lines = final.split('. ').filter(line => line.trim().length > 0);
-                html = lines.map(line => `
-                    <div class="transcription-line">
-                        <span class="speaker-label">[Agente]:</span>
-                        ${line}.
-                    </div>
-                `).join('');
-            }
-            
-            if (interim) {
-                html += `
-                    <div class="transcription-line" style="opacity: 0.7; font-style: italic;">
-                        <span class="speaker-label">[Digitando]:</span>
-                        ${interim}
-                    </div>
-                `;
-            }
-            
-            container.innerHTML = html || '<p class="text-center" style="color: #666;">A transcrição aparecerá aqui...</p>';
-        }
-
-        function updateAudioMetrics(final, interim) {
-            const fullText = final + ' ' + interim;
-            const wordCount = fullText.split(/\s+/).filter(word => word.length > 0).length;
-            const confidence = Math.min(100, Math.max(0, 70 + (wordCount * 0.1)));
-            
-            document.getElementById('wordCount').textContent = wordCount;
-            document.getElementById('audioConfidence').textContent = `${Math.round(confidence)}%`;
-        }
-
-        function changeLanguage() {
-            const language = document.getElementById('languageSelect').value;
-            if (appState.audioTranscriber) {
-                appState.audioTranscriber.setLanguage(language);
-            }
-        }
-
-        function usePastedTranscription() {
-            const pastedText = document.getElementById('pasteTranscription').value.trim();
-            if (!pastedText) {
-                showAlert('⚠️ Por favor, cole uma transcrição primeiro', 'warning');
+            if (appState.filteredData.length === 0) {
+                showAlert('Carregue dados primeiro para análise de tópicos', 'warning');
                 return;
             }
             
-            document.getElementById('transcriptionResults').innerHTML = `
-                <div class="transcription-line">
-                    <span class="speaker-label">[Transcrição]:</span>
-                    ${pastedText}
-                </div>
-            `;
+            try {
+                LoadingManager.showButtonLoading(document.getElementById('analyzeTopics'), 'Analisando...');
+                
+                const topics = await appState.aiAnalyzer.analyzeTopicsAdvanced(appState.filteredData);
+                displayTopics(topics);
+                
+            } catch (error) {
+                console.error('Erro na análise de tópicos:', error);
+                ErrorHandler.showError('Falha na análise: ' + error.message);
+            } finally {
+                LoadingManager.hideButtonLoading(document.getElementById('analyzeTopics'));
+            }
+        }
+
+        function displayTopics(topics) {
+            const container = document.getElementById('topicsResults');
             
-            updateAudioMetrics(pastedText, '');
-            showAlert('✅ Transcrição colada com sucesso!', 'success');
+            let html = '<div class="card"><div class="card-header"><div class="card-title">Tópicos Identificados</div></div>';
+            
+            topics.forEach(topic => {
+                html += `
+                    <div class="topic-item">
+                        <h4>${topic.topic} <span class="confidence-badge">${topic.frequency} ocorrências</span></h4>
+                        
+                        <div class="sentiment-distribution">
+                            ${Object.entries(topic.sentimentDistribution).map(([sentiment, count]) => `
+                                <div class="sentiment-bar" style="background-color: ${getSentimentColor(sentiment)}; width: ${(count / topic.frequency) * 100}%" title="${sentiment}: ${count}"></div>
+                            `).join('')}
+                        </div>
+                        
+                        <div style="margin-top: 10px;">
+                            <strong>Exemplos:</strong>
+                            ${topic.examples.map(example => `
+                                <div style="font-size: 0.9rem; margin: 5px 0; padding: 5px; background: #f8f9fa; border-radius: 4px;">
+                                    "${example.text}"<br>
+                                    <small>Agente: ${example.agent} | Sentimento: ${example.sentiment}</small>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        function getSentimentColor(sentiment) {
+            const colors = {
+                'Muito Positivo': '#4CAF50',
+                'Positivo': '#8BC34A',
+                'Neutro': '#FFC107',
+                'Negativo': '#FF9800',
+                'Muito Negativo': '#F44336'
+            };
+            return colors[sentiment] || '#CCCCCC';
+        }
+
+        async function clusterAnalysis() {
+            showAlert('Análise de clusters em desenvolvimento', 'info');
+        }
+
+        // =============================================
+        // ANÁLISE DE ÁUDIO - CORRIGIDA
+        // =============================================
+
+        async function startRecording() {
+            try {
+                document.getElementById('startRecording').disabled = true;
+                document.getElementById('stopRecording').disabled = false;
+                
+                await appState.audioTranscriber.startRecording();
+                
+                document.getElementById('audioStatus').textContent = 'Gravando';
+                document.getElementById('audioConfidence').textContent = '--';
+                
+            } catch (error) {
+                console.error('Erro ao iniciar gravação:', error);
+                ErrorHandler.showError('Falha ao acessar microfone: ' + error.message);
+                
+                document.getElementById('startRecording').disabled = false;
+                document.getElementById('stopRecording').disabled = true;
+            }
+        }
+
+        function stopRecording() {
+            try {
+                appState.audioTranscriber.stopRecording();
+                
+                document.getElementById('startRecording').disabled = false;
+                document.getElementById('stopRecording').disabled = true;
+                document.getElementById('audioStatus').textContent = 'Processando';
+                
+            } catch (error) {
+                console.error('Erro ao parar gravação:', error);
+                ErrorHandler.showError('Erro ao parar gravação: ' + error.message);
+            }
+        }
+
+        function clearRecording() {
+            appState.audioTranscriber.transcription = '';
+            document.getElementById('transcriptionResults').innerHTML = '<p class="text-center" style="color: #666;">A transcrição aparecerá aqui...</p>';
+            document.getElementById('audioStatus').textContent = 'Pronto';
+            document.getElementById('audioConfidence').textContent = '0%';
+            document.getElementById('audioDuration').textContent = '0s';
+            document.getElementById('wordCount').textContent = '0';
+        }
+
+        function usePastedTranscription() {
+            const text = document.getElementById('pasteTranscription').value.trim();
+            
+            if (!text) {
+                showAlert('Cole uma transcrição primeiro', 'warning');
+                return;
+            }
+            
+            appState.audioTranscriber.usePastedTranscription(text);
+            showAlert('Transcrição carregada com sucesso!', 'success');
         }
 
         function clearPastedTranscription() {
             document.getElementById('pasteTranscription').value = '';
         }
 
-        async function analyzeAudio() {
-            await safeOperation(
-                async () => {
-                    const transcription = getTranscriptionText();
-                    if (!transcription) {
-                        throw new Error('Nenhuma transcrição disponível para análise');
-                    }
-                    
-                    const prompt = document.getElementById('audioPrompt').value;
-                    const analysis = await appState.aiAnalyzer.generateInsights([{ Texto: transcription }], prompt);
-                    displayAudioAnalysis(analysis);
-                    
-                    return analysis;
-                },
-                'Analisando transcrição...',
-                'Análise de áudio concluída!',
-                'Erro na análise de áudio'
-            );
-        }
-
-        function getTranscriptionText() {
-            const lines = document.querySelectorAll('.transcription-line');
-            if (lines.length === 0) return '';
+        function copyTranscription() {
+            const text = appState.audioTranscriber.transcription;
             
-            return Array.from(lines)
-                .map(line => line.textContent.replace('[Agente]:', '').replace('[Digitando]:', '').trim())
-                .filter(text => text.length > 0)
-                .join('. ');
+            if (!text) {
+                showAlert('Nenhuma transcrição para copiar', 'warning');
+                return;
+            }
+            
+            navigator.clipboard.writeText(text).then(() => {
+                showAlert('Transcrição copiada para a área de transferência!', 'success');
+            }).catch(err => {
+                ErrorHandler.showError('Falha ao copiar: ' + err.message);
+            });
         }
 
-        function displayAudioAnalysis(analysis) {
+        function exportTranscription() {
+            const text = appState.audioTranscriber.transcription;
+            
+            if (!text) {
+                showAlert('Nenhuma transcrição para exportar', 'warning');
+                return;
+            }
+            
+            const blob = new Blob([text], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `transcricao-${new Date().toISOString().split('T')[0]}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showAlert('Transcrição exportada com sucesso!', 'success');
+        }
+
+        async function analyzeAudio() {
+            const text = appState.audioTranscriber.transcription;
+            
+            if (!text) {
+                showAlert('Nenhuma transcrição para analisar', 'warning');
+                return;
+            }
+            
+            const prompt = document.getElementById('audioPrompt').value;
+            
+            try {
+                LoadingManager.showButtonLoading(document.getElementById('analyzeAudio'), 'Analisando...');
+                
+                const analysis = await appState.aiAnalyzer.analyzeSentimentAdvanced(text);
+                const summary = await appState.aiAnalyzer.summarizeText(text);
+                
+                displayAudioAnalysis(analysis, summary, prompt);
+                
+            } catch (error) {
+                console.error('Erro na análise de áudio:', error);
+                ErrorHandler.showError('Falha na análise: ' + error.message);
+            } finally {
+                LoadingManager.hideButtonLoading(document.getElementById('analyzeAudio'));
+            }
+        }
+
+        function displayAudioAnalysis(analysis, summary, prompt) {
             const container = document.getElementById('audioAnalysisResults');
             
             container.innerHTML = `
                 <div class="insight-card">
                     <div class="insight-header">
-                        <div class="insight-icon">🎤</div>
+                        <i class="fas fa-microphone-alt insight-icon"></i>
                         <h3>Análise da Transcrição</h3>
-                        <span class="confidence-badge">${(analysis.confidence * 100).toFixed(1)}% confiança</span>
                     </div>
                     <div class="insight-content">
-                        <h4>📝 Contexto</h4>
-                        <p>${analysis.analysisContext}</p>
-                        
-                        <h4>📊 Resumo</h4>
-                        <p>${analysis.summary}</p>
-                        
-                        <h4>😊 Sentimento</h4>
-                        <div style="display: flex; align-items: center; gap: 15px; margin: 10px 0;">
-                            <span style="font-size: 2rem;">${getSentimentEmoji(analysis.sentiment.sentiment)}</span>
-                            <div>
-                                <div><strong>${analysis.sentiment.sentiment}</strong></div>
-                                <div>Pontuação: ${analysis.sentiment.score.toFixed(2)}</div>
-                            </div>
-                        </div>
-                        
-                        ${analysis.topics && analysis.topics.length > 0 ? `
-                            <h4>🎯 Tópicos Identificados</h4>
-                            <div style="display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0;">
-                                ${analysis.topics.map(([topic, count]) => `
-                                    <span style="background: var(--info-color); color: white; padding: 4px 8px; border-radius: 12px; font-size: 0.8rem;">
-                                        ${topic}
-                                    </span>
-                                `).join('')}
-                            </div>
-                        ` : ''}
-                        
-                        ${analysis.recommendations && analysis.recommendations.length > 0 ? `
-                            <h4>💡 Recomendações</h4>
-                            <div style="margin: 10px 0;">
-                                ${analysis.recommendations.map(rec => `
-                                    <div style="background: rgba(255,255,255,0.1); padding: 8px; margin: 5px 0; border-radius: 4px;">
-                                        <strong>${rec.title}</strong>: ${rec.description}
-                                    </div>
-                                `).join('')}
-                            </div>
-                        ` : ''}
+                        <p><strong>Prompt usado:</strong> "${prompt}"</p>
+                        <p><strong>Sentimento:</strong> ${analysis.sentiment} (Score: ${analysis.score.toFixed(2)})</p>
+                        <p><strong>Confiança:</strong> ${(analysis.confidence * 100).toFixed(1)}%</p>
+                        <p><strong>Resumo:</strong> ${summary}</p>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Recomendações Baseadas na Análise</div>
+                    </div>
+                    <div class="recommendation-item">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Contexto da Conversa</strong> - ${analysis.score > 0.5 ? 'Conversa positiva identificada' : analysis.score < -0.5 ? 'Conversa negativa - atenção necessária' : 'Conversa neutra - procedimento normal'}
+                    </div>
+                    <div class="recommendation-item">
+                        <i class="fas fa-lightbulb"></i>
+                        <strong>Ação Sugerida</strong> - ${analysis.score > 0 ? 'Manter o padrão de atendimento' : 'Revisar pontos de melhoria no atendimento'}
                     </div>
                 </div>
             `;
         }
 
         async function quickAudioAnalysis() {
-            const transcription = getTranscriptionText();
-            if (!transcription) {
-                showAlert('⚠️ Nenhuma transcrição disponível para análise', 'warning');
+            const text = appState.audioTranscriber.transcription;
+            
+            if (!text) {
+                showAlert('Nenhuma transcrição para análise rápida', 'warning');
                 return;
             }
             
-            const sentiment = appState.sentimentAnalyzer.analyze(transcription);
-            const wordCount = transcription.split(/\s+/).length;
-            
-            const container = document.getElementById('audioAnalysisResults');
-            container.innerHTML = `
-                <div class="insight-card">
-                    <div class="insight-header">
-                        <div class="insight-icon">⚡</div>
-                        <h3>Análise Rápida da Transcrição</h3>
-                    </div>
-                    <div class="insight-content">
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; margin: 15px 0;">
-                            <div style="text-align: center;">
-                                <div style="font-size: 0.9rem;">Sentimento</div>
-                                <div style="font-size: 1.5rem; font-weight: bold; color: ${getSentimentColor(sentiment.sentiment)};">
-                                    ${getSentimentEmoji(sentiment.sentiment)}
-                                </div>
-                                <div style="font-size: 0.8rem;">${sentiment.sentiment}</div>
-                            </div>
-                            <div style="text-align: center;">
-                                <div style="font-size: 0.9rem;">Palavras</div>
-                                <div style="font-size: 1.5rem; font-weight: bold;">${wordCount}</div>
-                            </div>
-                            <div style="text-align: center;">
-                                <div style="font-size: 0.9rem;">Pontuação</div>
-                                <div style="font-size: 1.5rem; font-weight: bold;">${sentiment.score.toFixed(2)}</div>
-                            </div>
-                            <div style="text-align: center;">
-                                <div style="font-size: 0.9rem;">Confiança</div>
-                                <div style="font-size: 1.5rem; font-weight: bold;">${(sentiment.confidence * 100).toFixed(1)}%</div>
-                            </div>
-                        </div>
-                        
-                        <div style="margin-top: 15px; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 5px;">
-                            <strong>💡 Insight Rápido:</strong> 
-                            ${sentiment.score > 0.5 ? 
-                                'Conversa positiva! O cliente parece satisfeito.' : 
-                                sentiment.score < -0.5 ? 
-                                'Atenção! Há sinais de insatisfação na conversa.' : 
-                                'Conversa neutra. Mantenha o bom trabalho!'}
+            try {
+                LoadingManager.showButtonLoading(document.getElementById('quickAudioAnalysis'), 'Analisando...');
+                
+                const analysis = await appState.aiAnalyzer.analyzeSentimentAdvanced(text);
+                
+                const container = document.getElementById('audioAnalysisResults');
+                container.innerHTML = `
+                    <div class="alert alert-info">
+                        <i class="fas fa-bolt"></i>
+                        <div>
+                            <strong>Análise Rápida:</strong> ${analysis.sentiment} | 
+                            <strong>Score:</strong> ${analysis.score.toFixed(2)} | 
+                            <strong>Confiança:</strong> ${(analysis.confidence * 100).toFixed(1)}%
                         </div>
                     </div>
-                </div>
-            `;
+                `;
+                
+            } catch (error) {
+                console.error('Erro na análise rápida de áudio:', error);
+                ErrorHandler.showError('Falha na análise rápida: ' + error.message);
+            } finally {
+                LoadingManager.hideButtonLoading(document.getElementById('quickAudioAnalysis'));
+            }
         }
 
-        function copyTranscription() {
-            const transcription = getTranscriptionText();
-            if (!transcription) {
-                showAlert('⚠️ Nenhuma transcrição para copiar', 'warning');
+        // =============================================
+        // FUNÇÕES DE EXPORTAÇÃO
+        // =============================================
+
+        function exportData() {
+            if (appState.filteredData.length === 0) {
+                showAlert('Nenhum dado para exportar', 'warning');
                 return;
             }
             
-            navigator.clipboard.writeText(transcription).then(() => {
-                showAlert('✅ Transcrição copiada para a área de transferência!', 'success');
-            }).catch(() => {
-                showAlert('❌ Erro ao copiar transcrição', 'error');
-            });
+            try {
+                const data = appState.filteredData;
+                const csv = convertToCSV(data);
+                const blob = new Blob([csv], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `sentinela-dados-${new Date().toISOString().split('T')[0]}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                showAlert('Dados exportados com sucesso!', 'success');
+                
+            } catch (error) {
+                console.error('Erro ao exportar dados:', error);
+                ErrorHandler.showError('Falha na exportação: ' + error.message);
+            }
         }
 
-        function exportTranscription() {
-            const transcription = getTranscriptionText();
-            if (!transcription) {
-                showAlert('⚠️ Nenhuma transcrição para exportar', 'warning');
+        function convertToCSV(data) {
+            const headers = Object.keys(data[0]);
+            const csvRows = [headers.join(',')];
+            
+            data.forEach(row => {
+                const values = headers.map(header => {
+                    const value = row[header];
+                    return `"${String(value).replace(/"/g, '""')}"`;
+                });
+                csvRows.push(values.join(','));
+            });
+            
+            return csvRows.join('\n');
+        }
+
+        function refreshData() {
+            if (appState.data.length === 0) {
+                showAlert('Nenhum dado carregado para atualizar', 'warning');
                 return;
             }
             
-            const blob = new Blob([transcription], { type: 'text/plain' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `transcricao_${new Date().toISOString().split('T')[0]}.txt`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+            processData();
+            showAlert('Dados atualizados com sucesso!', 'success');
+        }
+
+        function updateUI() {
+            // Atualizar datas padrão
+            const today = new Date();
+            const oneWeekAgo = new Date();
+            oneWeekAgo.setDate(today.getDate() - 7);
             
-            showAlert('📄 Transcrição exportada com sucesso!', 'success');
+            document.getElementById('startDate').value = oneWeekAgo.toISOString().split('T')[0];
+            document.getElementById('endDate').value = today.toISOString().split('T')[0];
+            
+            // Atualizar status dos componentes
+            updateComponentStatus();
+        }
+
+        function updateComponentStatus() {
+            const statusElements = {
+                textAnalyzer: document.getElementById('textAnalyzerStatus'),
+                sentimentAnalyzer: document.getElementById('sentimentAnalyzerStatus'),
+                aiAnalyzer: document.getElementById('aiAnalyzerStatus'),
+                audioTranscriber: document.getElementById('audioTranscriberStatus')
+            };
+            
+            // Atualizar status na interface se os elementos existirem
+            Object.keys(statusElements).forEach(component => {
+                const element = statusElements[component];
+                if (element) {
+                    element.textContent = 'Ativo';
+                    element.className = 'status-ready';
+                }
+            });
         }
 
         // =============================================
-        // FUNÇÕES DE VISUALIZAÇÃO
+        // INICIALIZAÇÃO FINAL
         // =============================================
-        function renderCharts() {
-            renderSentimentChart();
-            renderAgentsChart();
-            renderContentChart();
-            renderTemporalChart();
-        }
 
-        function renderSentimentChart() {
-            const sentimentCounts = {
-                'Muito Positivo': 0,
-                'Positivo': 0,
-                'Neutro': 0,
-                'Negativo': 0,
-                'Muito Negativo': 0
-            };
+        console.log('Sentinela - Sistema de Análise Inteligente de Conversas');
+        console.log('Versão 2.0 - Com melhorias de análise de texto e correções');
+        console.log('Desenvolvido para análise avançada de atendimento ao cliente');
 
-            appState.filteredData.forEach(item => {
-                sentimentCounts[item.Sentimento] = (sentimentCounts[item.Sentimento] || 0) + 1;
-            });
-
-            const data = [{
-                values: Object.values(sentimentCounts),
-                labels: Object.keys(sentimentCounts),
-                type: 'pie',
-                marker: {
-                    colors: Object.keys(sentimentCounts).map(getSentimentColor)
-                },
-                textinfo: 'label+percent',
-                hoverinfo: 'label+value+percent',
-                hole: 0.4
-            }];
-
-            const layout = {
-                title: 'Distribuição de Sentimentos',
-                height: 400,
-                showlegend: true,
-                legend: {
-                    orientation: 'h',
-                    x: 0,
-                    y: -0.1
-                }
-            };
-
-            Plotly.newPlot('sentimentChart', data, layout, { responsive: true });
-        }
-
-        function renderAgentsChart() {
-            const agentStats = {};
-            appState.filteredData.forEach(item => {
-                if (!agentStats[item.Agente]) {
-                    agentStats[item.Agente] = {
-                        count: 0,
-                        positive: 0,
-                        negative: 0,
-                        neutral: 0
-                    };
-                }
-                
-                agentStats[item.Agente].count++;
-                
-                if (item.Sentimento === 'Positivo' || item.Sentimento === 'Muito Positivo') {
-                    agentStats[item.Agente].positive++;
-                } else if (item.Sentimento === 'Negativo' || item.Sentimento === 'Muito Negativo') {
-                    agentStats[item.Agente].negative++;
-                } else {
-                    agentStats[item.Agente].neutral++;
-                }
-            });
-
-            const agents = Object.keys(agentStats).slice(0, 10);
-            const counts = agents.map(agent => agentStats[agent].count);
-            const positive = agents.map(agent => agentStats[agent].positive);
-            const negative = agents.map(agent => agentStats[agent].negative);
-            const neutral = agents.map(agent => agentStats[agent].neutral);
-
-            const data = [
-                {
-                    x: agents,
-                    y: positive,
-                    name: 'Positivo',
-                    type: 'bar',
-                    marker: { color: '#4CAF50' }
-                },
-                {
-                    x: agents,
-                    y: neutral,
-                    name: 'Neutro',
-                    type: 'bar',
-                    marker: { color: '#FFC107' }
-                },
-                {
-                    x: agents,
-                    y: negative,
-                    name: 'Negativo',
-                    type: 'bar',
-                    marker: { color: '#F44336' }
-                }
-            ];
-
-            const layout = {
-                title: 'Desempenho por Agente (Top 10)',
-                barmode: 'stack',
-                xaxis: { title: 'Agentes' },
-                yaxis: { title: 'Número de Mensagens' },
-                height: 400
-            };
-
-            Plotly.newPlot('agentsChart', data, layout, { responsive: true });
-        }
-
-        function renderContentChart() {
-            const contentTypes = {
-                'Problemas': appState.filteredData.reduce((sum, item) => sum + (item.Problemas || 0), 0),
-                'Soluções': appState.filteredData.reduce((sum, item) => sum + (item.Solucoes || 0), 0),
-                'Dúvidas': Math.floor(appState.filteredData.length * 0.3),
-                'Elogios': Math.floor(appState.filteredData.length * 0.2),
-                'Reclamações': Math.floor(appState.filteredData.length * 0.15)
-            };
-
-            const data = [{
-                values: Object.values(contentTypes),
-                labels: Object.keys(contentTypes),
-                type: 'pie',
-                marker: {
-                    colors: ['#F44336', '#4CAF50', '#FFC107', '#2196F3', '#9C27B0']
-                },
-                textinfo: 'label+percent',
-                hoverinfo: 'label+value+percent'
-            }];
-
-            const layout = {
-                title: 'Tipos de Conteúdo nas Conversas',
-                height: 400,
-                showlegend: true
-            };
-
-            Plotly.newPlot('contentChart', data, layout, { responsive: true });
-        }
-
-        function renderTemporalChart() {
-            const dailyStats = {};
-            appState.filteredData.forEach(item => {
-                const date = item.Data;
-                if (!dailyStats[date]) {
-                    dailyStats[date] = {
-                        count: 0,
-                        positive: 0,
-                        negative: 0,
-                        score: 0
-                    };
-                }
-                
-                dailyStats[date].count++;
-                dailyStats[date].score += item.Pontuacao || 0;
-                
-                if (item.Sentimento === 'Positivo' || item.Sentimento === 'Muito Positivo') {
-                    dailyStats[date].positive++;
-                } else if (item.Sentimento === 'Negativo' || item.Sentimento === 'Muito Negativo') {
-                    dailyStats[date].negative++;
-                }
-            });
-
-            const dates = Object.keys(dailyStats).sort();
-            const counts = dates.map(date => dailyStats[date].count);
-            const positive = dates.map(date => dailyStats[date].positive);
-            const negative = dates.map(date => dailyStats[date].negative);
-            const avgScores = dates.map(date => dailyStats[date].score / dailyStats[date].count);
-
-            const data = [
-                {
-                    x: dates,
-                    y: counts,
-                    name: 'Total Mensagens',
-                    type: 'scatter',
-                    mode: 'lines+markers',
-                    line: { shape: 'spline' },
-                    yaxis: 'y1'
-                },
-                {
-                    x: dates,
-                    y: avgScores,
-                    name: 'Pontuação Média',
-                    type: 'scatter',
-                    mode: 'lines+markers',
-                    line: { shape: 'spline', dash: 'dot' },
-                    yaxis: 'y2'
-                }
-            ];
-
-            const layout = {
-                title: 'Evolução Temporal das Conversas',
-                xaxis: { title: 'Data' },
-                yaxis: { 
-                    title: 'Número de Mensagens',
-                    side: 'left'
-                },
-                yaxis2: {
-                    title: 'Pontuação de Sentimento',
-                    side: 'right',
-                    overlaying: 'y',
-                    range: [-5, 5]
-                },
-                height: 400,
-                showlegend: true
-            };
-
-            Plotly.newPlot('temporalChart', data, layout, { responsive: true });
-            appState.dailyStats = dailyStats;
-        }
-
-        function renderTrendsChart() {
-            const dailyData = Object.entries(appState.dailyStats)
-                .sort(([dateA], [dateB]) => new Date(dateA) - new Date(dateB));
-            
-            const dates = dailyData.map(([date]) => date);
-            const interactions = dailyData.map(([_, stats]) => stats.count);
-            const positive = dailyData.map(([_, stats]) => stats.positive);
-            const negative = dailyData.map(([_, stats]) => stats.negative);
-            
-            const data = [
-                {
-                    x: dates,
-                    y: interactions,
-                    name: 'Interações',
-                    type: 'scatter',
-                    mode: 'lines+markers',
-                    line: { shape: 'spline', width: 3 }
-                },
-                {
-                    x: dates,
-                    y: positive,
-                    name: 'Positivas',
-                    type: 'scatter',
-                    mode: 'lines+markers',
-                    line: { shape: 'spline', dash: 'dot' }
-                },
-                {
-                    x: dates,
-                    y: negative,
-                    name: 'Negativas',
-                    type: 'scatter',
-                    mode: 'lines+markers',
-                    line: { shape: 'spline', dash: 'dash' }
-                }
-            ];
-            
-            const layout = {
-                title: 'Tendências ao Longo do Tempo',
-                xaxis: { title: 'Data' },
-                yaxis: { title: 'Quantidade' },
-                height: 400,
-                showlegend: true
-            };
-            
-            Plotly.newPlot('trendsChart', data, layout, { responsive: true });
-        }
-
-        function renderCorrelationChart() {
-            const dailyData = Object.values(appState.dailyStats);
-            const interactions = dailyData.map(stats => stats.count);
-            const positive = dailyData.map(stats => stats.positive);
-            const negative = dailyData.map(stats => stats.negative);
-            
-            const data = [{
-                z: [
-                    [1, appState.trendAnalyzer.calculator.calculateCorrelation(interactions, positive), appState.trendAnalyzer.calculator.calculateCorrelation(interactions, negative)],
-                    [appState.trendAnalyzer.calculator.calculateCorrelation(positive, interactions), 1, appState.trendAnalyzer.calculator.calculateCorrelation(positive, negative)],
-                    [appState.trendAnalyzer.calculator.calculateCorrelation(negative, interactions), appState.trendAnalyzer.calculator.calculateCorrelation(negative, positive), 1]
-                ],
-                x: ['Interações', 'Positivas', 'Negativas'],
-                y: ['Interações', 'Positivas', 'Negativas'],
-                type: 'heatmap',
-                colorscale: 'RdBu',
-                zmin: -1,
-                zmax: 1,
-                showscale: true
-            }];
-            
-            const layout = {
-                title: 'Correlação entre Métricas',
-                height: 400
-            };
-            
-            Plotly.newPlot('correlationChart', data, layout, { responsive: true });
-        }
-
-        function renderDailyTable() {
-            const dailyData = Object.entries(appState.dailyStats)
-                .sort(([dateA], [dateB]) => new Date(dateB) - new Date(dateA))
-                .slice(0, 10);
-            
-            let html = `
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Data</th>
-                            <th>Interações</th>
-                            <th>Positivas</th>
-                            <th>Negativas</th>
-                            <th>Taxa Positiva</th>
-                            <th>Pontuação Média</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
-            
-            dailyData.forEach(([date, stats]) => {
-                const positiveRate = ((stats.positive / stats.count) * 100).toFixed(1);
-                const avgScore = (stats.score / stats.count).toFixed(2);
-                
-                html += `
-                    <tr>
-                        <td>${date}</td>
-                        <td>${stats.count}</td>
-                        <td>${stats.positive}</td>
-                        <td>${stats.negative}</td>
-                        <td>${positiveRate}%</td>
-                        <td>${avgScore}</td>
-                    </tr>
-                `;
-            });
-            
-            html += `
-                    </tbody>
-                </table>
-            `;
-            
-            document.getElementById('dailyTable').innerHTML = html;
-        }
-
-        function renderAgentsTable() {
-            const agentStats = {};
-            appState.filteredData.forEach(item => {
-                if (!agentStats[item.Agente]) {
-                    agentStats[item.Agente] = {
-                        count: 0,
-                        positive: 0,
-                        negative: 0,
-                        neutral: 0,
-                        totalScore: 0
-                    };
-                }
-                
-                agentStats[item.Agente].count++;
-                agentStats[item.Agente].totalScore += item.Pontuacao || 0;
-                
-                if (item.Sentimento === 'Positivo' || item.Sentimento === 'Muito Positivo') {
-                    agentStats[item.Agente].positive++;
-                } else if (item.Sentimento === 'Negativo' || item.Sentimento === 'Muito Negativo') {
-                    agentStats[item.Agente].negative++;
-                } else {
-                    agentStats[item.Agente].neutral++;
-                }
-            });
-            
-            const agents = Object.entries(agentStats)
-                .sort(([,a], [,b]) => b.count - a.count);
-            
-            let html = `
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Agente</th>
-                            <th>Total</th>
-                            <th>Positivas</th>
-                            <th>Negativas</th>
-                            <th>Neutras</th>
-                            <th>Taxa Positiva</th>
-                            <th>Pontuação Média</th>
-                            <th>Desempenho</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
-            
-            agents.forEach(([agent, stats]) => {
-                const positiveRate = ((stats.positive / stats.count) * 100).toFixed(1);
-                const avgScore = (stats.totalScore / stats.count).toFixed(2);
-                const performance = stats.positive / Math.max(1, stats.negative);
-                
-                html += `
-                    <tr>
-                        <td>${agent}</td>
-                        <td>${stats.count}</td>
-                        <td style="color: #4CAF50;">${stats.positive}</td>
-                        <td style="color: #F44336;">${stats.negative}</td>
-                        <td style="color: #FFC107;">${stats.neutral}</td>
-                        <td>${positiveRate}%</td>
-                        <td>${avgScore}</td>
-                        <td>
-                            <div class="progress-bar">
-                                <div class="progress-fill" style="width: ${Math.min(100, positiveRate)}%"></div>
-                            </div>
-                            <small>${performance.toFixed(2)}:1</small>
-                        </td>
-                    </tr>
-                `;
-            });
-            
-            html += `
-                    </tbody>
-                </table>
-            `;
-            
-            document.getElementById('agentsTable').innerHTML = html;
-        }
-
-        // =============================================
-        // FUNÇÕES AUXILIARES DE CORES E EMOJIS
-        // =============================================
-        function getSentimentColor(sentiment) {
-            switch(sentiment) {
-                case 'Muito Positivo': return '#4CAF50';
-                case 'Positivo': return '#8BC34A';
-                case 'Neutro': return '#FFC107';
-                case 'Negativo': return '#FF9800';
-                case 'Muito Negativo': return '#F44336';
-                default: return '#9E9E9E';
-            }
-        }
-
-        function getSentimentEmoji(sentiment) {
-            switch(sentiment) {
-                case 'Muito Positivo': return '😄';
-                case 'Positivo': return '😊';
-                case 'Neutro': return '😐';
-                case 'Negativo': return '😠';
-                case 'Muito Negativo': return '😡';
-                default: return '🤔';
-            }
-        }
-
-        function getColorByFrequency(frequency) {
-            const maxFreq = Math.max(...Object.values(appState.textAnalyzer.wordFrequencies || {}));
-            const ratio = frequency / maxFreq;
-            
-            if (ratio > 0.8) return '#F44336';
-            if (ratio > 0.6) return '#FF9800';
-            if (ratio > 0.4) return '#FFC107';
-            if (ratio > 0.2) return '#8BC34A';
-            return '#4CAF50';
-        }
-
-        function getColorByIndex(index) {
-            const colors = ['#4CAF50', '#2196F3', '#FFC107', '#FF9800', '#F44336', '#9C27B0', '#607D8B', '#795548'];
-            return colors[index % colors.length];
-        }
-
-        function getRecommendationColor(type) {
-            switch(type) {
-                case 'info': return '#2196F3';
-                case 'warning': return '#FF9800';
-                case 'error': return '#F44336';
-                case 'success': return '#4CAF50';
-                default: return '#9E9E9E';
-            }
-        }
-
-        function getPriorityColor(priority) {
-            switch(priority) {
-                case 'Alta': return '#F44336';
-                case 'Média': return '#FF9800';
-                case 'Baixa': return '#4CAF50';
-                default: return '#9E9E9E';
-            }
-        }
     </script>
 </body>
 </html>

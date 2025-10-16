@@ -715,6 +715,76 @@
             display: none !important;
         }
 
+        /* Modal para mapeamento de colunas */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background-color: var(--secondary-color);
+            padding: 30px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--medium-gray);
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--dark-gray);
+        }
+
+        .column-mapping-group {
+            margin-bottom: 15px;
+        }
+
+        .column-mapping-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .column-mapping-group select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--medium-gray);
+            border-radius: var(--border-radius);
+            background-color: var(--secondary-color);
+        }
+
+        .required-field::after {
+            content: " *";
+            color: var(--danger-color);
+        }
+
         /* Responsividade */
         @media (max-width: 1200px) {
             .charts-grid {
@@ -864,6 +934,42 @@
                     <button class="button button-primary" id="loadData">
                         <i class="fas fa-sync-alt"></i>
                         <span>Carregar Dados</span>
+                    </button>
+                </div>
+
+                <!-- Nova seção: Mapeamento de Colunas -->
+                <div class="section">
+                    <h3 class="section-title">
+                        <i class="fas fa-table"></i>
+                        <span>Mapeamento de Colunas</span>
+                    </h3>
+                    <div class="input-group">
+                        <label class="required-field">Coluna do Texto</label>
+                        <select id="columnTexto">
+                            <option value="">-- Selecionar --</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label class="required-field">Coluna do Agente</label>
+                        <select id="columnAgente">
+                            <option value="">-- Selecionar --</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label class="required-field">Coluna da Data</label>
+                        <select id="columnData">
+                            <option value="">-- Selecionar --</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Coluna do Email (opcional)</label>
+                        <select id="columnEmail">
+                            <option value="">-- Selecionar --</option>
+                        </select>
+                    </div>
+                    <button class="button button-primary" id="applyColumnMapping">
+                        <i class="fas fa-check"></i>
+                        <span>Aplicar Mapeamento</span>
                     </button>
                 </div>
                 
@@ -1224,6 +1330,19 @@
                                     <label for="execFilter">🧑‍💼 Executivo</label>
                                     <select id="execFilter"><option value="all">Todos</option></select>
                                 </div>
+                                <!-- Novos filtros de data para Monitoria -->
+                                <div class="input-group">
+                                    <label for="monitoringStartDate">📅 Data Inicial</label>
+                                    <input type="date" id="monitoringStartDate">
+                                </div>
+                                <div class="input-group">
+                                    <label for="monitoringEndDate">📅 Data Final</label>
+                                    <input type="date" id="monitoringEndDate">
+                                </div>
+                                <button class="button button-primary" id="applyMonitoringDateFilter">
+                                    <i class="fas fa-filter"></i>
+                                    Aplicar Filtro
+                                </button>
                             </div>
 
                             <div class="card">
@@ -1313,6 +1432,56 @@
                         <div id="monitoringLoader" class="loading">Aguardando carregamento... ⏳</div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para mapeamento de colunas -->
+    <div class="modal" id="columnMappingModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Mapeamento de Colunas</h3>
+                <button class="close-modal" id="closeColumnMappingModal">&times;</button>
+            </div>
+            <p>Selecione qual coluna corresponde a cada campo necessário:</p>
+            
+            <div class="column-mapping-group">
+                <label class="required-field">Coluna do Texto</label>
+                <select id="modalColumnTexto">
+                    <option value="">-- Selecionar --</option>
+                </select>
+            </div>
+            
+            <div class="column-mapping-group">
+                <label class="required-field">Coluna do Agente</label>
+                <select id="modalColumnAgente">
+                    <option value="">-- Selecionar --</option>
+                </select>
+            </div>
+            
+            <div class="column-mapping-group">
+                <label class="required-field">Coluna da Data</label>
+                <select id="modalColumnData">
+                    <option value="">-- Selecionar --</option>
+                </select>
+            </div>
+            
+            <div class="column-mapping-group">
+                <label>Coluna do Email (opcional)</label>
+                <select id="modalColumnEmail">
+                    <option value="">-- Selecionar --</option>
+                </select>
+            </div>
+            
+            <div style="margin-top: 20px; display: flex; gap: 10px;">
+                <button class="button button-primary" id="confirmColumnMapping">
+                    <i class="fas fa-check"></i>
+                    Confirmar
+                </button>
+                <button class="button button-secondary" id="cancelColumnMapping">
+                    <i class="fas fa-times"></i>
+                    Cancelar
+                </button>
             </div>
         </div>
     </div>
@@ -2106,6 +2275,233 @@
         }
 
         // =============================================
+        // SISTEMA DE MAPEAMENTO DE COLUNAS FLEXÍVEL
+        // =============================================
+        let columnMapping = {
+            texto: '',
+            agente: '',
+            data: '',
+            email: ''
+        };
+
+        let availableColumns = [];
+        let rawData = [];
+
+        // Função para detectar automaticamente as colunas
+        function autoDetectColumns(headers) {
+            const mapping = {};
+            
+            // Palavras-chave para cada tipo de coluna
+            const textKeywords = ['texto', 'mensagem', 'comentário', 'comentario', 'msg', 'message', 'text', 'conteúdo', 'conteudo'];
+            const agentKeywords = ['agente', 'atendente', 'operador', 'agent', 'user', 'usuário', 'usuario', 'nome', 'funcionário', 'funcionario'];
+            const dateKeywords = ['data', 'timestamp', 'datahora', 'date', 'time', 'hora', 'tempo'];
+            const emailKeywords = ['email', 'e-mail', 'mail', 'correio'];
+            
+            // Encontrar a melhor correspondência para cada tipo
+            mapping.texto = findBestMatch(headers, textKeywords);
+            mapping.agente = findBestMatch(headers, agentKeywords);
+            mapping.data = findBestMatch(headers, dateKeywords);
+            mapping.email = findBestMatch(headers, emailKeywords);
+            
+            return mapping;
+        }
+
+        function findBestMatch(headers, keywords) {
+            let bestMatch = '';
+            let bestScore = 0;
+            
+            headers.forEach(header => {
+                const headerLower = header.toLowerCase();
+                keywords.forEach(keyword => {
+                    if (headerLower.includes(keyword)) {
+                        const score = keyword.length / headerLower.length;
+                        if (score > bestScore) {
+                            bestScore = score;
+                            bestMatch = header;
+                        }
+                    }
+                });
+            });
+            
+            return bestMatch || (headers.length > 0 ? headers[0] : '');
+        }
+
+        // Função para preencher os selects de mapeamento de colunas
+        function populateColumnMappingSelects(headers) {
+            availableColumns = headers;
+            
+            // Preencher selects no modal
+            const modalTextoSelect = document.getElementById('modalColumnTexto');
+            const modalAgenteSelect = document.getElementById('modalColumnAgente');
+            const modalDataSelect = document.getElementById('modalColumnData');
+            const modalEmailSelect = document.getElementById('modalColumnEmail');
+            
+            // Preencher selects na sidebar
+            const sidebarTextoSelect = document.getElementById('columnTexto');
+            const sidebarAgenteSelect = document.getElementById('columnAgente');
+            const sidebarDataSelect = document.getElementById('columnData');
+            const sidebarEmailSelect = document.getElementById('columnEmail');
+            
+            // Limpar opções existentes
+            [modalTextoSelect, modalAgenteSelect, modalDataSelect, modalEmailSelect,
+             sidebarTextoSelect, sidebarAgenteSelect, sidebarDataSelect, sidebarEmailSelect]
+            .forEach(select => {
+                select.innerHTML = '<option value="">-- Selecionar --</option>';
+            });
+            
+            // Adicionar opções para cada header
+            headers.forEach(header => {
+                const option = `<option value="${header}">${header}</option>`;
+                
+                // Adicionar ao modal
+                modalTextoSelect.innerHTML += option;
+                modalAgenteSelect.innerHTML += option;
+                modalDataSelect.innerHTML += option;
+                modalEmailSelect.innerHTML += option;
+                
+                // Adicionar à sidebar
+                sidebarTextoSelect.innerHTML += option;
+                sidebarAgenteSelect.innerHTML += option;
+                sidebarDataSelect.innerHTML += option;
+                sidebarEmailSelect.innerHTML += option;
+            });
+            
+            // Tentar detecção automática
+            const autoMapping = autoDetectColumns(headers);
+            
+            // Aplicar detecção automática aos selects
+            if (autoMapping.texto) {
+                modalTextoSelect.value = autoMapping.texto;
+                sidebarTextoSelect.value = autoMapping.texto;
+            }
+            if (autoMapping.agente) {
+                modalAgenteSelect.value = autoMapping.agente;
+                sidebarAgenteSelect.value = autoMapping.agente;
+            }
+            if (autoMapping.data) {
+                modalDataSelect.value = autoMapping.data;
+                sidebarDataSelect.value = autoMapping.data;
+            }
+            if (autoMapping.email) {
+                modalEmailSelect.value = autoMapping.email;
+                sidebarEmailSelect.value = autoMapping.email;
+            }
+            
+            // Atualizar o mapeamento
+            updateColumnMappingFromSelects();
+        }
+
+        // Função para atualizar o mapeamento a partir dos selects
+        function updateColumnMappingFromSelects() {
+            columnMapping = {
+                texto: document.getElementById('columnTexto').value,
+                agente: document.getElementById('columnAgente').value,
+                data: document.getElementById('columnData').value,
+                email: document.getElementById('columnEmail').value
+            };
+        }
+
+        // Função para aplicar o mapeamento e processar os dados
+        function applyColumnMappingAndProcess() {
+            // Validar mapeamento
+            if (!columnMapping.texto || !columnMapping.agente || !columnMapping.data) {
+                showAlert('❌ Por favor, selecione as colunas obrigatórias: Texto, Agente e Data', 'error');
+                return false;
+            }
+            
+            // Processar dados com o mapeamento
+            const processedData = rawData.map(item => {
+                const processedItem = {
+                    Texto: item[columnMapping.texto] || '',
+                    Agente: item[columnMapping.agente] || '',
+                    Data: item[columnMapping.data] || '',
+                    Email: columnMapping.email ? (item[columnMapping.email] || '') : ''
+                };
+                
+                return processedItem;
+            }).filter(item => item.Texto && item.Agente && item.Data); // Filtrar itens com campos essenciais
+            
+            if (processedData.length === 0) {
+                showAlert('❌ Nenhum dado válido encontrado com o mapeamento selecionado', 'error');
+                return false;
+            }
+            
+            // Processar os dados mapeados
+            processLoadedData(processedData);
+            return true;
+        }
+
+        // =============================================
+        // FILTRO DE DATAS PARA MONITORIA
+        // =============================================
+        function setupMonitoringDateFilter() {
+            const applyButton = document.getElementById('applyMonitoringDateFilter');
+            if (applyButton) {
+                applyButton.addEventListener('click', applyMonitoringDateFilter);
+            }
+        }
+
+        function applyMonitoringDateFilter() {
+            const startDate = document.getElementById('monitoringStartDate').value;
+            const endDate = document.getElementById('monitoringEndDate').value;
+            
+            // Aplicar filtro aos dados da monitoria
+            if (monitoringAllData && monitoringAllData.length > 0) {
+                let filteredData = [...monitoringAllData];
+                
+                if (startDate) {
+                    filteredData = filteredData.filter(row => {
+                        const rowDate = getDateFromRow(row);
+                        return rowDate >= new Date(startDate);
+                    });
+                }
+                
+                if (endDate) {
+                    filteredData = filteredData.filter(row => {
+                        const rowDate = getDateFromRow(row);
+                        return rowDate <= new Date(endDate + 'T23:59:59');
+                    });
+                }
+                
+                // Atualizar dashboard com dados filtrados
+                updateMonitoringDashboard(filteredData);
+                
+                showAlert(`✅ Filtro de datas aplicado: ${filteredData.length} registros`, 'success');
+            } else {
+                showAlert('⚠️ Nenhum dado de monitoria carregado', 'warning');
+            }
+        }
+
+        function getDateFromRow(row) {
+            // Tentar diferentes campos de data
+            const dateFields = ['carimbo_de_datahora', 'timestamp', 'data', 'datahora'];
+            
+            for (const field of dateFields) {
+                if (row[field]) {
+                    const date = new Date(row[field]);
+                    if (!isNaN(date.getTime())) {
+                        return date;
+                    }
+                    
+                    // Tentar parse de formato brasileiro
+                    const parts = row[field].split('/');
+                    if (parts.length === 3) {
+                        const day = parseInt(parts[0]);
+                        const month = parseInt(parts[1]) - 1;
+                        const year = parseInt(parts[2]);
+                        const brazilianDate = new Date(year, month, day);
+                        if (!isNaN(brazilianDate.getTime())) {
+                            return brazilianDate;
+                        }
+                    }
+                }
+            }
+            
+            // Se não encontrou data válida, retorna data mínima
+            return new Date(0);
+        }
+
+        // =============================================
         // SISTEMA DE SPEECH ANALYTICS
         // =============================================
         
@@ -2741,6 +3137,7 @@
                 
                 setupEventListeners();
                 setupTabNavigation();
+                setupMonitoringDateFilter(); // Configurar filtro de datas da monitoria
                 
                 document.getElementById('loadingIndicator').classList.add('hidden');
                 document.getElementById('contentArea').classList.remove('hidden');
@@ -2754,6 +3151,7 @@
         }
 
         function setupEventListeners() {
+            // Event listeners existentes
             document.getElementById('sidebarToggle').addEventListener('click', toggleSidebar);
             document.getElementById('applyFilter').addEventListener('click', applyDateFilter);
             document.getElementById('loadData').addEventListener('click', handleLoadData);
@@ -2767,6 +3165,47 @@
             document.getElementById('exportData').addEventListener('click', exportData);
             document.getElementById('refreshData').addEventListener('click', refreshData);
             
+            // Novos event listeners para mapeamento de colunas
+            document.getElementById('applyColumnMapping').addEventListener('click', function() {
+                updateColumnMappingFromSelects();
+                if (applyColumnMappingAndProcess()) {
+                    showAlert('✅ Mapeamento aplicado com sucesso!', 'success');
+                }
+            });
+            
+            document.getElementById('confirmColumnMapping').addEventListener('click', function() {
+                // Atualizar mapeamento a partir do modal
+                columnMapping = {
+                    texto: document.getElementById('modalColumnTexto').value,
+                    agente: document.getElementById('modalColumnAgente').value,
+                    data: document.getElementById('modalColumnData').value,
+                    email: document.getElementById('modalColumnEmail').value
+                };
+                
+                // Atualizar selects na sidebar
+                document.getElementById('columnTexto').value = columnMapping.texto;
+                document.getElementById('columnAgente').value = columnMapping.agente;
+                document.getElementById('columnData').value = columnMapping.data;
+                document.getElementById('columnEmail').value = columnMapping.email;
+                
+                // Fechar modal
+                document.getElementById('columnMappingModal').style.display = 'none';
+                
+                // Aplicar mapeamento e processar dados
+                if (applyColumnMappingAndProcess()) {
+                    showAlert('✅ Mapeamento aplicado com sucesso!', 'success');
+                }
+            });
+            
+            document.getElementById('cancelColumnMapping').addEventListener('click', function() {
+                document.getElementById('columnMappingModal').style.display = 'none';
+            });
+            
+            document.getElementById('closeColumnMappingModal').addEventListener('click', function() {
+                document.getElementById('columnMappingModal').style.display = 'none';
+            });
+            
+            // Event listeners para busca
             document.getElementById('wordSearch').addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') performWordSearch();
             });
@@ -3400,7 +3839,20 @@
                     skipEmptyLines: true
                 });
                 
-                processLoadedData(parsedData.data);
+                rawData = parsedData.data;
+                
+                if (rawData.length === 0) {
+                    throw new Error('A planilha está vazia ou não contém dados válidos');
+                }
+                
+                // Obter cabeçalhos
+                const headers = Object.keys(rawData[0]);
+                
+                // Preencher selects de mapeamento
+                populateColumnMappingSelects(headers);
+                
+                // Mostrar modal para mapeamento
+                document.getElementById('columnMappingModal').style.display = 'flex';
                 
             } catch (error) {
                 console.error('Erro ao carregar do Google Sheets:', error);
@@ -3414,7 +3866,6 @@
             
             try {
                 loadFromFile(file);
-                showAlert('✅ Arquivo carregado com sucesso!', 'success');
             } catch (error) {
                 showAlert(`❌ Erro ao processar arquivo: ${error.message}`, 'error');
             }
@@ -3434,15 +3885,28 @@
                                 header: true,
                                 skipEmptyLines: true
                             });
-                            processLoadedData(parsedData.data);
+                            rawData = parsedData.data;
                         } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
                             const workbook = XLSX.read(data, { type: 'binary' });
                             const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
                             parsedData = XLSX.utils.sheet_to_json(firstSheet);
-                            processLoadedData(parsedData);
+                            rawData = parsedData;
                         } else {
                             throw new Error('Formato de arquivo não suportado');
                         }
+                        
+                        if (rawData.length === 0) {
+                            throw new Error('O arquivo está vazio ou não contém dados válidos');
+                        }
+                        
+                        // Obter cabeçalhos
+                        const headers = Object.keys(rawData[0]);
+                        
+                        // Preencher selects de mapeamento
+                        populateColumnMappingSelects(headers);
+                        
+                        // Mostrar modal para mapeamento
+                        document.getElementById('columnMappingModal').style.display = 'flex';
                         
                         resolve();
                     } catch (error) {

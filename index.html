@@ -4,12 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sentinela - Análise Inteligente de Conversas</title>
-    <!-- Versão atualizada do Plotly -->
-    <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.min.js"></script>
+    <script src="https://apis.google.com/js/api.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -941,6 +941,37 @@
             </div>
             
             <div class="sidebar-content">
+                <!-- Seção de Autenticação Google Sheets -->
+                <div class="section auth-section">
+                    <h3 class="section-title">
+                        <i class="fas fa-key"></i>
+                        <span>Autenticação Google</span>
+                    </h3>
+                    
+                    <div class="input-group credentials-upload">
+                        <label>Credenciais de Serviço (JSON)</label>
+                        <input type="file" id="credentialsUpload" accept=".json">
+                        <div class="credentials-info">
+                            Faça upload do arquivo JSON de credenciais do Google Service Account
+                        </div>
+                    </div>
+                    
+                    <div id="authStatus" class="auth-status not-authenticated">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <span>Não autenticado</span>
+                    </div>
+                    
+                    <button class="button button-primary" id="authenticateBtn" disabled>
+                        <i class="fas fa-lock"></i>
+                        <span>Autenticar</span>
+                    </button>
+                    
+                    <button class="button button-secondary hidden" id="revokeAuthBtn">
+                        <i class="fas fa-unlock"></i>
+                        <span>Revogar Acesso</span>
+                    </button>
+                </div>
+                
                 <div class="section">
                     <h3 class="section-title">
                         <i class="fas fa-tachometer-alt"></i>
@@ -976,10 +1007,6 @@
                     <div class="input-group">
                         <label>Nome da Aba</label>
                         <input type="text" id="sheetTab" placeholder="Nome da aba (ex: Página1)">
-                    </div>
-                    <div class="input-group">
-                        <label>Chave da API (opcional)</label>
-                        <input type="text" id="apiKey" placeholder="Chave API Google Sheets">
                     </div>
                     <button class="button button-primary" id="loadData">
                         <i class="fas fa-sync-alt"></i>
@@ -1363,10 +1390,6 @@
                                 <label for="monitoringSheetName">📝 Nome da Aba</label>
                                 <input type="text" id="monitoringSheetName" placeholder="Opcional">
                             </div>
-                            <div class="input-group" style="flex-grow: 1;">
-                                <label for="monitoringApiKey">🔑 Chave API (opcional)</label>
-                                <input type="text" id="monitoringApiKey" placeholder="Chave API Google Sheets">
-                            </div>
                             <button id="loadMonitoringDataBtn" class="button button-primary">Carregar Dados</button>
                         </div>
 
@@ -1542,50 +1565,150 @@
 
     <script>
         // =============================================
-        // SISTEMA SIMPLIFICADO DE ACESSO AO GOOGLE SHEETS
+        // SISTEMA DE AUTENTICAÇÃO GOOGLE SHEETS
         // =============================================
-        
-        // Função simplificada para carregar dados do Google Sheets
-        async function loadFromGoogleSheets(sheetId, sheetName, apiKey = null) {
-            try {
-                // Tentar método com API Key primeiro
-                if (apiKey) {
-                    try {
-                        return await loadFromGoogleSheetsWithAPI(sheetId, sheetName, apiKey);
-                    } catch (apiError) {
-                        console.warn('Erro com API Key, tentando método público:', apiError);
-                    }
+        let googleCredentials = null;
+        let googleAuthClient = null;
+
+        // Elementos DOM da autenticação
+        const authDOM = {
+            credentialsUpload: document.getElementById('credentialsUpload'),
+            authenticateBtn: document.getElementById('authenticateBtn'),
+            revokeAuthBtn: document.getElementById('revokeAuthBtn'),
+            authStatus: document.getElementById('authStatus')
+        };
+
+        // Event Listeners para autenticação
+        authDOM.credentialsUpload.addEventListener('change', handleCredentialsUpload);
+        authDOM.authenticateBtn.addEventListener('click', initializeGoogleAuth);
+        authDOM.revokeAuthBtn.addEventListener('click', revokeGoogleAuth);
+
+        function handleCredentialsUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    googleCredentials = JSON.parse(e.target.result);
+                    authDOM.authenticateBtn.disabled = false;
+                    updateAuthStatus('Credenciais carregadas. Pronto para autenticar.', 'not-authenticated');
+                } catch (error) {
+                    updateAuthStatus('Erro: Arquivo JSON inválido', 'error');
+                    authDOM.authenticateBtn.disabled = true;
                 }
+            };
+            reader.readAsText(file);
+        }
+
+        async function initializeGoogleAuth() {
+            if (!googleCredentials) {
+                updateAuthStatus('Erro: Nenhuma credencial carregada', 'error');
+                return;
+            }
+
+            try {
+                updateAuthStatus('Inicializando autenticação...', 'not-authenticated');
                 
-                // Fallback para método público
-                return await loadFromGoogleSheetsPublic(sheetId, sheetName);
+                // Carregar a biblioteca do Google APIs
+                await new Promise((resolve, reject) => {
+                    gapi.load('client', { callback: resolve, onerror: reject });
+                });
+
+                // Configurar as credenciais
+                await gapi.client.init({
+                    clientId: googleCredentials.client_id,
+                    discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'],
+                    scope: 'https://www.googleapis.com/auth/spreadsheets.readonly'
+                });
+
+                googleAuthClient = gapi.auth2.getAuthInstance();
+                
+                // Verificar se já está autenticado
+                if (googleAuthClient.isSignedIn.get()) {
+                    updateAuthStatus('Autenticado com Google Sheets', 'authenticated');
+                    authDOM.revokeAuthBtn.classList.remove('hidden');
+                    authDOM.authenticateBtn.classList.add('hidden');
+                } else {
+                    // Fazer login
+                    await googleAuthClient.signIn();
+                    updateAuthStatus('Autenticado com Google Sheets', 'authenticated');
+                    authDOM.revokeAuthBtn.classList.remove('hidden');
+                    authDOM.authenticateBtn.classList.add('hidden');
+                }
+
+                showAlert('✅ Autenticação Google Sheets realizada com sucesso!', 'success');
+                
             } catch (error) {
-                console.error('Erro ao carregar do Google Sheets:', error);
-                throw new Error(`Não foi possível carregar os dados: ${error.message}`);
+                console.error('Erro na autenticação:', error);
+                updateAuthStatus('Erro na autenticação: ' + error.message, 'error');
+                showAlert('❌ Falha na autenticação Google Sheets: ' + error.message, 'error');
             }
         }
 
-        // Método usando API Key do Google Sheets
-        async function loadFromGoogleSheetsWithAPI(sheetId, sheetName, apiKey) {
+        function revokeGoogleAuth() {
+            if (googleAuthClient) {
+                googleAuthClient.signOut();
+                googleAuthClient.disconnect();
+            }
+            
+            googleCredentials = null;
+            googleAuthClient = null;
+            authDOM.credentialsUpload.value = '';
+            authDOM.authenticateBtn.disabled = true;
+            authDOM.revokeAuthBtn.classList.add('hidden');
+            authDOM.authenticateBtn.classList.remove('hidden');
+            updateAuthStatus('Autenticação revogada', 'not-authenticated');
+            
+            showAlert('🔓 Autenticação Google Sheets revogada', 'info');
+        }
+
+        function updateAuthStatus(message, status) {
+            authDOM.authStatus.innerHTML = `
+                <i class="fas fa-${getStatusIcon(status)}"></i>
+                <span>${message}</span>
+            `;
+            authDOM.authStatus.className = `auth-status ${status}`;
+        }
+
+        function getStatusIcon(status) {
+            switch(status) {
+                case 'authenticated': return 'check-circle';
+                case 'error': return 'exclamation-circle';
+                default: return 'exclamation-triangle';
+            }
+        }
+
+        function isGoogleAuthenticated() {
+            return googleAuthClient && googleAuthClient.isSignedIn.get();
+        }
+
+        // =============================================
+        // FUNÇÃO ATUALIZADA PARA CARREGAR DO GOOGLE SHEETS
+        // =============================================
+        async function loadFromGoogleSheets(sheetId, sheetName) {
+            // Verificar autenticação para sheets privados
+            if (!isGoogleAuthenticated()) {
+                // Tentar carregar como sheet público
+                return await loadFromGoogleSheetsPublic(sheetId, sheetName);
+            }
+
             try {
-                const range = sheetName ? encodeURIComponent(sheetName) : 'A1:Z1000';
-                const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}?key=${apiKey}`;
+                // Usar a API autenticada do Google Sheets
+                const response = await gapi.client.sheets.spreadsheets.values.get({
+                    spreadsheetId: sheetId,
+                    range: sheetName
+                });
+
+                const values = response.result.values;
                 
-                const response = await fetch(url);
-                
-                if (!response.ok) {
-                    throw new Error(`Erro HTTP: ${response.status}`);
-                }
-                
-                const data = await response.json();
-                
-                if (!data.values || data.values.length === 0) {
+                if (!values || values.length === 0) {
                     throw new Error('A planilha está vazia ou não contém dados válidos');
                 }
 
                 // A primeira linha são os cabeçalhos
-                const headers = data.values[0];
-                const rows = data.values.slice(1);
+                const headers = values[0];
+                const rows = values.slice(1);
 
                 // Converter para o formato que usamos
                 const formattedData = rows.map(row => {
@@ -1604,45 +1727,34 @@
                 // Mostrar modal para mapeamento
                 document.getElementById('columnMappingModal').style.display = 'flex';
 
-                showAlert('✅ Dados carregados com sucesso (via API Key)', 'success');
+                showAlert('✅ Dados carregados com sucesso (via API autenticada)', 'success');
                 
             } catch (error) {
-                console.error('Erro ao carregar com API Key:', error);
-                throw error;
+                console.error('Erro ao carregar do Google Sheets (autenticado):', error);
+                
+                // Fallback para API pública
+                showAlert('⚠️ Tentando carregar como planilha pública...', 'warning');
+                return await loadFromGoogleSheetsPublic(sheetId, sheetName);
             }
         }
 
-        // Método público para sheets públicas
+        // Função original para sheets públicos (mantida como fallback)
         async function loadFromGoogleSheetsPublic(sheetId, sheetName) {
             try {
                 const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
                 const response = await fetch(url);
                 
                 if (!response.ok) {
-                    // Tentar método alternativo se o primeiro falhar
-                    const altUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=0`;
-                    const altResponse = await fetch(altUrl);
-                    
-                    if (!altResponse.ok) {
-                        throw new Error(`Erro HTTP: ${response.status} e ${altResponse.status}`);
-                    }
-                    
-                    const csvText = await altResponse.text();
-                    const parsedData = Papa.parse(csvText, {
-                        header: true,
-                        skipEmptyLines: true
-                    });
-                    
-                    rawData = parsedData.data;
-                } else {
-                    const csvText = await response.text();
-                    const parsedData = Papa.parse(csvText, {
-                        header: true,
-                        skipEmptyLines: true
-                    });
-                    
-                    rawData = parsedData.data;
+                    throw new Error(`Erro HTTP: ${response.status}`);
                 }
+                
+                const csvText = await response.text();
+                const parsedData = Papa.parse(csvText, {
+                    header: true,
+                    skipEmptyLines: true
+                });
+                
+                rawData = parsedData.data;
                 
                 if (rawData.length === 0) {
                     throw new Error('A planilha está vazia ou não contém dados válidos');
@@ -1661,12 +1773,12 @@
                 
             } catch (error) {
                 console.error('Erro ao carregar do Google Sheets (público):', error);
-                throw error;
+                throw new Error(`Não foi possível carregar os dados: ${error.message}`);
             }
         }
 
         // =============================================
-        // SISTEMA DE MONITORIA ATUALIZADO
+        // SISTEMA DE MONITORIA
         // =============================================
         const MONITORING_CONSTANTS = {
             RATING_MAP: { 'Below': 1, 'Meets': 2, 'Above': 3 },
@@ -1683,7 +1795,6 @@
         const monitoringDOM = {
             sheetIdInput: document.getElementById('monitoringSheetId'),
             sheetNameInput: document.getElementById('monitoringSheetName'),
-            apiKeyInput: document.getElementById('monitoringApiKey'),
             loadDataBtn: document.getElementById('loadMonitoringDataBtn'),
             loader: document.getElementById('monitoringLoader'),
             dashboardContent: document.getElementById('monitoring-dashboard-content'),
@@ -1771,7 +1882,6 @@
         async function loadMonitoringData() {
             const sheetId = monitoringDOM.sheetIdInput.value.trim();
             const sheetName = monitoringDOM.sheetNameInput.value.trim();
-            const apiKey = monitoringDOM.apiKeyInput.value.trim();
 
             if (!sheetId) {
                 alert('Por favor, insira o ID da planilha.');
@@ -1784,8 +1894,38 @@
             monitoringDOM.loader.textContent = 'Carregando dados... ⏳';
 
             try {
-                // Usar método simplificado
-                await loadMonitoringDataSimplified(sheetId, sheetName, apiKey);
+                let data;
+                
+                // Tentar carregar com autenticação primeiro
+                if (isGoogleAuthenticated()) {
+                    try {
+                        const response = await gapi.client.sheets.spreadsheets.values.get({
+                            spreadsheetId: sheetId,
+                            range: sheetName || 'Página1'
+                        });
+
+                        const values = response.result.values;
+                        
+                        if (!values || values.length === 0) {
+                            throw new Error('A planilha está vazia ou não contém dados válidos');
+                        }
+
+                        const raw_headers = values[0];
+                        const dataRows = values.slice(1);
+                        const headers = raw_headers.map(normalizeHeader);
+
+                        // Processar dados (código existente)
+                        processMonitoringData(raw_headers, headers, dataRows);
+                        
+                    } catch (authError) {
+                        console.warn('Erro na API autenticada, tentando método público:', authError);
+                        // Fallback para método público
+                        await loadMonitoringDataPublic(sheetId, sheetName);
+                    }
+                } else {
+                    // Usar método público
+                    await loadMonitoringDataPublic(sheetId, sheetName);
+                }
 
             } catch (error) {
                 monitoringDOM.loader.textContent = `❌ Erro: ${error.message}`;
@@ -1796,56 +1936,7 @@
             }
         }
 
-        // Nova função simplificada para carregar dados de monitoria
-        async function loadMonitoringDataSimplified(sheetId, sheetName, apiKey = null) {
-            try {
-                let data;
-                
-                // Tentar com API Key primeiro
-                if (apiKey) {
-                    try {
-                        data = await loadMonitoringDataWithAPI(sheetId, sheetName, apiKey);
-                    } catch (apiError) {
-                        console.warn('Erro com API Key, tentando método público:', apiError);
-                        data = await loadMonitoringDataPublic(sheetId, sheetName);
-                    }
-                } else {
-                    data = await loadMonitoringDataPublic(sheetId, sheetName);
-                }
-
-                processMonitoringData(data.raw_headers, data.headers, data.rows);
-                
-            } catch (error) {
-                console.error('Erro ao carregar dados de monitoria:', error);
-                throw error;
-            }
-        }
-
-        // Carregar dados de monitoria com API Key
-        async function loadMonitoringDataWithAPI(sheetId, sheetName, apiKey) {
-            const range = sheetName ? encodeURIComponent(sheetName) : 'A1:Z1000';
-            const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}?key=${apiKey}`;
-            
-            const response = await fetch(url);
-            
-            if (!response.ok) {
-                throw new Error(`Erro HTTP: ${response.status}`);
-            }
-            
-            const data = await response.json();
-            
-            if (!data.values || data.values.length === 0) {
-                throw new Error('A planilha está vazia ou não contém dados válidos');
-            }
-
-            const raw_headers = data.values[0];
-            const rows = data.values.slice(1);
-            const headers = raw_headers.map(normalizeHeader);
-
-            return { raw_headers, headers, rows };
-        }
-
-        // Carregar dados de monitoria via API pública
+        // Função auxiliar para carregar dados de monitoria via API pública
         async function loadMonitoringDataPublic(sheetId, sheetName) {
             let url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json`;
             if (sheetName) {
@@ -1854,25 +1945,7 @@
 
             const response = await fetch(url);
             if (!response.ok) {
-                // Tentar método alternativo
-                const altUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=0`;
-                const altResponse = await fetch(altUrl);
-                
-                if (!altResponse.ok) {
-                    throw new Error(`Falha na requisição: ${response.statusText}`);
-                }
-                
-                const csvText = await altResponse.text();
-                const parsedData = Papa.parse(csvText, {
-                    header: true,
-                    skipEmptyLines: true
-                });
-                
-                const raw_headers = Object.keys(parsedData.data[0] || {});
-                const rows = parsedData.data.map(row => Object.values(row));
-                const headers = raw_headers.map(normalizeHeader);
-
-                return { raw_headers, headers, rows };
+                throw new Error(`Falha na requisição: ${response.statusText}`);
             }
             
             let text = await response.text();
@@ -1894,13 +1967,13 @@
             }
 
             const raw_headers = table.cols.map(col => col.label);
-            const rows = table.rows.map(row => row.c.map(cell => (cell ? (cell.f || cell.v) : '')));
+            const dataRows = table.rows.map(row => row.c.map(cell => (cell ? (cell.f || cell.v) : '')));
             const headers = raw_headers.map(normalizeHeader);
 
-            return { raw_headers, headers, rows };
+            processMonitoringData(raw_headers, headers, dataRows);
         }
 
-        // Função para processar dados de monitoria (mantida)
+        // Função para processar dados de monitoria (mantida do código original)
         function processMonitoringData(raw_headers, headers, dataRows) {
             MONITORING_STAGE_KEYS = [];
             MONITORING_STAGE_LABELS = [];
@@ -1937,6 +2010,670 @@
 
             monitoringDOM.loader.style.display = 'none';
             monitoringDOM.dashboardContent.style.display = 'block';
+        }
+
+        function populateMonitoringFilters() {
+            const filters = { coord: new Set(), polo: new Set(), exec: new Set() };
+
+            monitoringAllData.forEach(row => {
+                if (row.coordenacao) filters.coord.add(row.coordenacao);
+                if (row.polo) filters.polo.add(row.polo);
+                if (row.email_do_executivo) filters.exec.add(row.email_do_executivo);
+            });
+
+            const populate = (selectElement, values) => {
+                selectElement.innerHTML = `<option value="${MONITORING_CONSTANTS.FILTER_ALL}">Todos</option>`;
+                [...values].sort().forEach(value => {
+                    selectElement.innerHTML += `<option value="${value}">${value}</option>`;
+                });
+            };
+
+            populate(monitoringDOM.coordFilter, filters.coord);
+            populate(monitoringDOM.poloFilter, filters.polo);
+            populate(monitoringDOM.execFilter, filters.exec);
+        }
+
+        function applyMonitoringFiltersAndRender() {
+            const coord = monitoringDOM.coordFilter.value;
+            const polo = monitoringDOM.poloFilter.value;
+            const exec = monitoringDOM.execFilter.value;
+
+            const filteredData = monitoringAllData.filter(row => {
+                const all = MONITORING_CONSTANTS.FILTER_ALL;
+                return (coord === all || row.coordenacao === coord) &&
+                       (polo === all || row.polo === polo) &&
+                       (exec === all || row.email_do_executivo === exec);
+            });
+
+            if (Object.keys(monitoringCharts).length === 0) createMonitoringCharts();
+            updateMonitoringDashboard(filteredData);
+        }
+
+        function updateMonitoringDashboard(data) {
+            updateMonitoringKPIs(data);
+            updatePerformanceByStageChart(data);
+            updateRatingDistributionChart(data);
+            updatePerformanceRadarChart(data);
+            updateEvalsByCoordChart(data);
+            updateFeedbackGivenChart(data);
+            updateFeedbackTable(data);
+            updateMonitoringTimelineChart(data);
+        }
+
+        function updateMonitoringKPIs(data) {
+            document.getElementById('kpi-total').textContent = data.length;
+
+            let totalScore = 0, totalRatings = 0;
+            data.forEach(row => {
+                MONITORING_STAGE_KEYS.forEach((key, i) => {
+                    if (MONITORING_CONSTANTS.RATING_MAP[row[key]]) {
+                        const score = ((MONITORING_CONSTANTS.RATING_MAP[row[key]] - 1) / 2) * 100;
+                        totalScore += score;
+                        totalRatings++;
+                    }
+                });
+            });
+            const avgScore = totalRatings > 0 ? Math.round(totalScore / totalRatings) : 0;
+            document.getElementById('kpi-avg').textContent = avgScore;
+
+            let nonComplianceCount = 0;
+            
+            if (MONITORING_NON_CONFORMITY_FIELD) {
+                nonComplianceCount = data.filter(row => {
+                    const ncValue = row[MONITORING_NON_CONFORMITY_FIELD];
+                    return ncValue !== undefined && ncValue !== null && ncValue !== '' && ncValue.toString().trim() !== '';
+                }).length;
+            } else {
+                nonComplianceCount = data.filter(row => {
+                    return Object.keys(row).some(key => {
+                        const value = row[key];
+                        if (typeof value === 'string' && value.toLowerCase().includes('não conformidade')) {
+                            return true;
+                        }
+                        return false;
+                    });
+                }).length;
+            }
+            
+            document.getElementById('kpi-non-compliance').textContent = nonComplianceCount;
+
+            const feedbackResponses = data.filter(row => {
+                const feedback = row['executivo_recebeu_feedback_esse_mes'];
+                return feedback && (feedback === 'Sim' || feedback === 'Não');
+            });
+            const feedbackReceivedCount = feedbackResponses.filter(row => 
+                row['executivo_recebeu_feedback_esse_mes'] === 'Sim'
+            ).length;
+            const feedbackPercentage = feedbackResponses.length > 0 ? 
+                Math.round((feedbackReceivedCount / feedbackResponses.length) * 100) + '%' : '0%';
+            document.getElementById('kpi-feedback-received').textContent = feedbackPercentage;
+
+            // Percepção de Liderança
+            const leadershipRating = calculateLeadershipStars(data);
+            const starsElement = document.querySelector('#kpi-leadership .stars');
+            const ratingElement = document.querySelector('#kpi-leadership .stars-rating');
+            
+            starsElement.textContent = generateStars(leadershipRating);
+            ratingElement.textContent = `${leadershipRating.toFixed(1)}/5.0`;
+        }
+
+        function createOrUpdateMonitoringChart(id, type, data, options) {
+            const ctx = document.getElementById(id).getContext('2d');
+            if (monitoringCharts[id]) {
+                monitoringCharts[id].data = data;
+                monitoringCharts[id].options = options;
+                monitoringCharts[id].update();
+            } else {
+                monitoringCharts[id] = new Chart(ctx, { type, data, options });
+            }
+        }
+
+        function createMonitoringCharts() {
+            const emptyData = { labels: [], datasets: [] };
+            const commonOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'top' } }
+            };
+
+            createOrUpdateMonitoringChart('performanceByStageChart', 'bar', emptyData, { 
+                ...commonOptions, 
+                scales: { y: { beginAtZero: true, max: 100 } } 
+            });
+            createOrUpdateMonitoringChart('ratingDistributionChart', 'doughnut', emptyData, commonOptions);
+            createOrUpdateMonitoringChart('performanceRadarChart', 'radar', emptyData, { 
+                ...commonOptions, 
+                scales: { r: { beginAtZero: true, max: 100 } } 
+            });
+            createOrUpdateMonitoringChart('evalsByCoordChart', 'bar', emptyData, { ...commonOptions, indexAxis: 'y' });
+            
+            createOrUpdateMonitoringChart('feedbackGivenChart', 'pie', emptyData, {
+                ...commonOptions,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            boxWidth: 15,
+                            padding: 15
+                        }
+                    }
+                }
+            });
+            
+            createOrUpdateMonitoringChart('monitoringTimelineChart', 'line', emptyData, {
+                ...commonOptions,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        title: {
+                            display: true,
+                            text: 'Média Geral (0-100)'
+                        }
+                    },
+                    x: {
+                        offset: true,
+                        grid: {
+                            display: true
+                        },
+                        title: {
+                            display: true,
+                            text: 'Mês'
+                        }
+                    }
+                }
+            });
+        }
+
+        function updatePerformanceByStageChart(data) {
+            const stageTotals = MONITORING_STAGE_KEYS.map(() => ({ sum: 0, count: 0 }));
+
+            data.forEach(row => {
+                MONITORING_STAGE_KEYS.forEach((key, i) => {
+                    const rating = MONITORING_CONSTANTS.RATING_MAP[row[key]];
+                    if (rating) {
+                        const score = ((rating - 1) / 2) * 100;
+                        stageTotals[i].sum += score;
+                        stageTotals[i].count++;
+                    }
+                });
+            });
+
+            const averages = stageTotals.map(s => s.count > 0 ? Math.round(s.sum / s.count) : 0);
+
+            const chartData = {
+                labels: MONITORING_STAGE_LABELS,
+                datasets: [{
+                    label: 'Média de Desempenho (0-100)',
+                    data: averages,
+                    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                    borderColor: 'rgba(0, 0, 0, 1)',
+                    borderWidth: 1
+                }]
+            };
+            createOrUpdateMonitoringChart('performanceByStageChart', 'bar', chartData, {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100
+                    }
+                }
+            });
+        }
+
+        function updateRatingDistributionChart(data) {
+            const counts = { 'Below': 0, 'Meets': 0, 'Above': 0 };
+            data.forEach(row => {
+                MONITORING_STAGE_KEYS.forEach(key => {
+                    if (counts[row[key]] !== undefined) counts[row[key]]++;
+                });
+            });
+
+            const chartData = {
+                labels: ['Above', 'Meets', 'Below'],
+                datasets: [{
+                    label: 'Distribuição',
+                    data: [counts['Above'], counts['Meets'], counts['Below']],
+                    backgroundColor: ['#28a745', '#ffc107', '#dc3545'],
+                    hoverOffset: 4
+                }]
+            };
+            createOrUpdateMonitoringChart('ratingDistributionChart', 'doughnut', chartData, { responsive: true, maintainAspectRatio: false });
+        }
+
+        function updatePerformanceRadarChart(data) {
+            const stageTotals = MONITORING_STAGE_KEYS.map(() => ({ sum: 0, count: 0 }));
+            data.forEach(row => {
+                MONITORING_STAGE_KEYS.forEach((key, i) => {
+                    const rating = MONITORING_CONSTANTS.RATING_MAP[row[key]];
+                    if (rating) {
+                        const score = ((rating - 1) / 2) * 100;
+                        stageTotals[i].sum += score;
+                        stageTotals[i].count++;
+                    }
+                });
+            });
+            const averages = stageTotals.map(s => s.count > 0 ? Math.round(s.sum / s.count) : 0);
+
+            const chartData = {
+                labels: MONITORING_STAGE_LABELS,
+                datasets: [{
+                    label: 'Média de Performance (0-100)',
+                    data: averages,
+                    fill: true,
+                    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                    borderColor: 'rgb(0, 0, 0)',
+                    pointBackgroundColor: 'rgb(0, 0, 0)',
+                    pointBorderColor: '#fff',
+                    pointHoverBackgroundColor: '#fff',
+                    pointHoverBorderColor: 'rgb(0, 0, 0)'
+                }]
+            };
+            createOrUpdateMonitoringChart('performanceRadarChart', 'radar', chartData, {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { r: { beginAtZero: true, max: 100, min: 0 } }
+            });
+        }
+
+        function updateEvalsByCoordChart(data) {
+            const counts = {};
+            data.forEach(row => {
+                const coord = row.coordenacao || 'N/A';
+                counts[coord] = (counts[coord] || 0) + 1;
+            });
+
+            const sortedCoords = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+
+            const chartData = {
+                labels: sortedCoords.map(c => c[0]),
+                datasets: [{
+                    label: 'Nº de Avaliações',
+                    data: sortedCoords.map(c => c[1]),
+                    backgroundColor: 'rgba(0, 0, 0, 0.7)'
+                }]
+            };
+            createOrUpdateMonitoringChart('evalsByCoordChart', 'bar', chartData, {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'y',
+                plugins: { legend: { display: false } }
+            });
+        }
+
+        function updateFeedbackGivenChart(data) {
+            const feedbackResponses = data.filter(row => {
+                const feedback = row['executivo_recebeu_feedback_esse_mes'];
+                return feedback && (feedback === 'Sim' || feedback === 'Não');
+            });
+            
+            const counts = { 'Sim': 0, 'Não': 0 };
+            feedbackResponses.forEach(row => {
+                const val = row['executivo_recebeu_feedback_esse_mes'];
+                if (val === 'Sim') counts['Sim']++;
+                else if (val === 'Não') counts['Não']++;
+            });
+
+            const chartData = {
+                labels: ['Sim', 'Não'],
+                datasets: [{
+                    data: [counts['Sim'], counts['Não']],
+                    backgroundColor: ['#28a745', '#dc3545'],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            };
+            
+            createOrUpdateMonitoringChart('feedbackGivenChart', 'pie', chartData, { 
+                responsive: true, 
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            boxWidth: 20,
+                            padding: 20,
+                            font: {
+                                size: 14
+                            }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const total = counts['Sim'] + counts['Não'];
+                                const percentage = Math.round((context.parsed / total) * 100);
+                                return `${context.label}: ${context.parsed} (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateFeedbackTable(data) {
+            monitoringDOM.feedbackTableBody.innerHTML = '';
+            const fragment = document.createDocumentFragment();
+            
+            data.forEach(row => {
+                const feedback = row['escreva_um_feedback_sobre_o_executivo'];
+                if (feedback) {
+                    const tr = document.createElement('tr');
+                    const timestamp = row.carimbo_de_datahora || row.timestamp || 'N/A';
+                    tr.innerHTML = `
+                        <td>${row.email_do_executivo || 'N/A'}</td>
+                        <td>${timestamp}</td>
+                        <td>${feedback}</td>
+                    `;
+                    fragment.appendChild(tr);
+                }
+            });
+            
+            monitoringDOM.feedbackTableBody.appendChild(fragment);
+        }
+
+        function updateMonitoringTimelineChart(data) {
+            // Agrupar dados por mês
+            const monthlyData = {};
+            let hasValidData = false;
+            
+            data.forEach(row => {
+                // Tentar encontrar timestamp - verificar várias colunas possíveis
+                let timestamp = row.carimbo_de_datahora || row.timestamp || row.data || '';
+                
+                // Se não encontrar timestamp, pular
+                if (!timestamp) return;
+                
+                try {
+                    // Tentar diferentes formatos de data
+                    let date;
+                    
+                    // Formato do Google Sheets (ex: "2024-01-15 10:30:00")
+                    if (timestamp.includes('-')) {
+                        date = new Date(timestamp);
+                    } 
+                    // Formato brasileiro (ex: "15/01/2024 10:30:00")
+                    else if (timestamp.includes('/')) {
+                        const parts = timestamp.split(' ');
+                        const dateParts = parts[0].split('/');
+                        if (dateParts.length === 3) {
+                            const day = parseInt(dateParts[0]);
+                            const month = parseInt(dateParts[1]) - 1; // Mês é 0-indexed
+                            const year = parseInt(dateParts[2]);
+                            date = new Date(year, month, day);
+                        }
+                    }
+                    
+                    // Se não conseguiu parsear, tentar o construtor padrão
+                    if (!date || isNaN(date.getTime())) {
+                        date = new Date(timestamp);
+                    }
+                    
+                    // Se ainda não é uma data válida, pular
+                    if (isNaN(date.getTime())) {
+                        console.log('Data inválida:', timestamp);
+                        return;
+                    }
+                    
+                    const monthYear = `${date.getMonth() + 1}/${date.getFullYear()}`;
+                    
+                    if (!monthlyData[monthYear]) {
+                        monthlyData[monthYear] = { sum: 0, count: 0 };
+                    }
+                    
+                    // Calcular média geral para esta linha
+                    let rowSum = 0;
+                    let rowCount = 0;
+                    
+                    MONITORING_STAGE_KEYS.forEach(key => {
+                        const rating = MONITORING_CONSTANTS.RATING_MAP[row[key]];
+                        if (rating) {
+                            const score = ((rating - 1) / 2) * 100;
+                            rowSum += score;
+                            rowCount++;
+                        }
+                    });
+                    
+                    if (rowCount > 0) {
+                        const rowAvg = rowSum / rowCount;
+                        monthlyData[monthYear].sum += rowAvg;
+                        monthlyData[monthYear].count++;
+                        hasValidData = true;
+                    }
+                } catch (e) {
+                    console.log('Erro ao processar timestamp:', timestamp, e);
+                }
+            });
+            
+            // Se não há dados válidos, mostrar mensagem
+            if (!hasValidData) {
+                console.log('❌ Nenhum dado válido encontrado para o gráfico de timeline');
+                const chartData = {
+                    labels: ['Sem dados'],
+                    datasets: [
+                        {
+                            label: 'Média Mensal',
+                            data: [0],
+                            borderColor: 'rgb(0, 0, 0)',
+                            backgroundColor: 'rgba(0, 0, 0, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.4,
+                            fill: false
+                        }
+                    ]
+                };
+                
+                createOrUpdateMonitoringChart('monitoringTimelineChart', 'line', chartData, {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'Média Geral (0-100)'
+                            },
+                            grid: {
+                                color: 'rgba(0,0,0,0.1)'
+                            }
+                        },
+                        x: {
+                            offset: true,
+                            grid: {
+                                color: 'rgba(0,0,0,0.1)'
+                            },
+                            title: {
+                                display: true,
+                                text: 'Mês'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        }
+                    }
+                });
+                return;
+            }
+            
+            // Ordenar meses cronologicamente
+            const sortedMonths = Object.keys(monthlyData).sort((a, b) => {
+                const [monthA, yearA] = a.split('/').map(Number);
+                const [monthB, yearB] = b.split('/').map(Number);
+                return new Date(yearA, monthA - 1) - new Date(yearB, monthB - 1);
+            });
+            
+            const averages = sortedMonths.map(month => {
+                const data = monthlyData[month];
+                return data.count > 0 ? Math.round(data.sum / data.count) : 0;
+            });
+            
+            // Calcular linha de tendência apenas se houver dados suficientes
+            let trendData = [];
+            if (averages.length >= 2) {
+                trendData = calculateFullTrendLine(averages);
+            } else {
+                trendData = averages; // Se não há dados suficientes, usar os próprios dados
+            }
+            
+            const chartData = {
+                labels: sortedMonths,
+                datasets: [
+                    {
+                        label: 'Média Mensal',
+                        data: averages,
+                        borderColor: 'rgb(0, 0, 0)',
+                        backgroundColor: 'rgba(0, 0, 0, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.4,
+                        fill: false
+                    }
+                ]
+            };
+            
+            // Adicionar linha de tendência apenas se houver dados suficientes
+            if (averages.length >= 2) {
+                chartData.datasets.push({
+                    label: 'Linha de Tendência',
+                    data: trendData,
+                    borderColor: 'rgb(255, 99, 132)',
+                    backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    tension: 0,
+                    fill: false,
+                    pointRadius: 0
+                });
+            }
+            
+            createOrUpdateMonitoringChart('monitoringTimelineChart', 'line', chartData, {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        title: {
+                            display: true,
+                            text: 'Média Geral (0-100)'
+                        },
+                        grid: {
+                            color: 'rgba(0,0,0,0.1)'
+                        }
+                    },
+                    x: {
+                        offset: true,
+                        grid: {
+                            color: 'rgba(0,0,0,0.1)'
+                        },
+                        title: {
+                            display: true,
+                            text: 'Mês'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    }
+                }
+            });
+        }
+
+        function calculateFullTrendLine(data) {
+            if (data.length < 2) return data;
+            
+            const n = data.length;
+            let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+            
+            for (let i = 0; i < n; i++) {
+                sumX += i;
+                sumY += data[i];
+                sumXY += i * data[i];
+                sumXX += i * i;
+            }
+            
+            const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+            const intercept = (sumY - slope * sumX) / n;
+            
+            return Array.from({length: n}, (_, i) => intercept + slope * i);
+        }
+
+        // =============================================
+        // FILTRO DE DATAS PARA MONITORIA
+        // =============================================
+        function setupMonitoringDateFilter() {
+            const applyButton = document.getElementById('applyMonitoringDateFilter');
+            if (applyButton) {
+                applyButton.addEventListener('click', applyMonitoringDateFilter);
+            }
+        }
+
+        function applyMonitoringDateFilter() {
+            const startDate = document.getElementById('monitoringStartDate').value;
+            const endDate = document.getElementById('monitoringEndDate').value;
+            
+            // Aplicar filtro aos dados da monitoria
+            if (monitoringAllData && monitoringAllData.length > 0) {
+                let filteredData = [...monitoringAllData];
+                
+                if (startDate) {
+                    filteredData = filteredData.filter(row => {
+                        const rowDate = getDateFromRow(row);
+                        return rowDate >= new Date(startDate);
+                    });
+                }
+                
+                if (endDate) {
+                    filteredData = filteredData.filter(row => {
+                        const rowDate = getDateFromRow(row);
+                        return rowDate <= new Date(endDate + 'T23:59:59');
+                    });
+                }
+                
+                // Atualizar dashboard com dados filtrados
+                updateMonitoringDashboard(filteredData);
+                
+                showAlert(`✅ Filtro de datas aplicado: ${filteredData.length} registros`, 'success');
+            } else {
+                showAlert('⚠️ Nenhum dado de monitoria carregado', 'warning');
+            }
+        }
+
+        function getDateFromRow(row) {
+            // Tentar diferentes campos de data
+            const dateFields = ['carimbo_de_datahora', 'timestamp', 'data', 'datahora'];
+            
+            for (const field of dateFields) {
+                if (row[field]) {
+                    const date = new Date(row[field]);
+                    if (!isNaN(date.getTime())) {
+                        return date;
+                    }
+                    
+                    // Tentar parse de formato brasileiro
+                    const parts = row[field].split('/');
+                    if (parts.length === 3) {
+                        const day = parseInt(parts[0]);
+                        const month = parseInt(parts[1]) - 1;
+                        const year = parseInt(parts[2]);
+                        const brazilianDate = new Date(year, month, day);
+                        if (!isNaN(brazilianDate.getTime())) {
+                            return brazilianDate;
+                        }
+                    }
+                }
+            }
+            
+            // Se não encontrou data válida, retorna data mínima
+            return new Date(0);
         }
 
         // =============================================
@@ -2732,7 +3469,7 @@
                 
                 setupEventListeners();
                 setupTabNavigation();
-                setupMonitoringDateFilter();
+                setupMonitoringDateFilter(); // Configurar filtro de datas da monitoria
                 
                 document.getElementById('loadingIndicator').classList.add('hidden');
                 document.getElementById('contentArea').classList.remove('hidden');
@@ -3405,7 +4142,6 @@
         async function handleLoadData() {
             const sheetId = document.getElementById('sheetId').value.trim();
             const sheetTab = document.getElementById('sheetTab').value.trim() || 'Página1';
-            const apiKey = document.getElementById('apiKey').value.trim();
             
             if (!sheetId) {
                 showAlert('⚠️ Por favor, informe o ID da planilha', 'warning');
@@ -3413,7 +4149,7 @@
             }
             
             try {
-                await loadFromGoogleSheets(sheetId, sheetTab, apiKey);
+                await loadFromGoogleSheets(sheetId, sheetTab);
                 showAlert('✅ Dados carregados com sucesso!', 'success');
             } catch (error) {
                 showAlert(`❌ Erro ao carregar dados do Google Sheets: ${error.message}`, 'error');

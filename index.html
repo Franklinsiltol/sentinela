@@ -9,7 +9,6 @@
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.min.js"></script>
-    <script src="https://apis.google.com/js/api.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -825,22 +824,17 @@
             border-left: 4px solid var(--danger-color);
         }
 
+        .auth-status.info {
+            background-color: #e3f2fd;
+            color: #1976d2;
+            border-left: 4px solid #2196F3;
+        }
+
         .credentials-info {
             font-size: 0.8rem;
             color: var(--dark-gray);
             margin-top: 5px;
         }
-        .auth-status.info {
-    background-color: #e3f2fd;
-    color: #1976d2;
-    border-left: 4px solid #2196F3;
-}
-
-.json-credential-section {
-    border-top: 1px solid var(--medium-gray);
-    padding-top: 15px;
-    margin-top: 15px;
-}
 
         /* Responsividade */
         @media (max-width: 1200px) {
@@ -952,27 +946,36 @@
             </div>
             
             <div class="sidebar-content">
-                <!-- Seção de Autenticação Google Sheets -->
+                <!-- Seção de Autenticação via Credencial JSON -->
                 <div class="section auth-section">
                     <h3 class="section-title">
-                        <i class="fas fa-key"></i>
-                        <span>Autenticação Google</span>
+                        <i class="fas fa-file-upload"></i>
+                        <span>Autenticação Google Sheets</span>
                     </h3>
                     
-                    <div id="authStatus" class="auth-status not-authenticated">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        <span>Não autenticado</span>
+                    <div class="input-group">
+                        <label>Upload do Arquivo JSON</label>
+                        <input type="file" id="jsonFileUpload" accept=".json">
                     </div>
                     
-                    <button class="button button-primary" id="loginBtn">
-                        <i class="fas fa-sign-in-alt"></i>
-                        <span>Fazer Login</span>
+                    <div class="input-group">
+                        <label>Ou cole o conteúdo JSON:</label>
+                        <textarea id="jsonTextArea" placeholder='Cole o conteúdo do arquivo JSON aqui...' rows="8"></textarea>
+                    </div>
+                    
+                    <button class="button button-primary" id="loadJsonCreds">
+                        <i class="fas fa-upload"></i>
+                        <span>Carregar Credencial</span>
                     </button>
                     
-                    <button class="button button-secondary hidden" id="logoutBtn">
-                        <i class="fas fa-sign-out-alt"></i>
-                        <span>Sair</span>
-                    </button>
+                    <div id="jsonAuthStatus" class="auth-status not-authenticated">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <span>Credencial não carregada</span>
+                    </div>
+                    
+                    <div class="credentials-info">
+                        <small>Use este método para autenticação com Service Account. A credencial será usada apenas nesta sessão.</small>
+                    </div>
                 </div>
                 
                 <div class="section">
@@ -1016,37 +1019,6 @@
                         <span>Carregar Dados</span>
                     </button>
                 </div>
-                <!-- Adicione esta seção após a seção de autenticação Google existente -->
-<div class="section auth-section">
-    <h3 class="section-title">
-        <i class="fas fa-file-upload"></i>
-        <span>Autenticação via Credencial JSON</span>
-    </h3>
-    
-    <div class="input-group">
-        <label>Upload do Arquivo JSON</label>
-        <input type="file" id="jsonFileUpload" accept=".json">
-    </div>
-    
-    <div class="input-group">
-        <label>Ou cole o conteúdo JSON:</label>
-        <textarea id="jsonTextArea" placeholder='Cole o conteúdo do arquivo JSON aqui...' rows="8"></textarea>
-    </div>
-    
-    <button class="button button-primary" id="loadJsonCreds">
-        <i class="fas fa-upload"></i>
-        <span>Carregar Credencial</span>
-    </button>
-    
-    <div id="jsonAuthStatus" class="auth-status not-authenticated">
-        <i class="fas fa-exclamation-triangle"></i>
-        <span>Credencial não carregada</span>
-    </div>
-    
-    <div class="credentials-info">
-        <small>Use este método para autenticação com Service Account. A credencial será usada apenas nesta sessão.</small>
-    </div>
-</div>
 
                 <!-- Nova seção: Mapeamento de Colunas -->
                 <div class="section">
@@ -1599,329 +1571,129 @@
 
     <script>
         // =============================================
-        // SISTEMA DE AUTENTICAÇÃO GOOGLE SHEETS (OAuth 2.0)
+        // SISTEMA DE AUTENTICAÇÃO VIA CREDENCIAL JSON
         // =============================================
-        const CLIENT_ID = '1048705329733-2lo4pnp98n2r6cc8a3uj6ocr36gehrdi.apps.googleusercontent.com'; // Substitua pelo seu Client ID
-        const API_KEY = 'YOUR_API_KEY'; // Opcional, se quiser usar API key
-        const SCOPES = 'https://www.googleapis.com/auth/spreadsheets.readonly';
+        let serviceAccountCredentials = null;
 
-        let googleAuth = null;
-
-        // Elementos DOM da autenticação
-        const authDOM = {
-            loginBtn: document.getElementById('loginBtn'),
-            logoutBtn: document.getElementById('logoutBtn'),
-            authStatus: document.getElementById('authStatus')
+        // Elementos DOM da autenticação JSON
+        const jsonAuthDOM = {
+            fileUpload: document.getElementById('jsonFileUpload'),
+            textArea: document.getElementById('jsonTextArea'),
+            loadBtn: document.getElementById('loadJsonCreds'),
+            authStatus: document.getElementById('jsonAuthStatus')
         };
 
-        // Event Listeners para autenticação
-        authDOM.loginBtn.addEventListener('click', handleAuthClick);
-        authDOM.logoutBtn.addEventListener('click', handleSignoutClick);
+        // Event Listeners para autenticação JSON
+        jsonAuthDOM.loadBtn.addEventListener('click', handleJsonAuth);
+        jsonAuthDOM.fileUpload.addEventListener('change', handleFileUploadChange);
 
-        function handleAuthClick() {
-            if (googleAuth && googleAuth.isSignedIn.get()) {
-                // Já autenticado
+        function handleFileUploadChange(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    jsonAuthDOM.textArea.value = e.target.result;
+                    updateJsonAuthStatus('Credencial carregada do arquivo', 'info');
+                } catch (error) {
+                    updateJsonAuthStatus('Erro ao ler arquivo: ' + error.message, 'error');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        async function handleJsonAuth() {
+            const jsonContent = jsonAuthDOM.textArea.value.trim();
+            
+            if (!jsonContent) {
+                updateJsonAuthStatus('Por favor, cole o conteúdo JSON ou faça upload do arquivo', 'error');
                 return;
             }
-
-            gapi.auth2.getAuthInstance().signIn();
-        }
-
-        function handleSignoutClick() {
-            if (googleAuth) {
-                googleAuth.signOut();
-                googleAuth.disconnect();
-                updateAuthStatus('Desconectado', 'not-authenticated');
-                authDOM.loginBtn.classList.remove('hidden');
-                authDOM.logoutBtn.classList.add('hidden');
+            
+            try {
+                const credentials = JSON.parse(jsonContent);
+                
+                // Validar estrutura básica da credencial
+                if (!credentials.type || !credentials.project_id || !credentials.private_key) {
+                    throw new Error('Estrutura JSON inválida. Certifique-se de que é uma credencial de service account válida.');
+                }
+                
+                if (credentials.type !== 'service_account') {
+                    throw new Error('Tipo de credencial inválido. Deve ser "service_account".');
+                }
+                
+                serviceAccountCredentials = credentials;
+                updateJsonAuthStatus('✅ Credencial carregada com sucesso!', 'authenticated');
+                
+                showAlert('✅ Credencial JSON carregada com sucesso! Agora você pode carregar dados do Google Sheets.', 'success');
+                
+            } catch (error) {
+                console.error('Erro ao processar credencial JSON:', error);
+                updateJsonAuthStatus('❌ Erro: ' + error.message, 'error');
             }
         }
 
-        function updateAuthStatus(message, status) {
-            authDOM.authStatus.innerHTML = `
-                <i class="fas fa-${getStatusIcon(status)}"></i>
+        function updateJsonAuthStatus(message, status) {
+            jsonAuthDOM.authStatus.innerHTML = `
+                <i class="fas fa-${getJsonStatusIcon(status)}"></i>
                 <span>${message}</span>
             `;
-            authDOM.authStatus.className = `auth-status ${status}`;
+            jsonAuthDOM.authStatus.className = `auth-status ${status}`;
         }
 
-        function getStatusIcon(status) {
+        function getJsonStatusIcon(status) {
             switch(status) {
                 case 'authenticated': return 'check-circle';
+                case 'info': return 'info-circle';
                 case 'error': return 'exclamation-circle';
                 default: return 'exclamation-triangle';
             }
         }
 
-        function initClient() {
-            gapi.client.init({
-                apiKey: API_KEY,
-                clientId: CLIENT_ID,
-                discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'],
-                scope: SCOPES
-            }).then(function () {
-                googleAuth = gapi.auth2.getAuthInstance();
-
-                // Listen for sign-in state changes.
-                googleAuth.isSignedIn.listen(updateSigninStatus);
-
-                // Handle the initial sign-in state.
-                updateSigninStatus(googleAuth.isSignedIn.get());
-            }).catch(function (error) {
-                console.error('Erro ao inicializar o cliente Google API', error);
-                updateAuthStatus('Erro na autenticação', 'error');
-            });
-        }
-
-        function updateSigninStatus(isSignedIn) {
-            if (isSignedIn) {
-                updateAuthStatus('Autenticado com Google Sheets', 'authenticated');
-                authDOM.loginBtn.classList.add('hidden');
-                authDOM.logoutBtn.classList.remove('hidden');
-            } else {
-                updateAuthStatus('Não autenticado', 'not-authenticated');
-                authDOM.loginBtn.classList.remove('hidden');
-                authDOM.logoutBtn.classList.add('hidden');
-            }
-        }
-
-        // Carrega a biblioteca do Google API e inicializa o cliente
-        function startAuth() {
-            gapi.load('client:auth2', initClient);
-        }
-        // =============================================
-// SISTEMA DE AUTENTICAÇÃO VIA CREDENCIAL JSON
-// =============================================
-let serviceAccountCredentials = null;
-
-// Elementos DOM da autenticação JSON
-const jsonAuthDOM = {
-    fileUpload: document.getElementById('jsonFileUpload'),
-    textArea: document.getElementById('jsonTextArea'),
-    loadBtn: document.getElementById('loadJsonCreds'),
-    authStatus: document.getElementById('jsonAuthStatus')
-};
-
-// Event Listeners para autenticação JSON
-jsonAuthDOM.loadBtn.addEventListener('click', handleJsonAuth);
-jsonAuthDOM.fileUpload.addEventListener('change', handleFileUploadChange);
-
-function handleFileUploadChange(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        try {
-            jsonAuthDOM.textArea.value = e.target.result;
-            updateJsonAuthStatus('Credencial carregada do arquivo', 'info');
-        } catch (error) {
-            updateJsonAuthStatus('Erro ao ler arquivo: ' + error.message, 'error');
-        }
-    };
-    reader.readAsText(file);
-}
-
-async function handleJsonAuth() {
-    const jsonContent = jsonAuthDOM.textArea.value.trim();
-    
-    if (!jsonContent) {
-        updateJsonAuthStatus('Por favor, cole o conteúdo JSON ou faça upload do arquivo', 'error');
-        return;
-    }
-    
-    try {
-        const credentials = JSON.parse(jsonContent);
-        
-        // Validar estrutura básica da credencial
-        if (!credentials.type || !credentials.project_id || !credentials.private_key) {
-            throw new Error('Estrutura JSON inválida. Certifique-se de que é uma credencial de service account válida.');
-        }
-        
-        if (credentials.type !== 'service_account') {
-            throw new Error('Tipo de credencial inválido. Deve ser "service_account".');
-        }
-        
-        serviceAccountCredentials = credentials;
-        updateJsonAuthStatus('✅ Credencial carregada com sucesso!', 'authenticated');
-        
-        showAlert('✅ Credencial JSON carregada com sucesso! Agora você pode carregar dados do Google Sheets.', 'success');
-        
-    } catch (error) {
-        console.error('Erro ao processar credencial JSON:', error);
-        updateJsonAuthStatus('❌ Erro: ' + error.message, 'error');
-    }
-}
-
-function updateJsonAuthStatus(message, status) {
-    jsonAuthDOM.authStatus.innerHTML = `
-        <i class="fas fa-${getJsonStatusIcon(status)}"></i>
-        <span>${message}</span>
-    `;
-    jsonAuthDOM.authStatus.className = `auth-status ${status}`;
-}
-
-function getJsonStatusIcon(status) {
-    switch(status) {
-        case 'authenticated': return 'check-circle';
-        case 'info': return 'info-circle';
-        case 'error': return 'exclamation-circle';
-        default: return 'exclamation-triangle';
-    }
-}
-
-function isJsonAuthenticated() {
-    return serviceAccountCredentials !== null;
-}
-
-// =============================================
-// FUNÇÃO PARA CARREGAR DO GOOGLE SHEETS COM CREDENCIAL JSON
-// =============================================
-async function loadFromGoogleSheetsWithJson(sheetId, sheetName) {
-    if (!isJsonAuthenticated()) {
-        throw new Error('Credencial JSON não carregada. Faça upload da credencial primeiro.');
-    }
-
-    try {
-        // Carregar a biblioteca googleapis dinamicamente
-        await loadGoogleApis();
-        
-        // Configurar autenticação
-        const auth = new google.auth.JWT(
-            serviceAccountCredentials.client_email,
-            null,
-            serviceAccountCredentials.private_key,
-            ['https://www.googleapis.com/auth/spreadsheets.readonly']
-        );
-        
-        // Criar cliente do Sheets
-        const sheets = google.sheets({ version: 'v4', auth });
-        
-        // Fazer a requisição
-        const response = await sheets.spreadsheets.values.get({
-            spreadsheetId: sheetId,
-            range: sheetName || 'Página1'
-        });
-        
-        const values = response.data.values;
-        
-        if (!values || values.length === 0) {
-            throw new Error('A planilha está vazia ou não contém dados válidos');
-        }
-
-        // Processar dados
-        const headers = values[0];
-        const rows = values.slice(1);
-
-        const formattedData = rows.map(row => {
-            const item = {};
-            headers.forEach((header, index) => {
-                item[header] = row[index] || '';
-            });
-            return item;
-        });
-
-        rawData = formattedData;
-
-        // Preencher selects de mapeamento
-        populateColumnMappingSelects(headers);
-
-        // Mostrar modal para mapeamento
-        document.getElementById('columnMappingModal').style.display = 'flex';
-
-        showAlert('✅ Dados carregados com sucesso (via Service Account)', 'success');
-        
-    } catch (error) {
-        console.error('Erro ao carregar do Google Sheets (Service Account):', error);
-        throw new Error(`Não foi possível carregar os dados: ${error.message}`);
-    }
-}
-
-// =============================================
-// CARREGAR DINAMICAMENTE A BIBLIOTECA GOOGLEAPIS
-// =============================================
-function loadGoogleApis() {
-    return new Promise((resolve, reject) => {
-        if (window.google && google.sheets) {
-            resolve();
-            return;
-        }
-        
-        const script = document.createElement('script');
-        script.src = 'https://apis.google.com/js/api.js';
-        script.onload = () => {
-            gapi.load('client', () => {
-                resolve();
-            });
-        };
-        script.onerror = () => reject(new Error('Falha ao carregar a biblioteca Google APIs'));
-        document.head.appendChild(script);
-    });
-}
-
-// =============================================
-// ATUALIZAR FUNÇÃO PRINCIPAL DE CARREGAMENTO
-// =============================================
-async function handleLoadData() {
-    const sheetId = document.getElementById('sheetId').value.trim();
-    const sheetTab = document.getElementById('sheetTab').value.trim();
-    
-    if (!sheetId) {
-        showAlert('❌ Por favor, insira o ID da planilha', 'error');
-        return;
-    }
-    
-    try {
-        showAlert('⏳ Carregando dados do Google Sheets...', 'info');
-        
-        // Verificar qual método de autenticação usar
-        if (isGoogleAuthenticated()) {
-            await loadFromGoogleSheets(sheetId, sheetTab || 'Página1');
-        } else if (isJsonAuthenticated()) {
-            await loadFromGoogleSheetsWithJson(sheetId, sheetTab || 'Página1');
-        } else {
-            throw new Error('Nenhum método de autenticação configurado. Use OAuth ou credencial JSON.');
-        }
-    } catch (error) {
-        console.error('Erro ao carregar dados:', error);
-        showAlert('❌ Erro ao carregar dados: ' + error.message, 'error');
-    }
-}
-
-        // Inicia a autenticação quando a página carrega
-        document.addEventListener('DOMContentLoaded', function() {
-            startAuth();
-        });
-
-        function isGoogleAuthenticated() {
-            return googleAuth && googleAuth.isSignedIn.get();
+        function isJsonAuthenticated() {
+            return serviceAccountCredentials !== null;
         }
 
         // =============================================
-        // FUNÇÃO ATUALIZADA PARA CARREGAR DO GOOGLE SHEETS
+        // FUNÇÃO PARA CARREGAR DO GOOGLE SHEETS COM CREDENCIAL JSON
         // =============================================
-        async function loadFromGoogleSheets(sheetId, sheetName) {
-            if (!isGoogleAuthenticated()) {
-                throw new Error('Usuário não autenticado. Faça login primeiro.');
+        async function loadFromGoogleSheetsWithJson(sheetId, sheetName) {
+            if (!isJsonAuthenticated()) {
+                throw new Error('Credencial JSON não carregada. Faça upload da credencial primeiro.');
             }
 
             try {
-                const response = await gapi.client.sheets.spreadsheets.values.get({
+                // Carregar a biblioteca googleapis dinamicamente
+                await loadGoogleApis();
+                
+                // Configurar autenticação
+                const auth = new google.auth.JWT(
+                    serviceAccountCredentials.client_email,
+                    null,
+                    serviceAccountCredentials.private_key,
+                    ['https://www.googleapis.com/auth/spreadsheets.readonly']
+                );
+                
+                // Criar cliente do Sheets
+                const sheets = google.sheets({ version: 'v4', auth });
+                
+                // Fazer a requisição
+                const response = await sheets.spreadsheets.values.get({
                     spreadsheetId: sheetId,
-                    range: sheetName
+                    range: sheetName || 'Página1'
                 });
-
-                const values = response.result.values;
+                
+                const values = response.data.values;
                 
                 if (!values || values.length === 0) {
                     throw new Error('A planilha está vazia ou não contém dados válidos');
                 }
 
-                // A primeira linha são os cabeçalhos
+                // Processar dados
                 const headers = values[0];
                 const rows = values.slice(1);
 
-                // Converter para o formato que usamos
                 const formattedData = rows.map(row => {
                     const item = {};
                     headers.forEach((header, index) => {
@@ -1938,12 +1710,34 @@ async function handleLoadData() {
                 // Mostrar modal para mapeamento
                 document.getElementById('columnMappingModal').style.display = 'flex';
 
-                showAlert('✅ Dados carregados com sucesso (via API autenticada)', 'success');
+                showAlert('✅ Dados carregados com sucesso (via Service Account)', 'success');
                 
             } catch (error) {
-                console.error('Erro ao carregar do Google Sheets (autenticado):', error);
+                console.error('Erro ao carregar do Google Sheets (Service Account):', error);
                 throw new Error(`Não foi possível carregar os dados: ${error.message}`);
             }
+        }
+
+        // =============================================
+        // CARREGAR DINAMICAMENTE A BIBLIOTECA GOOGLEAPIS
+        // =============================================
+        function loadGoogleApis() {
+            return new Promise((resolve, reject) => {
+                if (window.google && google.sheets) {
+                    resolve();
+                    return;
+                }
+                
+                const script = document.createElement('script');
+                script.src = 'https://apis.google.com/js/api.js';
+                script.onload = () => {
+                    gapi.load('client', () => {
+                        resolve();
+                    });
+                };
+                script.onerror = () => reject(new Error('Falha ao carregar a biblioteca Google APIs'));
+                document.head.appendChild(script);
+            });
         }
 
         // =============================================
@@ -2057,8 +1851,8 @@ async function handleLoadData() {
                 return;
             }
 
-            if (!isGoogleAuthenticated()) {
-                alert('Por favor, faça login primeiro.');
+            if (!isJsonAuthenticated()) {
+                alert('Por favor, carregue a credencial JSON primeiro.');
                 return;
             }
 
@@ -2068,12 +1862,26 @@ async function handleLoadData() {
             monitoringDOM.loader.textContent = 'Carregando dados... ⏳';
 
             try {
-                const response = await gapi.client.sheets.spreadsheets.values.get({
+                await loadGoogleApis();
+                
+                // Configurar autenticação
+                const auth = new google.auth.JWT(
+                    serviceAccountCredentials.client_email,
+                    null,
+                    serviceAccountCredentials.private_key,
+                    ['https://www.googleapis.com/auth/spreadsheets.readonly']
+                );
+                
+                // Criar cliente do Sheets
+                const sheets = google.sheets({ version: 'v4', auth });
+                
+                // Fazer a requisição
+                const response = await sheets.spreadsheets.values.get({
                     spreadsheetId: sheetId,
                     range: sheetName || 'Página1'
                 });
 
-                const values = response.result.values;
+                const values = response.data.values;
                 
                 if (!values || values.length === 0) {
                     throw new Error('A planilha está vazia ou não contém dados válidos');
@@ -2094,7 +1902,7 @@ async function handleLoadData() {
             }
         }
 
-        // Função para processar dados de monitoria (mantida do código original)
+        // Função para processar dados de monitoria
         function processMonitoringData(raw_headers, headers, dataRows) {
             MONITORING_STAGE_KEYS = [];
             MONITORING_STAGE_LABELS = [];
@@ -3618,7 +3426,7 @@ async function handleLoadData() {
             document.getElementById('exportData').addEventListener('click', exportData);
             document.getElementById('refreshData').addEventListener('click', refreshData);
             
-            // Novos event listeners para mapeamento de colunas
+            // Event listeners para mapeamento de colunas
             document.getElementById('applyColumnMapping').addEventListener('click', function() {
                 updateColumnMappingFromSelects();
                 if (applyColumnMappingAndProcess()) {
@@ -3723,9 +3531,14 @@ async function handleLoadData() {
                 return;
             }
             
+            if (!isJsonAuthenticated()) {
+                showAlert('❌ Por favor, carregue a credencial JSON primeiro', 'error');
+                return;
+            }
+            
             try {
                 showAlert('⏳ Carregando dados do Google Sheets...', 'info');
-                await loadFromGoogleSheets(sheetId, sheetTab || 'Página1');
+                await loadFromGoogleSheetsWithJson(sheetId, sheetTab || 'Página1');
             } catch (error) {
                 console.error('Erro ao carregar dados:', error);
                 showAlert('❌ Erro ao carregar dados: ' + error.message, 'error');

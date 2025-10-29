@@ -9,7 +9,6 @@
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.min.js"></script>
-    <script src="https://apis.google.com/js/api.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -786,51 +785,6 @@
             color: var(--danger-color);
         }
 
-        /* Estilos para autenticação */
-        .auth-section {
-            border-top: 1px solid var(--medium-gray);
-            padding-top: 15px;
-            margin-top: 15px;
-        }
-
-        .credentials-upload {
-            margin-bottom: 15px;
-        }
-
-        .auth-status {
-            padding: 8px 12px;
-            border-radius: var(--border-radius);
-            font-size: 0.9rem;
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .auth-status.authenticated {
-            background-color: #e8f5e9;
-            color: #2e7d32;
-            border-left: 4px solid var(--accent-color);
-        }
-
-        .auth-status.not-authenticated {
-            background-color: #fff3e0;
-            color: #ef6c00;
-            border-left: 4px solid var(--warning-color);
-        }
-
-        .auth-status.error {
-            background-color: #ffebee;
-            color: #c62828;
-            border-left: 4px solid var(--danger-color);
-        }
-
-        .credentials-info {
-            font-size: 0.8rem;
-            color: var(--dark-gray);
-            margin-top: 5px;
-        }
-
         /* Responsividade */
         @media (max-width: 1200px) {
             .charts-grid {
@@ -941,37 +895,6 @@
             </div>
             
             <div class="sidebar-content">
-                <!-- Seção de Autenticação Google Sheets -->
-                <div class="section auth-section">
-                    <h3 class="section-title">
-                        <i class="fas fa-key"></i>
-                        <span>Autenticação Google</span>
-                    </h3>
-                    
-                    <div class="input-group credentials-upload">
-                        <label>Credenciais de Serviço (JSON)</label>
-                        <input type="file" id="credentialsUpload" accept=".json">
-                        <div class="credentials-info">
-                            Faça upload do arquivo JSON de credenciais do Google Service Account
-                        </div>
-                    </div>
-                    
-                    <div id="authStatus" class="auth-status not-authenticated">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        <span>Não autenticado</span>
-                    </div>
-                    
-                    <button class="button button-primary" id="authenticateBtn" disabled>
-                        <i class="fas fa-lock"></i>
-                        <span>Autenticar</span>
-                    </button>
-                    
-                    <button class="button button-secondary hidden" id="revokeAuthBtn">
-                        <i class="fas fa-unlock"></i>
-                        <span>Revogar Acesso</span>
-                    </button>
-                </div>
-                
                 <div class="section">
                     <h3 class="section-title">
                         <i class="fas fa-tachometer-alt"></i>
@@ -1565,219 +1488,6 @@
 
     <script>
         // =============================================
-        // SISTEMA DE AUTENTICAÇÃO GOOGLE SHEETS
-        // =============================================
-        let googleCredentials = null;
-        let googleAuthClient = null;
-
-        // Elementos DOM da autenticação
-        const authDOM = {
-            credentialsUpload: document.getElementById('credentialsUpload'),
-            authenticateBtn: document.getElementById('authenticateBtn'),
-            revokeAuthBtn: document.getElementById('revokeAuthBtn'),
-            authStatus: document.getElementById('authStatus')
-        };
-
-        // Event Listeners para autenticação
-        authDOM.credentialsUpload.addEventListener('change', handleCredentialsUpload);
-        authDOM.authenticateBtn.addEventListener('click', initializeGoogleAuth);
-        authDOM.revokeAuthBtn.addEventListener('click', revokeGoogleAuth);
-
-        function handleCredentialsUpload(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    googleCredentials = JSON.parse(e.target.result);
-                    authDOM.authenticateBtn.disabled = false;
-                    updateAuthStatus('Credenciais carregadas. Pronto para autenticar.', 'not-authenticated');
-                } catch (error) {
-                    updateAuthStatus('Erro: Arquivo JSON inválido', 'error');
-                    authDOM.authenticateBtn.disabled = true;
-                }
-            };
-            reader.readAsText(file);
-        }
-
-        async function initializeGoogleAuth() {
-            if (!googleCredentials) {
-                updateAuthStatus('Erro: Nenhuma credencial carregada', 'error');
-                return;
-            }
-
-            try {
-                updateAuthStatus('Inicializando autenticação...', 'not-authenticated');
-                
-                // Carregar a biblioteca do Google APIs
-                await new Promise((resolve, reject) => {
-                    gapi.load('client', { callback: resolve, onerror: reject });
-                });
-
-                // Configurar as credenciais
-                await gapi.client.init({
-                    clientId: googleCredentials.client_id,
-                    discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'],
-                    scope: 'https://www.googleapis.com/auth/spreadsheets.readonly'
-                });
-
-                googleAuthClient = gapi.auth2.getAuthInstance();
-                
-                // Verificar se já está autenticado
-                if (googleAuthClient.isSignedIn.get()) {
-                    updateAuthStatus('Autenticado com Google Sheets', 'authenticated');
-                    authDOM.revokeAuthBtn.classList.remove('hidden');
-                    authDOM.authenticateBtn.classList.add('hidden');
-                } else {
-                    // Fazer login
-                    await googleAuthClient.signIn();
-                    updateAuthStatus('Autenticado com Google Sheets', 'authenticated');
-                    authDOM.revokeAuthBtn.classList.remove('hidden');
-                    authDOM.authenticateBtn.classList.add('hidden');
-                }
-
-                showAlert('✅ Autenticação Google Sheets realizada com sucesso!', 'success');
-                
-            } catch (error) {
-                console.error('Erro na autenticação:', error);
-                updateAuthStatus('Erro na autenticação: ' + error.message, 'error');
-                showAlert('❌ Falha na autenticação Google Sheets: ' + error.message, 'error');
-            }
-        }
-
-        function revokeGoogleAuth() {
-            if (googleAuthClient) {
-                googleAuthClient.signOut();
-                googleAuthClient.disconnect();
-            }
-            
-            googleCredentials = null;
-            googleAuthClient = null;
-            authDOM.credentialsUpload.value = '';
-            authDOM.authenticateBtn.disabled = true;
-            authDOM.revokeAuthBtn.classList.add('hidden');
-            authDOM.authenticateBtn.classList.remove('hidden');
-            updateAuthStatus('Autenticação revogada', 'not-authenticated');
-            
-            showAlert('🔓 Autenticação Google Sheets revogada', 'info');
-        }
-
-        function updateAuthStatus(message, status) {
-            authDOM.authStatus.innerHTML = `
-                <i class="fas fa-${getStatusIcon(status)}"></i>
-                <span>${message}</span>
-            `;
-            authDOM.authStatus.className = `auth-status ${status}`;
-        }
-
-        function getStatusIcon(status) {
-            switch(status) {
-                case 'authenticated': return 'check-circle';
-                case 'error': return 'exclamation-circle';
-                default: return 'exclamation-triangle';
-            }
-        }
-
-        function isGoogleAuthenticated() {
-            return googleAuthClient && googleAuthClient.isSignedIn.get();
-        }
-
-        // =============================================
-        // FUNÇÃO ATUALIZADA PARA CARREGAR DO GOOGLE SHEETS
-        // =============================================
-        async function loadFromGoogleSheets(sheetId, sheetName) {
-            // Verificar autenticação para sheets privados
-            if (!isGoogleAuthenticated()) {
-                // Tentar carregar como sheet público
-                return await loadFromGoogleSheetsPublic(sheetId, sheetName);
-            }
-
-            try {
-                // Usar a API autenticada do Google Sheets
-                const response = await gapi.client.sheets.spreadsheets.values.get({
-                    spreadsheetId: sheetId,
-                    range: sheetName
-                });
-
-                const values = response.result.values;
-                
-                if (!values || values.length === 0) {
-                    throw new Error('A planilha está vazia ou não contém dados válidos');
-                }
-
-                // A primeira linha são os cabeçalhos
-                const headers = values[0];
-                const rows = values.slice(1);
-
-                // Converter para o formato que usamos
-                const formattedData = rows.map(row => {
-                    const item = {};
-                    headers.forEach((header, index) => {
-                        item[header] = row[index] || '';
-                    });
-                    return item;
-                });
-
-                rawData = formattedData;
-
-                // Preencher selects de mapeamento
-                populateColumnMappingSelects(headers);
-
-                // Mostrar modal para mapeamento
-                document.getElementById('columnMappingModal').style.display = 'flex';
-
-                showAlert('✅ Dados carregados com sucesso (via API autenticada)', 'success');
-                
-            } catch (error) {
-                console.error('Erro ao carregar do Google Sheets (autenticado):', error);
-                
-                // Fallback para API pública
-                showAlert('⚠️ Tentando carregar como planilha pública...', 'warning');
-                return await loadFromGoogleSheetsPublic(sheetId, sheetName);
-            }
-        }
-
-        // Função original para sheets públicos (mantida como fallback)
-        async function loadFromGoogleSheetsPublic(sheetId, sheetName) {
-            try {
-                const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
-                const response = await fetch(url);
-                
-                if (!response.ok) {
-                    throw new Error(`Erro HTTP: ${response.status}`);
-                }
-                
-                const csvText = await response.text();
-                const parsedData = Papa.parse(csvText, {
-                    header: true,
-                    skipEmptyLines: true
-                });
-                
-                rawData = parsedData.data;
-                
-                if (rawData.length === 0) {
-                    throw new Error('A planilha está vazia ou não contém dados válidos');
-                }
-                
-                // Obter cabeçalhos
-                const headers = Object.keys(rawData[0]);
-                
-                // Preencher selects de mapeamento
-                populateColumnMappingSelects(headers);
-                
-                // Mostrar modal para mapeamento
-                document.getElementById('columnMappingModal').style.display = 'flex';
-                
-                showAlert('✅ Dados carregados com sucesso (via API pública)', 'success');
-                
-            } catch (error) {
-                console.error('Erro ao carregar do Google Sheets (público):', error);
-                throw new Error(`Não foi possível carregar os dados: ${error.message}`);
-            }
-        }
-
-        // =============================================
         // SISTEMA DE MONITORIA
         // =============================================
         const MONITORING_CONSTANTS = {
@@ -1893,39 +1603,73 @@
             monitoringDOM.dashboardContent.style.display = 'none';
             monitoringDOM.loader.textContent = 'Carregando dados... ⏳';
 
+            let url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json`;
+            if (sheetName) {
+                url += `&sheet=${encodeURIComponent(sheetName)}`;
+            }
+
             try {
-                let data;
-                
-                // Tentar carregar com autenticação primeiro
-                if (isGoogleAuthenticated()) {
-                    try {
-                        const response = await gapi.client.sheets.spreadsheets.values.get({
-                            spreadsheetId: sheetId,
-                            range: sheetName || 'Página1'
-                        });
-
-                        const values = response.result.values;
-                        
-                        if (!values || values.length === 0) {
-                            throw new Error('A planilha está vazia ou não contém dados válidos');
-                        }
-
-                        const raw_headers = values[0];
-                        const dataRows = values.slice(1);
-                        const headers = raw_headers.map(normalizeHeader);
-
-                        // Processar dados (código existente)
-                        processMonitoringData(raw_headers, headers, dataRows);
-                        
-                    } catch (authError) {
-                        console.warn('Erro na API autenticada, tentando método público:', authError);
-                        // Fallback para método público
-                        await loadMonitoringDataPublic(sheetId, sheetName);
-                    }
-                } else {
-                    // Usar método público
-                    await loadMonitoringDataPublic(sheetId, sheetName);
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`Falha na requisição: ${response.statusText}`);
                 }
+                let text = await response.text();
+                
+                const match = text.match(/google\.visualization\.Query\.setResponse\(([\s\S]*?)\);?\s*$/);
+                if (!match) {
+                    throw new Error('Formato inválido. Verifique se a planilha é pública.');
+                }
+
+                const json = JSON.parse(match[1]);
+
+                if (json.status === 'error') {
+                    throw new Error(`Erro: ${json.errors.map(e => e.detailed_message).join(', ')}`);
+                }
+
+                const table = json.table;
+                if (!table || !table.rows || table.rows.length === 0) {
+                    throw new Error('Nenhum dado encontrado.');
+                }
+
+                const raw_headers = table.cols.map(col => col.label);
+                const dataRows = table.rows.map(row => row.c.map(cell => (cell ? (cell.f || cell.v) : '')));
+                const headers = raw_headers.map(normalizeHeader);
+
+                MONITORING_STAGE_KEYS = [];
+                MONITORING_STAGE_LABELS = [];
+                
+                headers.forEach((header, index) => {
+                    const originalHeader = raw_headers[index];
+                    if (originalHeader && originalHeader.includes('Avalie o desempenho')) {
+                        MONITORING_STAGE_KEYS.push(header);
+                        let label = originalHeader
+                            .replace(/Avalie o desempenho na etapa /i, '')
+                            .replace(/Avalie o desempenho na /i, '')
+                            .replace(/Avalie o desempenho /i, '')
+                            .trim();
+                        MONITORING_STAGE_LABELS.push(label);
+                    }
+                });
+
+                MONITORING_NON_CONFORMITY_FIELD = findNonConformityField(headers, raw_headers);
+
+                monitoringAllData = dataRows.map(row => {
+                    const entry = {};
+                    headers.forEach((header, i) => {
+                        if (header) entry[header] = row[i] || '';
+                    });
+                    return entry;
+                });
+
+                console.log('✅ Etapas encontradas:', MONITORING_STAGE_LABELS);
+                console.log('✅ Campo de não conformidade:', MONITORING_NON_CONFORMITY_FIELD);
+                console.log('✅ Exemplo:', monitoringAllData[0]);
+
+                populateMonitoringFilters();
+                applyMonitoringFiltersAndRender();
+
+                monitoringDOM.loader.style.display = 'none';
+                monitoringDOM.dashboardContent.style.display = 'block';
 
             } catch (error) {
                 monitoringDOM.loader.textContent = `❌ Erro: ${error.message}`;
@@ -1934,82 +1678,6 @@
             } finally {
                 monitoringDOM.loadDataBtn.disabled = false;
             }
-        }
-
-        // Função auxiliar para carregar dados de monitoria via API pública
-        async function loadMonitoringDataPublic(sheetId, sheetName) {
-            let url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json`;
-            if (sheetName) {
-                url += `&sheet=${encodeURIComponent(sheetName)}`;
-            }
-
-            const response = await fetch(url);
-            if (!response.ok) {
-                throw new Error(`Falha na requisição: ${response.statusText}`);
-            }
-            
-            let text = await response.text();
-            
-            const match = text.match(/google\.visualization\.Query\.setResponse\(([\s\S]*?)\);?\s*$/);
-            if (!match) {
-                throw new Error('Formato inválido. Verifique se a planilha é pública.');
-            }
-
-            const json = JSON.parse(match[1]);
-
-            if (json.status === 'error') {
-                throw new Error(`Erro: ${json.errors.map(e => e.detailed_message).join(', ')}`);
-            }
-
-            const table = json.table;
-            if (!table || !table.rows || table.rows.length === 0) {
-                throw new Error('Nenhum dado encontrado.');
-            }
-
-            const raw_headers = table.cols.map(col => col.label);
-            const dataRows = table.rows.map(row => row.c.map(cell => (cell ? (cell.f || cell.v) : '')));
-            const headers = raw_headers.map(normalizeHeader);
-
-            processMonitoringData(raw_headers, headers, dataRows);
-        }
-
-        // Função para processar dados de monitoria (mantida do código original)
-        function processMonitoringData(raw_headers, headers, dataRows) {
-            MONITORING_STAGE_KEYS = [];
-            MONITORING_STAGE_LABELS = [];
-            
-            headers.forEach((header, index) => {
-                const originalHeader = raw_headers[index];
-                if (originalHeader && originalHeader.includes('Avalie o desempenho')) {
-                    MONITORING_STAGE_KEYS.push(header);
-                    let label = originalHeader
-                        .replace(/Avalie o desempenho na etapa /i, '')
-                        .replace(/Avalie o desempenho na /i, '')
-                        .replace(/Avalie o desempenho /i, '')
-                        .trim();
-                    MONITORING_STAGE_LABELS.push(label);
-                }
-            });
-
-            MONITORING_NON_CONFORMITY_FIELD = findNonConformityField(headers, raw_headers);
-
-            monitoringAllData = dataRows.map(row => {
-                const entry = {};
-                headers.forEach((header, i) => {
-                    if (header) entry[header] = row[i] || '';
-                });
-                return entry;
-            });
-
-            console.log('✅ Etapas encontradas:', MONITORING_STAGE_LABELS);
-            console.log('✅ Campo de não conformidade:', MONITORING_NON_CONFORMITY_FIELD);
-            console.log('✅ Exemplo:', monitoringAllData[0]);
-
-            populateMonitoringFilters();
-            applyMonitoringFiltersAndRender();
-
-            monitoringDOM.loader.style.display = 'none';
-            monitoringDOM.dashboardContent.style.display = 'block';
         }
 
         function populateMonitoringFilters() {
@@ -2607,76 +2275,6 @@
         }
 
         // =============================================
-        // FILTRO DE DATAS PARA MONITORIA
-        // =============================================
-        function setupMonitoringDateFilter() {
-            const applyButton = document.getElementById('applyMonitoringDateFilter');
-            if (applyButton) {
-                applyButton.addEventListener('click', applyMonitoringDateFilter);
-            }
-        }
-
-        function applyMonitoringDateFilter() {
-            const startDate = document.getElementById('monitoringStartDate').value;
-            const endDate = document.getElementById('monitoringEndDate').value;
-            
-            // Aplicar filtro aos dados da monitoria
-            if (monitoringAllData && monitoringAllData.length > 0) {
-                let filteredData = [...monitoringAllData];
-                
-                if (startDate) {
-                    filteredData = filteredData.filter(row => {
-                        const rowDate = getDateFromRow(row);
-                        return rowDate >= new Date(startDate);
-                    });
-                }
-                
-                if (endDate) {
-                    filteredData = filteredData.filter(row => {
-                        const rowDate = getDateFromRow(row);
-                        return rowDate <= new Date(endDate + 'T23:59:59');
-                    });
-                }
-                
-                // Atualizar dashboard com dados filtrados
-                updateMonitoringDashboard(filteredData);
-                
-                showAlert(`✅ Filtro de datas aplicado: ${filteredData.length} registros`, 'success');
-            } else {
-                showAlert('⚠️ Nenhum dado de monitoria carregado', 'warning');
-            }
-        }
-
-        function getDateFromRow(row) {
-            // Tentar diferentes campos de data
-            const dateFields = ['carimbo_de_datahora', 'timestamp', 'data', 'datahora'];
-            
-            for (const field of dateFields) {
-                if (row[field]) {
-                    const date = new Date(row[field]);
-                    if (!isNaN(date.getTime())) {
-                        return date;
-                    }
-                    
-                    // Tentar parse de formato brasileiro
-                    const parts = row[field].split('/');
-                    if (parts.length === 3) {
-                        const day = parseInt(parts[0]);
-                        const month = parseInt(parts[1]) - 1;
-                        const year = parseInt(parts[2]);
-                        const brazilianDate = new Date(year, month, day);
-                        if (!isNaN(brazilianDate.getTime())) {
-                            return brazilianDate;
-                        }
-                    }
-                }
-            }
-            
-            // Se não encontrou data válida, retorna data mínima
-            return new Date(0);
-        }
-
-        // =============================================
         // SISTEMA DE MAPEAMENTO DE COLUNAS FLEXÍVEL
         // =============================================
         let columnMapping = {
@@ -2831,6 +2429,76 @@
             // Processar os dados mapeados
             processLoadedData(processedData);
             return true;
+        }
+
+        // =============================================
+        // FILTRO DE DATAS PARA MONITORIA
+        // =============================================
+        function setupMonitoringDateFilter() {
+            const applyButton = document.getElementById('applyMonitoringDateFilter');
+            if (applyButton) {
+                applyButton.addEventListener('click', applyMonitoringDateFilter);
+            }
+        }
+
+        function applyMonitoringDateFilter() {
+            const startDate = document.getElementById('monitoringStartDate').value;
+            const endDate = document.getElementById('monitoringEndDate').value;
+            
+            // Aplicar filtro aos dados da monitoria
+            if (monitoringAllData && monitoringAllData.length > 0) {
+                let filteredData = [...monitoringAllData];
+                
+                if (startDate) {
+                    filteredData = filteredData.filter(row => {
+                        const rowDate = getDateFromRow(row);
+                        return rowDate >= new Date(startDate);
+                    });
+                }
+                
+                if (endDate) {
+                    filteredData = filteredData.filter(row => {
+                        const rowDate = getDateFromRow(row);
+                        return rowDate <= new Date(endDate + 'T23:59:59');
+                    });
+                }
+                
+                // Atualizar dashboard com dados filtrados
+                updateMonitoringDashboard(filteredData);
+                
+                showAlert(`✅ Filtro de datas aplicado: ${filteredData.length} registros`, 'success');
+            } else {
+                showAlert('⚠️ Nenhum dado de monitoria carregado', 'warning');
+            }
+        }
+
+        function getDateFromRow(row) {
+            // Tentar diferentes campos de data
+            const dateFields = ['carimbo_de_datahora', 'timestamp', 'data', 'datahora'];
+            
+            for (const field of dateFields) {
+                if (row[field]) {
+                    const date = new Date(row[field]);
+                    if (!isNaN(date.getTime())) {
+                        return date;
+                    }
+                    
+                    // Tentar parse de formato brasileiro
+                    const parts = row[field].split('/');
+                    if (parts.length === 3) {
+                        const day = parseInt(parts[0]);
+                        const month = parseInt(parts[1]) - 1;
+                        const year = parseInt(parts[2]);
+                        const brazilianDate = new Date(year, month, day);
+                        if (!isNaN(brazilianDate.getTime())) {
+                            return brazilianDate;
+                        }
+                    }
+                }
+            }
+            
+            // Se não encontrou data válida, retorna data mínima
+            return new Date(0);
         }
 
         // =============================================
@@ -4153,6 +3821,42 @@
                 showAlert('✅ Dados carregados com sucesso!', 'success');
             } catch (error) {
                 showAlert(`❌ Erro ao carregar dados do Google Sheets: ${error.message}`, 'error');
+            }
+        }
+
+        async function loadFromGoogleSheets(sheetId, sheetName) {
+            try {
+                const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
+                const response = await fetch(url);
+                
+                if (!response.ok) {
+                    throw new Error(`Erro HTTP: ${response.status}`);
+                }
+                
+                const csvText = await response.text();
+                const parsedData = Papa.parse(csvText, {
+                    header: true,
+                    skipEmptyLines: true
+                });
+                
+                rawData = parsedData.data;
+                
+                if (rawData.length === 0) {
+                    throw new Error('A planilha está vazia ou não contém dados válidos');
+                }
+                
+                // Obter cabeçalhos
+                const headers = Object.keys(rawData[0]);
+                
+                // Preencher selects de mapeamento
+                populateColumnMappingSelects(headers);
+                
+                // Mostrar modal para mapeamento
+                document.getElementById('columnMappingModal').style.display = 'flex';
+                
+            } catch (error) {
+                console.error('Erro ao carregar do Google Sheets:', error);
+                throw new Error(`Não foi possível carregar os dados: ${error.message}`);
             }
         }
 

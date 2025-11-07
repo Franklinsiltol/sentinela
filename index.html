@@ -2769,29 +2769,48 @@
                 this.searchIndex = new Fuse(data, options);
             }
 
-            search(query, sentimentFilter = 'all', limit = 20) {
-                if (!this.searchIndex) return [];
-                
-                let results = this.searchIndex.search(query);
-                
-                if (sentimentFilter !== 'all') {
-                    results = results.filter(result => {
-                        const sentiment = result.item.Sentimento;
-                        switch (sentimentFilter) {
-                            case 'positive':
-                                return sentiment === 'Positivo' || sentiment === 'Muito Positivo';
-                            case 'negative':
-                                return sentiment === 'Negativo' || sentiment === 'Muito Negativo';
-                            case 'neutral':
-                                return sentiment === 'Neutro';
-                            default:
-                                return true;
-                        }
-                    });
-                }
-                
-                return results.slice(0, limit);
+            search(query, sentimentFilter = 'all', limit = 1000) {
+        if (!this.searchIndex) return [];
+        
+        // Fazer busca literal diretamente nos dados
+        const queryLower = query.toLowerCase();
+        const allData = this.searchIndex._docs || [];
+        
+        let results = [];
+        
+        allData.forEach((item, index) => {
+            const texto = (item.Texto || '').toLowerCase();
+            const agente = (item.Agente || '').toLowerCase();
+            
+            // Verificar se a palavra existe no texto ou agente
+            if (texto.includes(queryLower) || agente.includes(queryLower)) {
+                results.push({
+                    item: item,
+                    refIndex: index,
+                    score: 0
+                });
             }
+        });
+        
+        // Aplicar filtro de sentimento
+        if (sentimentFilter !== 'all') {
+            results = results.filter(result => {
+                const sentiment = result.item.Sentimento;
+                switch (sentimentFilter) {
+                    case 'positive':
+                        return sentiment === 'Positivo' || sentiment === 'Muito Positivo';
+                    case 'negative':
+                        return sentiment === 'Negativo' || sentiment === 'Muito Negativo';
+                    case 'neutral':
+                        return sentiment === 'Neutro';
+                    default:
+                        return true;
+                }
+            });
+        }
+        
+        return results.slice(0, limit);
+    }
 
             highlightText(text, query) {
                 const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
@@ -3069,38 +3088,53 @@
         }
 
         function updateTimelineChart(query) {
-            const dailyData = {};
-            
-            appState.filteredData.forEach(item => {
-                if (item.Texto.toLowerCase().includes(query.toLowerCase())) {
-                    if (!dailyData[item.Data]) {
-                        dailyData[item.Data] = 0;
-                    }
-                    dailyData[item.Data]++;
-                }
-            });
-            
-            const dates = Object.keys(dailyData).sort();
-            const counts = dates.map(date => dailyData[date]);
-            
-            const data = [{
-                x: dates,
-                y: counts,
-                type: 'scatter',
-                mode: 'lines+markers',
-                line: { shape: 'spline', width: 3 },
-                marker: { size: 8 }
-            }];
-            
-            const layout = {
-                title: `Ocorrências de "${query}" ao Longo do Tempo`,
-                xaxis: { title: 'Data' },
-                yaxis: { title: 'Ocorrências' },
-                height: 300
-            };
-            
-            Plotly.newPlot('timelineChart', data, layout, { responsive: true });
+    const dailyData = {};
+    const queryLower = query.toLowerCase();
+    
+    appState.filteredData.forEach(item => {
+        const texto = (item.Texto || '').toLowerCase();
+        
+        // Contar quantas vezes a palavra aparece neste texto
+        const regex = new RegExp(queryLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+        const matches = texto.match(regex);
+        const occurrences = matches ? matches.length : 0;
+        
+        if (occurrences > 0) {
+            if (!dailyData[item.Data]) {
+                dailyData[item.Data] = 0;
+            }
+            dailyData[item.Data] += occurrences;
         }
+    });
+
+    const dates = Object.keys(dailyData).sort();
+    const counts = dates.map(date => dailyData[date]);
+
+    const data = [{
+        x: dates,
+        y: counts,
+        type: 'scatter',
+        mode: 'lines+markers',
+        line: { 
+            shape: 'spline',
+            width: 3,
+            color: '#2196F3'
+        },
+        marker: { 
+            size: 8,
+            color: '#2196F3'
+        }
+    }];
+
+    const layout = {
+        title: `Ocorrências de "${query}" ao Longo do Tempo`,
+        xaxis: { title: 'Data' },
+        yaxis: { title: 'Ocorrências' },
+        height: 300
+    };
+
+    Plotly.newPlot('timelineChart', data, layout, { responsive: true });
+}
 
         // =============================================
         // FUNÇÕES DE GESTÃO DE STOP WORDS

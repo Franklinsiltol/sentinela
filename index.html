@@ -1245,7 +1245,30 @@
                                     Limpar
                                 </button>
                             </div>
-                            <div id="searchResults" class="mt-20"></div>
+                            
+                <div id="resultsPerPageControl" style="display: none; margin-bottom: 15px; 
+                     background: #f5f5f5; padding: 15px; border-radius: 8px;">
+                    <label style="font-weight: bold; margin-right: 10px; color: #333;">
+                        <i class="fas fa-list"></i> Resultados por página:
+                    </label>
+                    <select id="resultsPerPageSelect" onchange="updateResultsPerPage()" 
+                            style="padding: 8px 12px; border: 2px solid #2196F3; border-radius: 5px; 
+                                   font-size: 14px; cursor: pointer; background: white;">
+                        <option value="25">25 resultados</option>
+                        <option value="50" selected>50 resultados</option>
+                        <option value="100">100 resultados</option>
+                        <option value="200">200 resultados</option>
+                    </select>
+                    
+                    <button onclick="exportSearchResults()" 
+                            style="margin-left: 15px; padding: 8px 15px; background: #4CAF50; 
+                                   color: white; border: none; border-radius: 5px; cursor: pointer;
+                                   font-weight: bold;">
+                        <i class="fas fa-download"></i> Exportar Resultados
+                    </button>
+                </div>
+                
+                <div id="searchResults" class="mt-20"></div>
                             
                             <!-- Gráfico de Timeline para ocorrências por dia -->
                             <div class="chart-container mt-20">
@@ -2842,6 +2865,10 @@
         // =============================================
         // ESTADO DA APLICAÇÃO
         // =============================================
+        window.ITEMS_PER_PAGE = 50;
+        window.currentSearchQuery = null;
+        window.currentSearchResults = null;
+        
         const appState = {
             data: [],
             filteredData: [],
@@ -3053,39 +3080,176 @@
         }
 
         function displaySearchResults(results, query) {
-            const container = document.getElementById('searchResults');
-            container.innerHTML = '';
-            
-            if (results.length === 0) {
-                container.innerHTML = '<p>Nenhum resultado encontrado para: ' + query + '</p>';
-                return;
-            }
-            
-            const resultsTitle = document.createElement('h3');
-            resultsTitle.textContent = `${results.length} resultados para: "${query}"`;
-            container.appendChild(resultsTitle);
-            
-            results.forEach(result => {
-                const resultElement = document.createElement('div');
-                resultElement.className = 'search-result-item';
-                
-                const highlightedText = appState.textAnalyzer.highlightText(result.item.Texto, query);
-                
-                resultElement.innerHTML = `
-                    <div class="chat-sender">
-                        ${result.item.Agente} - ${result.item.Data} ${result.item.Hora || ''}
-                        ${result.item.Email ? `<br><small>${result.item.Email}</small>` : ''}
+    window.currentSearchQuery = query;
+    window.currentSearchResults = results;
+    
+    // Mostrar controle de densidade
+    const control = document.getElementById('resultsPerPageControl');
+    if (control) control.style.display = results.length > 0 ? 'block' : 'none';
+    
+    const container = document.getElementById('searchResults');
+    
+    if (results.length === 0) {
+        container.innerHTML = `
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i>
+                Nenhum resultado encontrado para: <strong>${query}</strong>
+            </div>
+        `;
+        return;
+    }
+
+    // Configuração de paginação
+    const ITEMS_PER_PAGE = window.ITEMS_PER_PAGE || 50;
+    let currentPage = 1;
+    const totalPages = Math.ceil(results.length / ITEMS_PER_PAGE);
+
+    function renderPage(page) {
+        const start = (page - 1) * ITEMS_PER_PAGE;
+        const end = start + ITEMS_PER_PAGE;
+        const pageResults = results.slice(start, end);
+        
+        let html = `
+            <div class="search-summary" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                 color: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; 
+                 box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+                    <div>
+                        <h3 style="margin: 0 0 10px 0; font-size: 24px;">
+                            <i class="fas fa-search"></i> ${results.length} resultados para: "${query}"
+                        </h3>
+                        <p style="margin: 0; opacity: 0.9; font-size: 14px;">
+                            <i class="fas fa-info-circle"></i> Mostrando ${start + 1} a ${Math.min(end, results.length)} de ${results.length}
+                        </p>
                     </div>
-                    <div>${highlightedText}</div>
-                    <div style="margin-top: 8px; font-size: 0.9rem;">
-                        <span class="status-indicator status-${result.item.Sentimento === 'Positivo' ? 'success' : result.item.Sentimento === 'Negativo' ? 'error' : 'warning'}"></span>
-                        Sentimento: ${result.item.Sentimento}
+                    <div style="background: rgba(255,255,255,0.2); padding: 10px 20px; border-radius: 8px;">
+                        <div style="font-size: 32px; font-weight: bold;">${results.length}</div>
+                        <div style="font-size: 12px; opacity: 0.9;">OCORRÊNCIAS</div>
                     </div>
-                `;
+                </div>
+            </div>
+        `;
+
+        // Renderizar resultados da página
+        pageResults.forEach(result => {
+            const item = result.item;
+            const texto = item.Texto || '';
+            const regex = new RegExp(`(${query})`, 'gi');
+            const highlightedText = texto.replace(regex, '<mark style="background-color: #ffeb3b; padding: 2px 4px; border-radius: 3px; font-weight: bold;">$1</mark>');
+            
+            const sentimentColors = {
+                'Muito Positivo': '#4CAF50',
+                'Positivo': '#8BC34A',
+                'Neutro': '#9E9E9E',
+                'Negativo': '#FF9800',
+                'Muito Negativo': '#F44336'
+            };
+            
+            const sentimentColor = sentimentColors[item.Sentimento] || '#9E9E9E';
+            
+            html += `
+                <div class="search-result-item" style="background: white; border-left: 4px solid ${sentimentColor}; 
+                     padding: 15px; margin-bottom: 15px; border-radius: 8px; 
+                     box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.3s ease;
+                     cursor: pointer;"
+                     onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'; this.style.transform='translateY(-2px)';"
+                     onmouseout="this.style.boxShadow='0 2px 4px rgba(0,0,0,0.1)'; this.style.transform='translateY(0)';">
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+                        <div style="flex: 1;">
+                            <strong style="color: #1976D2; font-size: 14px;">
+                                <i class="fas fa-user"></i> ${item.Agente || 'N/A'}
+                            </strong>
+                        </div>
+                        <div style="text-align: right; font-size: 12px; color: #666;">
+                            <div><i class="fas fa-calendar"></i> ${item.Data}</div>
+                            <div><i class="fas fa-clock"></i> ${item.Hora}</div>
+                        </div>
+                    </div>
+                    <div style="color: #333; line-height: 1.6; margin-bottom: 10px; font-size: 14px;">
+                        ${highlightedText}
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="background: ${sentimentColor}; color: white; padding: 4px 12px; 
+                              border-radius: 20px; font-size: 12px; font-weight: 500;">
+                            <i class="fas fa-smile"></i> ${item.Sentimento}
+                        </span>
+                        <span style="color: #999; font-size: 12px;">
+                            ID: ${item.ID_Conversa || 'N/A'}
+                        </span>
+                    </div>
+                </div>
+            `;
+        });
+
+        // Adicionar controles de paginação
+        if (totalPages > 1) {
+            html += `
+                <div class="pagination-controls" style="display: flex; justify-content: center; 
+                     align-items: center; gap: 10px; margin-top: 30px; flex-wrap: wrap;">
+                    <button onclick="searchPagination.goToPage(1)" 
+                            ${page === 1 ? 'disabled' : ''}
+                            style="padding: 10px 15px; border: none; background: #2196F3; color: white; 
+                                   border-radius: 5px; cursor: pointer; font-weight: bold;
+                                   ${page === 1 ? 'opacity: 0.5; cursor: not-allowed;' : ''}">
+                        <i class="fas fa-angle-double-left"></i> Primeira
+                    </button>
+                    
+                    <button onclick="searchPagination.goToPage(${page - 1})" 
+                            ${page === 1 ? 'disabled' : ''}
+                            style="padding: 10px 15px; border: none; background: #2196F3; color: white; 
+                                   border-radius: 5px; cursor: pointer;
+                                   ${page === 1 ? 'opacity: 0.5; cursor: not-allowed;' : ''}">
+                        <i class="fas fa-angle-left"></i> Anterior
+                    </button>
+                    
+                    <div style="background: #f5f5f5; padding: 10px 20px; border-radius: 5px; 
+                         font-weight: bold; color: #333;">
+                        Página ${page} de ${totalPages}
+                    </div>
+                    
+                    <button onclick="searchPagination.goToPage(${page + 1})" 
+                            ${page === totalPages ? 'disabled' : ''}
+                            style="padding: 10px 15px; border: none; background: #2196F3; color: white; 
+                                   border-radius: 5px; cursor: pointer;
+                                   ${page === totalPages ? 'opacity: 0.5; cursor: not-allowed;' : ''}">
+                        Próxima <i class="fas fa-angle-right"></i>
+                    </button>
+                    
+                    <button onclick="searchPagination.goToPage(${totalPages})" 
+                            ${page === totalPages ? 'disabled' : ''}
+                            style="padding: 10px 15px; border: none; background: #2196F3; color: white; 
+                                   border-radius: 5px; cursor: pointer; font-weight: bold;
+                                   ${page === totalPages ? 'opacity: 0.5; cursor: not-allowed;' : ''}">
+                        Última <i class="fas fa-angle-double-right"></i>
+                    </button>
+                </div>
                 
-                container.appendChild(resultElement);
-            });
+                <div style="text-align: center; margin-top: 15px; color: #666; font-size: 13px;">
+                    <i class="fas fa-info-circle"></i> 
+                    Mostrando ${ITEMS_PER_PAGE} resultados por página
+                </div>
+            `;
         }
+
+        container.innerHTML = html;
+        
+        // Scroll suave para o topo dos resultados
+        container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    // Criar objeto global para controle de paginação
+    window.searchPagination = {
+        goToPage: function(page) {
+            if (page >= 1 && page <= totalPages) {
+                currentPage = page;
+                renderPage(currentPage);
+            }
+        }
+    };
+
+    // Renderizar primeira página
+    renderPage(currentPage);
+}
 
         function updateTimelineChart(query) {
     const dailyData = {};
@@ -3998,6 +4162,53 @@
         document.addEventListener('DOMContentLoaded', () => {
             initializeApplication();
         });
-    </script>
+    
+function updateResultsPerPage() {
+    const select = document.getElementById('resultsPerPageSelect');
+    const newValue = parseInt(select.value);
+    
+    // Re-executar a busca com novo valor
+    if (window.currentSearchQuery && window.currentSearchResults) {
+        window.ITEMS_PER_PAGE = newValue;
+        displaySearchResults(window.currentSearchResults, window.currentSearchQuery);
+    }
+}
+
+function exportSearchResults() {
+    if (!window.currentSearchResults || window.currentSearchResults.length === 0) {
+        alert('Nenhum resultado para exportar!');
+        return;
+    }
+    
+    const query = window.currentSearchQuery || 'busca';
+    const results = window.currentSearchResults;
+    
+    // Criar CSV
+    let csv = 'Data,Hora,Agente,Texto,Sentimento,ID_Conversa\n';
+    
+    results.forEach(result => {
+        const item = result.item;
+        const texto = (item.Texto || '').replace(/"/g, '""').replace(/\n/g, ' ');
+        csv += `"${item.Data}","${item.Hora}","${item.Agente}","${texto}","${item.Sentimento}","${item.ID_Conversa}"\n`;
+    });
+    
+    // Download
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `resultados_${query}_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    
+    // Feedback visual
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-check"></i> Exportado!';
+    btn.style.background = '#4CAF50';
+    setTimeout(() => {
+        btn.innerHTML = originalText;
+        btn.style.background = '#4CAF50';
+    }, 2000);
+}
+</script>
 </body>
 </html>

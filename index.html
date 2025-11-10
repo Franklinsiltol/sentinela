@@ -8,6 +8,229 @@
     <title>Sentinela - Análise Inteligente de Conversas</title>
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js">
         // ============================================
+        
+        // ============================================
+        // SISTEMA DE INSIGHTS - ESTADO E FUNÇÕES
+        // ============================================
+        const insightsState = {
+            questions: []
+        };
+
+        function addInsightQuestion() {
+            const questionInput = document.getElementById('insightQuestion');
+            const questionText = questionInput.value.trim();
+
+            if (!questionText) {
+                showAlert('⚠️ Por favor, digite uma pergunta antes de adicionar', 'warning');
+                return;
+            }
+
+            if (appState.filteredData.length === 0) {
+                showAlert('⚠️ Por favor, carregue dados primeiro antes de adicionar perguntas', 'warning');
+                return;
+            }
+
+            // Criar objeto para a pergunta
+            const question = {
+                id: Date.now(),
+                text: questionText,
+                timestamp: new Date().toISOString(),
+                results: []
+            };
+
+            // Processar a pergunta e buscar respostas
+            processQuestion(question);
+
+            // Adicionar à lista de perguntas
+            insightsState.questions.push(question);
+
+            // Limpar o campo de entrada
+            questionInput.value = '';
+
+            // Atualizar a interface
+            renderQuestionsList();
+
+            showAlert('✅ Pergunta adicionada com sucesso! Analisando dados...', 'success');
+        }
+
+        function removeInsightQuestion(questionId) {
+            if (confirm('Tem certeza que deseja remover esta pergunta?')) {
+                insightsState.questions = insightsState.questions.filter(q => q.id !== questionId);
+                
+                // Remover classificações associadas
+                if (insightClassifications[questionId]) {
+                    delete insightClassifications[questionId];
+                    saveClassificationsToStorage();
+                }
+                
+                renderQuestionsList();
+                showAlert('Pergunta removida com sucesso', 'success');
+            }
+        }
+
+        function processQuestion(question) {
+            if (!appState.textAnalyzer || appState.filteredData.length === 0) {
+                question.results = [];
+                question.analysis = {
+                    totalMatches: 0,
+                    confidence: 0,
+                    message: 'Nenhum dado disponível para análise. Carregue dados primeiro.'
+                };
+                return;
+            }
+
+            // Extrair palavras-chave da pergunta
+            const keywords = extractKeywordsFromQuestion(question.text);
+
+            if (keywords.length === 0) {
+                question.results = [];
+                question.analysis = {
+                    totalMatches: 0,
+                    confidence: 0,
+                    message: 'Não foi possível identificar palavras-chave relevantes na pergunta. Tente reformular.'
+                };
+                return;
+            }
+
+            // Buscar ocorrências nos dados
+            const searchResults = searchForInsights(keywords);
+
+            // Analisar os resultados
+            question.results = searchResults.matches;
+            question.analysis = {
+                totalMatches: searchResults.matches.length,
+                confidence: searchResults.confidence,
+                keywords: keywords,
+                message: searchResults.matches.length > 0 
+                    ? `Encontradas ${searchResults.matches.length} possíveis ocorrências relacionadas.`
+                    : 'Nenhuma ocorrência encontrada para os critérios de busca.'
+            };
+        }
+
+        function extractKeywordsFromQuestion(question) {
+            // Tokenizar a pergunta
+            const tokens = appState.textAnalyzer.tokenize(question);
+
+            // Filtrar palavras relevantes (remover stop words e palavras muito comuns)
+            const relevantWords = tokens.filter(word => {
+                // Remover palavras muito curtas
+                if (word.length < 3) return false;
+
+                // Lista de palavras de pergunta para remover
+                const questionWords = ['qual', 'quais', 'como', 'quando', 'onde', 'porque', 'por', 'que', 
+                                       'foi', 'esta', 'este', 'isso', 'disso', 'sobre', 'tem', 'teve'];
+                if (questionWords.includes(word)) return false;
+
+                return true;
+            });
+
+            return relevantWords;
+        }
+
+        function searchForInsights(keywords) {
+            if (keywords.length === 0) {
+                return { matches: [], confidence: 0 };
+            }
+
+            let allMatches = [];
+            let totalConfidence = 0;
+            
+            // Expandir keywords com sinônimos e stemming
+            const expandedKeywords = new Set();
+            keywords.forEach(keyword => {
+                const variations = stemmer.expandWithSynonyms(keyword);
+                variations.forEach(v => expandedKeywords.add(v));
+            });
+            
+            console.log('🔍 Palavras-chave originais:', keywords);
+            console.log('🔍 Termos expandidos:', Array.from(expandedKeywords));
+
+            // Para cada palavra-chave expandida, buscar ocorrências
+            Array.from(expandedKeywords).forEach(keyword => {
+                const results = appState.textAnalyzer.search(keyword, 'all', 50);
+
+                results.forEach(result => {
+                    // Calcular relevância para esta palavra-chave
+                    const relevanceScore = calculateRelevanceScore(result, keyword);
+
+                    // Verificar se já existe este item nos resultados
+                    const existingIndex = allMatches.findIndex(match => 
+                        match.item.Agente === result.item.Agente &&
+                        match.item.Data === result.item.Data &&
+                        Math.abs(match.item.Pontuacao - result.item.Pontuacao) < 0.1
+                    );
+
+                    if (existingIndex >= 0) {
+                        // Atualizar score existente
+                        allMatches[existingIndex].relevanceScore += relevanceScore;
+                        allMatches[existingIndex].keywords.push(keyword);
+                    } else {
+                        // Adicionar novo resultado
+                        allMatches.push({
+                            ...result,
+                            relevanceScore: relevanceScore,
+                            keywords: [keyword]
+                        });
+                    }
+
+                    totalConfidence += relevanceScore;
+                });
+            });
+
+            // Ordenar por relevância
+            allMatches.sort((a, b) => b.relevanceScore - a.relevanceScore);
+
+            // Limitar a um número razoável de resultados
+            const topMatches = allMatches.slice(0, 20);
+
+            // Calcular confiança geral (0-100)
+            const avgConfidence = allMatches.length > 0 
+                ? Math.min(100, (totalConfidence / allMatches.length) * 100) 
+                : 0;
+
+            return {
+                matches: topMatches,
+                confidence: Math.round(avgConfidence)
+            };
+        }
+
+        function calculateRelevanceScore(result, keyword) {
+            let score = 0;
+
+            // Base score from Fuse.js (invertido, pois menor score é melhor no Fuse)
+            if (result.score !== undefined) {
+                score += (1 - result.score) * 50; // Max 50 pontos
+            } else {
+                score += 50; // Se não tem score, assume match exato
+            }
+
+            // Bonus por sentimento positivo
+            if (result.item.Sentimento === 'Positivo' || result.item.Sentimento === 'Muito Positivo') {
+                score += 10;
+            }
+
+            // Bonus por múltiplas ocorrências da palavra no texto
+            const texto = (result.item.Texto || '').toLowerCase();
+            const occurrences = (texto.match(new RegExp(keyword, 'gi')) || []).length;
+            score += occurrences * 5; // 5 pontos por ocorrência
+
+            return score;
+        }
+
+        function renderQuestionAnalysis(question) {
+            if (!question.analysis) return '';
+
+            return `
+                <div class="keyword-tags">
+                    <strong><i class="fas fa-tags"></i> Palavras-chave:</strong>
+                    ${question.analysis.keywords ? question.analysis.keywords.map(kw => 
+                        `<span class="keyword-tag">${kw}</span>`
+                    ).join('') : ''}
+                </div>
+            `;
+        }
+
+
         // SISTEMA DE CLASSIFICAÇÃO
         // ============================================
         let insightClassifications = {}; // {questionId: {resultIndex: 'procedente'|'improcedente'}}
@@ -180,6 +403,229 @@
     </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js">
         // ============================================
+        
+        // ============================================
+        // SISTEMA DE INSIGHTS - ESTADO E FUNÇÕES
+        // ============================================
+        const insightsState = {
+            questions: []
+        };
+
+        function addInsightQuestion() {
+            const questionInput = document.getElementById('insightQuestion');
+            const questionText = questionInput.value.trim();
+
+            if (!questionText) {
+                showAlert('⚠️ Por favor, digite uma pergunta antes de adicionar', 'warning');
+                return;
+            }
+
+            if (appState.filteredData.length === 0) {
+                showAlert('⚠️ Por favor, carregue dados primeiro antes de adicionar perguntas', 'warning');
+                return;
+            }
+
+            // Criar objeto para a pergunta
+            const question = {
+                id: Date.now(),
+                text: questionText,
+                timestamp: new Date().toISOString(),
+                results: []
+            };
+
+            // Processar a pergunta e buscar respostas
+            processQuestion(question);
+
+            // Adicionar à lista de perguntas
+            insightsState.questions.push(question);
+
+            // Limpar o campo de entrada
+            questionInput.value = '';
+
+            // Atualizar a interface
+            renderQuestionsList();
+
+            showAlert('✅ Pergunta adicionada com sucesso! Analisando dados...', 'success');
+        }
+
+        function removeInsightQuestion(questionId) {
+            if (confirm('Tem certeza que deseja remover esta pergunta?')) {
+                insightsState.questions = insightsState.questions.filter(q => q.id !== questionId);
+                
+                // Remover classificações associadas
+                if (insightClassifications[questionId]) {
+                    delete insightClassifications[questionId];
+                    saveClassificationsToStorage();
+                }
+                
+                renderQuestionsList();
+                showAlert('Pergunta removida com sucesso', 'success');
+            }
+        }
+
+        function processQuestion(question) {
+            if (!appState.textAnalyzer || appState.filteredData.length === 0) {
+                question.results = [];
+                question.analysis = {
+                    totalMatches: 0,
+                    confidence: 0,
+                    message: 'Nenhum dado disponível para análise. Carregue dados primeiro.'
+                };
+                return;
+            }
+
+            // Extrair palavras-chave da pergunta
+            const keywords = extractKeywordsFromQuestion(question.text);
+
+            if (keywords.length === 0) {
+                question.results = [];
+                question.analysis = {
+                    totalMatches: 0,
+                    confidence: 0,
+                    message: 'Não foi possível identificar palavras-chave relevantes na pergunta. Tente reformular.'
+                };
+                return;
+            }
+
+            // Buscar ocorrências nos dados
+            const searchResults = searchForInsights(keywords);
+
+            // Analisar os resultados
+            question.results = searchResults.matches;
+            question.analysis = {
+                totalMatches: searchResults.matches.length,
+                confidence: searchResults.confidence,
+                keywords: keywords,
+                message: searchResults.matches.length > 0 
+                    ? `Encontradas ${searchResults.matches.length} possíveis ocorrências relacionadas.`
+                    : 'Nenhuma ocorrência encontrada para os critérios de busca.'
+            };
+        }
+
+        function extractKeywordsFromQuestion(question) {
+            // Tokenizar a pergunta
+            const tokens = appState.textAnalyzer.tokenize(question);
+
+            // Filtrar palavras relevantes (remover stop words e palavras muito comuns)
+            const relevantWords = tokens.filter(word => {
+                // Remover palavras muito curtas
+                if (word.length < 3) return false;
+
+                // Lista de palavras de pergunta para remover
+                const questionWords = ['qual', 'quais', 'como', 'quando', 'onde', 'porque', 'por', 'que', 
+                                       'foi', 'esta', 'este', 'isso', 'disso', 'sobre', 'tem', 'teve'];
+                if (questionWords.includes(word)) return false;
+
+                return true;
+            });
+
+            return relevantWords;
+        }
+
+        function searchForInsights(keywords) {
+            if (keywords.length === 0) {
+                return { matches: [], confidence: 0 };
+            }
+
+            let allMatches = [];
+            let totalConfidence = 0;
+            
+            // Expandir keywords com sinônimos e stemming
+            const expandedKeywords = new Set();
+            keywords.forEach(keyword => {
+                const variations = stemmer.expandWithSynonyms(keyword);
+                variations.forEach(v => expandedKeywords.add(v));
+            });
+            
+            console.log('🔍 Palavras-chave originais:', keywords);
+            console.log('🔍 Termos expandidos:', Array.from(expandedKeywords));
+
+            // Para cada palavra-chave expandida, buscar ocorrências
+            Array.from(expandedKeywords).forEach(keyword => {
+                const results = appState.textAnalyzer.search(keyword, 'all', 50);
+
+                results.forEach(result => {
+                    // Calcular relevância para esta palavra-chave
+                    const relevanceScore = calculateRelevanceScore(result, keyword);
+
+                    // Verificar se já existe este item nos resultados
+                    const existingIndex = allMatches.findIndex(match => 
+                        match.item.Agente === result.item.Agente &&
+                        match.item.Data === result.item.Data &&
+                        Math.abs(match.item.Pontuacao - result.item.Pontuacao) < 0.1
+                    );
+
+                    if (existingIndex >= 0) {
+                        // Atualizar score existente
+                        allMatches[existingIndex].relevanceScore += relevanceScore;
+                        allMatches[existingIndex].keywords.push(keyword);
+                    } else {
+                        // Adicionar novo resultado
+                        allMatches.push({
+                            ...result,
+                            relevanceScore: relevanceScore,
+                            keywords: [keyword]
+                        });
+                    }
+
+                    totalConfidence += relevanceScore;
+                });
+            });
+
+            // Ordenar por relevância
+            allMatches.sort((a, b) => b.relevanceScore - a.relevanceScore);
+
+            // Limitar a um número razoável de resultados
+            const topMatches = allMatches.slice(0, 20);
+
+            // Calcular confiança geral (0-100)
+            const avgConfidence = allMatches.length > 0 
+                ? Math.min(100, (totalConfidence / allMatches.length) * 100) 
+                : 0;
+
+            return {
+                matches: topMatches,
+                confidence: Math.round(avgConfidence)
+            };
+        }
+
+        function calculateRelevanceScore(result, keyword) {
+            let score = 0;
+
+            // Base score from Fuse.js (invertido, pois menor score é melhor no Fuse)
+            if (result.score !== undefined) {
+                score += (1 - result.score) * 50; // Max 50 pontos
+            } else {
+                score += 50; // Se não tem score, assume match exato
+            }
+
+            // Bonus por sentimento positivo
+            if (result.item.Sentimento === 'Positivo' || result.item.Sentimento === 'Muito Positivo') {
+                score += 10;
+            }
+
+            // Bonus por múltiplas ocorrências da palavra no texto
+            const texto = (result.item.Texto || '').toLowerCase();
+            const occurrences = (texto.match(new RegExp(keyword, 'gi')) || []).length;
+            score += occurrences * 5; // 5 pontos por ocorrência
+
+            return score;
+        }
+
+        function renderQuestionAnalysis(question) {
+            if (!question.analysis) return '';
+
+            return `
+                <div class="keyword-tags">
+                    <strong><i class="fas fa-tags"></i> Palavras-chave:</strong>
+                    ${question.analysis.keywords ? question.analysis.keywords.map(kw => 
+                        `<span class="keyword-tag">${kw}</span>`
+                    ).join('') : ''}
+                </div>
+            `;
+        }
+
+
         // SISTEMA DE CLASSIFICAÇÃO
         // ============================================
         let insightClassifications = {}; // {questionId: {resultIndex: 'procedente'|'improcedente'}}
@@ -352,6 +798,229 @@
     </script>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js">
         // ============================================
+        
+        // ============================================
+        // SISTEMA DE INSIGHTS - ESTADO E FUNÇÕES
+        // ============================================
+        const insightsState = {
+            questions: []
+        };
+
+        function addInsightQuestion() {
+            const questionInput = document.getElementById('insightQuestion');
+            const questionText = questionInput.value.trim();
+
+            if (!questionText) {
+                showAlert('⚠️ Por favor, digite uma pergunta antes de adicionar', 'warning');
+                return;
+            }
+
+            if (appState.filteredData.length === 0) {
+                showAlert('⚠️ Por favor, carregue dados primeiro antes de adicionar perguntas', 'warning');
+                return;
+            }
+
+            // Criar objeto para a pergunta
+            const question = {
+                id: Date.now(),
+                text: questionText,
+                timestamp: new Date().toISOString(),
+                results: []
+            };
+
+            // Processar a pergunta e buscar respostas
+            processQuestion(question);
+
+            // Adicionar à lista de perguntas
+            insightsState.questions.push(question);
+
+            // Limpar o campo de entrada
+            questionInput.value = '';
+
+            // Atualizar a interface
+            renderQuestionsList();
+
+            showAlert('✅ Pergunta adicionada com sucesso! Analisando dados...', 'success');
+        }
+
+        function removeInsightQuestion(questionId) {
+            if (confirm('Tem certeza que deseja remover esta pergunta?')) {
+                insightsState.questions = insightsState.questions.filter(q => q.id !== questionId);
+                
+                // Remover classificações associadas
+                if (insightClassifications[questionId]) {
+                    delete insightClassifications[questionId];
+                    saveClassificationsToStorage();
+                }
+                
+                renderQuestionsList();
+                showAlert('Pergunta removida com sucesso', 'success');
+            }
+        }
+
+        function processQuestion(question) {
+            if (!appState.textAnalyzer || appState.filteredData.length === 0) {
+                question.results = [];
+                question.analysis = {
+                    totalMatches: 0,
+                    confidence: 0,
+                    message: 'Nenhum dado disponível para análise. Carregue dados primeiro.'
+                };
+                return;
+            }
+
+            // Extrair palavras-chave da pergunta
+            const keywords = extractKeywordsFromQuestion(question.text);
+
+            if (keywords.length === 0) {
+                question.results = [];
+                question.analysis = {
+                    totalMatches: 0,
+                    confidence: 0,
+                    message: 'Não foi possível identificar palavras-chave relevantes na pergunta. Tente reformular.'
+                };
+                return;
+            }
+
+            // Buscar ocorrências nos dados
+            const searchResults = searchForInsights(keywords);
+
+            // Analisar os resultados
+            question.results = searchResults.matches;
+            question.analysis = {
+                totalMatches: searchResults.matches.length,
+                confidence: searchResults.confidence,
+                keywords: keywords,
+                message: searchResults.matches.length > 0 
+                    ? `Encontradas ${searchResults.matches.length} possíveis ocorrências relacionadas.`
+                    : 'Nenhuma ocorrência encontrada para os critérios de busca.'
+            };
+        }
+
+        function extractKeywordsFromQuestion(question) {
+            // Tokenizar a pergunta
+            const tokens = appState.textAnalyzer.tokenize(question);
+
+            // Filtrar palavras relevantes (remover stop words e palavras muito comuns)
+            const relevantWords = tokens.filter(word => {
+                // Remover palavras muito curtas
+                if (word.length < 3) return false;
+
+                // Lista de palavras de pergunta para remover
+                const questionWords = ['qual', 'quais', 'como', 'quando', 'onde', 'porque', 'por', 'que', 
+                                       'foi', 'esta', 'este', 'isso', 'disso', 'sobre', 'tem', 'teve'];
+                if (questionWords.includes(word)) return false;
+
+                return true;
+            });
+
+            return relevantWords;
+        }
+
+        function searchForInsights(keywords) {
+            if (keywords.length === 0) {
+                return { matches: [], confidence: 0 };
+            }
+
+            let allMatches = [];
+            let totalConfidence = 0;
+            
+            // Expandir keywords com sinônimos e stemming
+            const expandedKeywords = new Set();
+            keywords.forEach(keyword => {
+                const variations = stemmer.expandWithSynonyms(keyword);
+                variations.forEach(v => expandedKeywords.add(v));
+            });
+            
+            console.log('🔍 Palavras-chave originais:', keywords);
+            console.log('🔍 Termos expandidos:', Array.from(expandedKeywords));
+
+            // Para cada palavra-chave expandida, buscar ocorrências
+            Array.from(expandedKeywords).forEach(keyword => {
+                const results = appState.textAnalyzer.search(keyword, 'all', 50);
+
+                results.forEach(result => {
+                    // Calcular relevância para esta palavra-chave
+                    const relevanceScore = calculateRelevanceScore(result, keyword);
+
+                    // Verificar se já existe este item nos resultados
+                    const existingIndex = allMatches.findIndex(match => 
+                        match.item.Agente === result.item.Agente &&
+                        match.item.Data === result.item.Data &&
+                        Math.abs(match.item.Pontuacao - result.item.Pontuacao) < 0.1
+                    );
+
+                    if (existingIndex >= 0) {
+                        // Atualizar score existente
+                        allMatches[existingIndex].relevanceScore += relevanceScore;
+                        allMatches[existingIndex].keywords.push(keyword);
+                    } else {
+                        // Adicionar novo resultado
+                        allMatches.push({
+                            ...result,
+                            relevanceScore: relevanceScore,
+                            keywords: [keyword]
+                        });
+                    }
+
+                    totalConfidence += relevanceScore;
+                });
+            });
+
+            // Ordenar por relevância
+            allMatches.sort((a, b) => b.relevanceScore - a.relevanceScore);
+
+            // Limitar a um número razoável de resultados
+            const topMatches = allMatches.slice(0, 20);
+
+            // Calcular confiança geral (0-100)
+            const avgConfidence = allMatches.length > 0 
+                ? Math.min(100, (totalConfidence / allMatches.length) * 100) 
+                : 0;
+
+            return {
+                matches: topMatches,
+                confidence: Math.round(avgConfidence)
+            };
+        }
+
+        function calculateRelevanceScore(result, keyword) {
+            let score = 0;
+
+            // Base score from Fuse.js (invertido, pois menor score é melhor no Fuse)
+            if (result.score !== undefined) {
+                score += (1 - result.score) * 50; // Max 50 pontos
+            } else {
+                score += 50; // Se não tem score, assume match exato
+            }
+
+            // Bonus por sentimento positivo
+            if (result.item.Sentimento === 'Positivo' || result.item.Sentimento === 'Muito Positivo') {
+                score += 10;
+            }
+
+            // Bonus por múltiplas ocorrências da palavra no texto
+            const texto = (result.item.Texto || '').toLowerCase();
+            const occurrences = (texto.match(new RegExp(keyword, 'gi')) || []).length;
+            score += occurrences * 5; // 5 pontos por ocorrência
+
+            return score;
+        }
+
+        function renderQuestionAnalysis(question) {
+            if (!question.analysis) return '';
+
+            return `
+                <div class="keyword-tags">
+                    <strong><i class="fas fa-tags"></i> Palavras-chave:</strong>
+                    ${question.analysis.keywords ? question.analysis.keywords.map(kw => 
+                        `<span class="keyword-tag">${kw}</span>`
+                    ).join('') : ''}
+                </div>
+            `;
+        }
+
+
         // SISTEMA DE CLASSIFICAÇÃO
         // ============================================
         let insightClassifications = {}; // {questionId: {resultIndex: 'procedente'|'improcedente'}}
@@ -524,6 +1193,229 @@
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js">
         // ============================================
+        
+        // ============================================
+        // SISTEMA DE INSIGHTS - ESTADO E FUNÇÕES
+        // ============================================
+        const insightsState = {
+            questions: []
+        };
+
+        function addInsightQuestion() {
+            const questionInput = document.getElementById('insightQuestion');
+            const questionText = questionInput.value.trim();
+
+            if (!questionText) {
+                showAlert('⚠️ Por favor, digite uma pergunta antes de adicionar', 'warning');
+                return;
+            }
+
+            if (appState.filteredData.length === 0) {
+                showAlert('⚠️ Por favor, carregue dados primeiro antes de adicionar perguntas', 'warning');
+                return;
+            }
+
+            // Criar objeto para a pergunta
+            const question = {
+                id: Date.now(),
+                text: questionText,
+                timestamp: new Date().toISOString(),
+                results: []
+            };
+
+            // Processar a pergunta e buscar respostas
+            processQuestion(question);
+
+            // Adicionar à lista de perguntas
+            insightsState.questions.push(question);
+
+            // Limpar o campo de entrada
+            questionInput.value = '';
+
+            // Atualizar a interface
+            renderQuestionsList();
+
+            showAlert('✅ Pergunta adicionada com sucesso! Analisando dados...', 'success');
+        }
+
+        function removeInsightQuestion(questionId) {
+            if (confirm('Tem certeza que deseja remover esta pergunta?')) {
+                insightsState.questions = insightsState.questions.filter(q => q.id !== questionId);
+                
+                // Remover classificações associadas
+                if (insightClassifications[questionId]) {
+                    delete insightClassifications[questionId];
+                    saveClassificationsToStorage();
+                }
+                
+                renderQuestionsList();
+                showAlert('Pergunta removida com sucesso', 'success');
+            }
+        }
+
+        function processQuestion(question) {
+            if (!appState.textAnalyzer || appState.filteredData.length === 0) {
+                question.results = [];
+                question.analysis = {
+                    totalMatches: 0,
+                    confidence: 0,
+                    message: 'Nenhum dado disponível para análise. Carregue dados primeiro.'
+                };
+                return;
+            }
+
+            // Extrair palavras-chave da pergunta
+            const keywords = extractKeywordsFromQuestion(question.text);
+
+            if (keywords.length === 0) {
+                question.results = [];
+                question.analysis = {
+                    totalMatches: 0,
+                    confidence: 0,
+                    message: 'Não foi possível identificar palavras-chave relevantes na pergunta. Tente reformular.'
+                };
+                return;
+            }
+
+            // Buscar ocorrências nos dados
+            const searchResults = searchForInsights(keywords);
+
+            // Analisar os resultados
+            question.results = searchResults.matches;
+            question.analysis = {
+                totalMatches: searchResults.matches.length,
+                confidence: searchResults.confidence,
+                keywords: keywords,
+                message: searchResults.matches.length > 0 
+                    ? `Encontradas ${searchResults.matches.length} possíveis ocorrências relacionadas.`
+                    : 'Nenhuma ocorrência encontrada para os critérios de busca.'
+            };
+        }
+
+        function extractKeywordsFromQuestion(question) {
+            // Tokenizar a pergunta
+            const tokens = appState.textAnalyzer.tokenize(question);
+
+            // Filtrar palavras relevantes (remover stop words e palavras muito comuns)
+            const relevantWords = tokens.filter(word => {
+                // Remover palavras muito curtas
+                if (word.length < 3) return false;
+
+                // Lista de palavras de pergunta para remover
+                const questionWords = ['qual', 'quais', 'como', 'quando', 'onde', 'porque', 'por', 'que', 
+                                       'foi', 'esta', 'este', 'isso', 'disso', 'sobre', 'tem', 'teve'];
+                if (questionWords.includes(word)) return false;
+
+                return true;
+            });
+
+            return relevantWords;
+        }
+
+        function searchForInsights(keywords) {
+            if (keywords.length === 0) {
+                return { matches: [], confidence: 0 };
+            }
+
+            let allMatches = [];
+            let totalConfidence = 0;
+            
+            // Expandir keywords com sinônimos e stemming
+            const expandedKeywords = new Set();
+            keywords.forEach(keyword => {
+                const variations = stemmer.expandWithSynonyms(keyword);
+                variations.forEach(v => expandedKeywords.add(v));
+            });
+            
+            console.log('🔍 Palavras-chave originais:', keywords);
+            console.log('🔍 Termos expandidos:', Array.from(expandedKeywords));
+
+            // Para cada palavra-chave expandida, buscar ocorrências
+            Array.from(expandedKeywords).forEach(keyword => {
+                const results = appState.textAnalyzer.search(keyword, 'all', 50);
+
+                results.forEach(result => {
+                    // Calcular relevância para esta palavra-chave
+                    const relevanceScore = calculateRelevanceScore(result, keyword);
+
+                    // Verificar se já existe este item nos resultados
+                    const existingIndex = allMatches.findIndex(match => 
+                        match.item.Agente === result.item.Agente &&
+                        match.item.Data === result.item.Data &&
+                        Math.abs(match.item.Pontuacao - result.item.Pontuacao) < 0.1
+                    );
+
+                    if (existingIndex >= 0) {
+                        // Atualizar score existente
+                        allMatches[existingIndex].relevanceScore += relevanceScore;
+                        allMatches[existingIndex].keywords.push(keyword);
+                    } else {
+                        // Adicionar novo resultado
+                        allMatches.push({
+                            ...result,
+                            relevanceScore: relevanceScore,
+                            keywords: [keyword]
+                        });
+                    }
+
+                    totalConfidence += relevanceScore;
+                });
+            });
+
+            // Ordenar por relevância
+            allMatches.sort((a, b) => b.relevanceScore - a.relevanceScore);
+
+            // Limitar a um número razoável de resultados
+            const topMatches = allMatches.slice(0, 20);
+
+            // Calcular confiança geral (0-100)
+            const avgConfidence = allMatches.length > 0 
+                ? Math.min(100, (totalConfidence / allMatches.length) * 100) 
+                : 0;
+
+            return {
+                matches: topMatches,
+                confidence: Math.round(avgConfidence)
+            };
+        }
+
+        function calculateRelevanceScore(result, keyword) {
+            let score = 0;
+
+            // Base score from Fuse.js (invertido, pois menor score é melhor no Fuse)
+            if (result.score !== undefined) {
+                score += (1 - result.score) * 50; // Max 50 pontos
+            } else {
+                score += 50; // Se não tem score, assume match exato
+            }
+
+            // Bonus por sentimento positivo
+            if (result.item.Sentimento === 'Positivo' || result.item.Sentimento === 'Muito Positivo') {
+                score += 10;
+            }
+
+            // Bonus por múltiplas ocorrências da palavra no texto
+            const texto = (result.item.Texto || '').toLowerCase();
+            const occurrences = (texto.match(new RegExp(keyword, 'gi')) || []).length;
+            score += occurrences * 5; // 5 pontos por ocorrência
+
+            return score;
+        }
+
+        function renderQuestionAnalysis(question) {
+            if (!question.analysis) return '';
+
+            return `
+                <div class="keyword-tags">
+                    <strong><i class="fas fa-tags"></i> Palavras-chave:</strong>
+                    ${question.analysis.keywords ? question.analysis.keywords.map(kw => 
+                        `<span class="keyword-tag">${kw}</span>`
+                    ).join('') : ''}
+                </div>
+            `;
+        }
+
+
         // SISTEMA DE CLASSIFICAÇÃO
         // ============================================
         let insightClassifications = {}; // {questionId: {resultIndex: 'procedente'|'improcedente'}}
@@ -696,6 +1588,229 @@
     </script>
     <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.min.js">
         // ============================================
+        
+        // ============================================
+        // SISTEMA DE INSIGHTS - ESTADO E FUNÇÕES
+        // ============================================
+        const insightsState = {
+            questions: []
+        };
+
+        function addInsightQuestion() {
+            const questionInput = document.getElementById('insightQuestion');
+            const questionText = questionInput.value.trim();
+
+            if (!questionText) {
+                showAlert('⚠️ Por favor, digite uma pergunta antes de adicionar', 'warning');
+                return;
+            }
+
+            if (appState.filteredData.length === 0) {
+                showAlert('⚠️ Por favor, carregue dados primeiro antes de adicionar perguntas', 'warning');
+                return;
+            }
+
+            // Criar objeto para a pergunta
+            const question = {
+                id: Date.now(),
+                text: questionText,
+                timestamp: new Date().toISOString(),
+                results: []
+            };
+
+            // Processar a pergunta e buscar respostas
+            processQuestion(question);
+
+            // Adicionar à lista de perguntas
+            insightsState.questions.push(question);
+
+            // Limpar o campo de entrada
+            questionInput.value = '';
+
+            // Atualizar a interface
+            renderQuestionsList();
+
+            showAlert('✅ Pergunta adicionada com sucesso! Analisando dados...', 'success');
+        }
+
+        function removeInsightQuestion(questionId) {
+            if (confirm('Tem certeza que deseja remover esta pergunta?')) {
+                insightsState.questions = insightsState.questions.filter(q => q.id !== questionId);
+                
+                // Remover classificações associadas
+                if (insightClassifications[questionId]) {
+                    delete insightClassifications[questionId];
+                    saveClassificationsToStorage();
+                }
+                
+                renderQuestionsList();
+                showAlert('Pergunta removida com sucesso', 'success');
+            }
+        }
+
+        function processQuestion(question) {
+            if (!appState.textAnalyzer || appState.filteredData.length === 0) {
+                question.results = [];
+                question.analysis = {
+                    totalMatches: 0,
+                    confidence: 0,
+                    message: 'Nenhum dado disponível para análise. Carregue dados primeiro.'
+                };
+                return;
+            }
+
+            // Extrair palavras-chave da pergunta
+            const keywords = extractKeywordsFromQuestion(question.text);
+
+            if (keywords.length === 0) {
+                question.results = [];
+                question.analysis = {
+                    totalMatches: 0,
+                    confidence: 0,
+                    message: 'Não foi possível identificar palavras-chave relevantes na pergunta. Tente reformular.'
+                };
+                return;
+            }
+
+            // Buscar ocorrências nos dados
+            const searchResults = searchForInsights(keywords);
+
+            // Analisar os resultados
+            question.results = searchResults.matches;
+            question.analysis = {
+                totalMatches: searchResults.matches.length,
+                confidence: searchResults.confidence,
+                keywords: keywords,
+                message: searchResults.matches.length > 0 
+                    ? `Encontradas ${searchResults.matches.length} possíveis ocorrências relacionadas.`
+                    : 'Nenhuma ocorrência encontrada para os critérios de busca.'
+            };
+        }
+
+        function extractKeywordsFromQuestion(question) {
+            // Tokenizar a pergunta
+            const tokens = appState.textAnalyzer.tokenize(question);
+
+            // Filtrar palavras relevantes (remover stop words e palavras muito comuns)
+            const relevantWords = tokens.filter(word => {
+                // Remover palavras muito curtas
+                if (word.length < 3) return false;
+
+                // Lista de palavras de pergunta para remover
+                const questionWords = ['qual', 'quais', 'como', 'quando', 'onde', 'porque', 'por', 'que', 
+                                       'foi', 'esta', 'este', 'isso', 'disso', 'sobre', 'tem', 'teve'];
+                if (questionWords.includes(word)) return false;
+
+                return true;
+            });
+
+            return relevantWords;
+        }
+
+        function searchForInsights(keywords) {
+            if (keywords.length === 0) {
+                return { matches: [], confidence: 0 };
+            }
+
+            let allMatches = [];
+            let totalConfidence = 0;
+            
+            // Expandir keywords com sinônimos e stemming
+            const expandedKeywords = new Set();
+            keywords.forEach(keyword => {
+                const variations = stemmer.expandWithSynonyms(keyword);
+                variations.forEach(v => expandedKeywords.add(v));
+            });
+            
+            console.log('🔍 Palavras-chave originais:', keywords);
+            console.log('🔍 Termos expandidos:', Array.from(expandedKeywords));
+
+            // Para cada palavra-chave expandida, buscar ocorrências
+            Array.from(expandedKeywords).forEach(keyword => {
+                const results = appState.textAnalyzer.search(keyword, 'all', 50);
+
+                results.forEach(result => {
+                    // Calcular relevância para esta palavra-chave
+                    const relevanceScore = calculateRelevanceScore(result, keyword);
+
+                    // Verificar se já existe este item nos resultados
+                    const existingIndex = allMatches.findIndex(match => 
+                        match.item.Agente === result.item.Agente &&
+                        match.item.Data === result.item.Data &&
+                        Math.abs(match.item.Pontuacao - result.item.Pontuacao) < 0.1
+                    );
+
+                    if (existingIndex >= 0) {
+                        // Atualizar score existente
+                        allMatches[existingIndex].relevanceScore += relevanceScore;
+                        allMatches[existingIndex].keywords.push(keyword);
+                    } else {
+                        // Adicionar novo resultado
+                        allMatches.push({
+                            ...result,
+                            relevanceScore: relevanceScore,
+                            keywords: [keyword]
+                        });
+                    }
+
+                    totalConfidence += relevanceScore;
+                });
+            });
+
+            // Ordenar por relevância
+            allMatches.sort((a, b) => b.relevanceScore - a.relevanceScore);
+
+            // Limitar a um número razoável de resultados
+            const topMatches = allMatches.slice(0, 20);
+
+            // Calcular confiança geral (0-100)
+            const avgConfidence = allMatches.length > 0 
+                ? Math.min(100, (totalConfidence / allMatches.length) * 100) 
+                : 0;
+
+            return {
+                matches: topMatches,
+                confidence: Math.round(avgConfidence)
+            };
+        }
+
+        function calculateRelevanceScore(result, keyword) {
+            let score = 0;
+
+            // Base score from Fuse.js (invertido, pois menor score é melhor no Fuse)
+            if (result.score !== undefined) {
+                score += (1 - result.score) * 50; // Max 50 pontos
+            } else {
+                score += 50; // Se não tem score, assume match exato
+            }
+
+            // Bonus por sentimento positivo
+            if (result.item.Sentimento === 'Positivo' || result.item.Sentimento === 'Muito Positivo') {
+                score += 10;
+            }
+
+            // Bonus por múltiplas ocorrências da palavra no texto
+            const texto = (result.item.Texto || '').toLowerCase();
+            const occurrences = (texto.match(new RegExp(keyword, 'gi')) || []).length;
+            score += occurrences * 5; // 5 pontos por ocorrência
+
+            return score;
+        }
+
+        function renderQuestionAnalysis(question) {
+            if (!question.analysis) return '';
+
+            return `
+                <div class="keyword-tags">
+                    <strong><i class="fas fa-tags"></i> Palavras-chave:</strong>
+                    ${question.analysis.keywords ? question.analysis.keywords.map(kw => 
+                        `<span class="keyword-tag">${kw}</span>`
+                    ).join('') : ''}
+                </div>
+            `;
+        }
+
+
         // SISTEMA DE CLASSIFICAÇÃO
         // ============================================
         let insightClassifications = {}; // {questionId: {resultIndex: 'procedente'|'improcedente'}}
@@ -2286,7 +3401,66 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
 
-    </style>
+    
+/* Estilos para a seção de Insights */
+.insight-question-input {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 25px;
+    border-radius: 12px;
+    margin-bottom: 25px;
+    box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
+}
+
+.insight-question-input .input-group label {
+    color: white;
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin-bottom: 12px;
+}
+
+.insight-question-input .form-control {
+    padding: 15px;
+    font-size: 1rem;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.insight-question-input .form-control:focus {
+    border-color: white;
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.2);
+    background: white;
+}
+
+.insight-question-input .button {
+    margin-top: 15px;
+    width: 100%;
+    padding: 15px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    background: white;
+    color: #667eea;
+    border: none;
+    transition: all 0.3s ease;
+}
+
+.insight-question-input .button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+    background: #f8f9fa;
+}
+
+.questions-list {
+    margin-top: 20px;
+}
+
+.export-section {
+    border-top: 2px solid var(--medium-gray);
+    padding-top: 20px;
+}
+
+</style>
 </head>
 <body>
     <div class="container">
@@ -2739,32 +3913,49 @@
                     <!-- Nova Aba: Monitoria -->
                     
                 <!-- Aba Insights -->
-                <div class="tab-content" id="insights">
-                    <div class="card">
-                        <div class="card-header">
-                            <div class="card-title">
-                                <i class="fas fa-lightbulb"></i>
-                                Sistema de Insights Inteligentes
+                
+                    <div class="tab-content" id="insights" style="display: none;">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3><i class="fas fa-lightbulb"></i> Insights Inteligentes</h3>
+                                <p>Faça perguntas sobre seus dados e obtenha insights automaticamente</p>
                             </div>
-                            <button class="button button-success" id="exportAllInsights">
-                                <i class="fas fa-download"></i>
-                                Exportar Todos
-                            </button>
-                        </div>
-                        <div class="alert alert-info">
-                            <i class="fas fa-info-circle"></i>
-                            <div>
-                                <strong>Como usar:</strong> Digite uma pergunta sobre seus dados e o sistema irá buscar automaticamente por respostas relevantes nas conversas analisadas.
+                            <div class="card-body">
+                                <div class="insight-question-input">
+                                    <div class="input-group">
+                                        <label for="newQuestion">
+                                            <i class="fas fa-question-circle"></i> Digite sua pergunta:
+                                        </label>
+                                        <input 
+                                            type="text" 
+                                            id="newQuestion" 
+                                            placeholder="Ex: Quais são os principais problemas relatados pelos clientes?"
+                                            class="form-control"
+                                        >
+                                    </div>
+                                    <button class="button button-primary" id="addQuestion">
+                                        <i class="fas fa-plus"></i>
+                                        Adicionar Pergunta
+                                    </button>
+                                </div>
+
+                                <div id="questionsList" class="questions-list"></div>
+
+                                <div class="export-section" style="margin-top: 20px; text-align: center;">
+                                    <button class="button button-success" id="exportAllInsights">
+                                        <i class="fas fa-download"></i>
+                                        Exportar Todos os Insights
+                                    </button>
+                                </div>
                             </div>
                         </div>
+                    </div>
+
                         <div class="form-row">
                             <div class="form-group" style="flex: 3;">
                                 <input type="text" id="newQuestion" placeholder="Ex: Quais são os principais problemas relatados pelos clientes?">
                             </div>
-                            <button class="button button-primary" id="addQuestion">
-                                <i class="fas fa-plus"></i>
-                                Adicionar Pergunta
-                            </button>
+                            <button class="button button-primary" onclick="addInsightQuestion()"><i class="fas fa-plus"></i> Adicionar Pergunta</button>
                         </div>
                     </div>
 
@@ -5664,6 +6855,229 @@ function exportSearchResults() {
 }
 
         // ============================================
+        
+        // ============================================
+        // SISTEMA DE INSIGHTS - ESTADO E FUNÇÕES
+        // ============================================
+        const insightsState = {
+            questions: []
+        };
+
+        function addInsightQuestion() {
+            const questionInput = document.getElementById('insightQuestion');
+            const questionText = questionInput.value.trim();
+
+            if (!questionText) {
+                showAlert('⚠️ Por favor, digite uma pergunta antes de adicionar', 'warning');
+                return;
+            }
+
+            if (appState.filteredData.length === 0) {
+                showAlert('⚠️ Por favor, carregue dados primeiro antes de adicionar perguntas', 'warning');
+                return;
+            }
+
+            // Criar objeto para a pergunta
+            const question = {
+                id: Date.now(),
+                text: questionText,
+                timestamp: new Date().toISOString(),
+                results: []
+            };
+
+            // Processar a pergunta e buscar respostas
+            processQuestion(question);
+
+            // Adicionar à lista de perguntas
+            insightsState.questions.push(question);
+
+            // Limpar o campo de entrada
+            questionInput.value = '';
+
+            // Atualizar a interface
+            renderQuestionsList();
+
+            showAlert('✅ Pergunta adicionada com sucesso! Analisando dados...', 'success');
+        }
+
+        function removeInsightQuestion(questionId) {
+            if (confirm('Tem certeza que deseja remover esta pergunta?')) {
+                insightsState.questions = insightsState.questions.filter(q => q.id !== questionId);
+                
+                // Remover classificações associadas
+                if (insightClassifications[questionId]) {
+                    delete insightClassifications[questionId];
+                    saveClassificationsToStorage();
+                }
+                
+                renderQuestionsList();
+                showAlert('Pergunta removida com sucesso', 'success');
+            }
+        }
+
+        function processQuestion(question) {
+            if (!appState.textAnalyzer || appState.filteredData.length === 0) {
+                question.results = [];
+                question.analysis = {
+                    totalMatches: 0,
+                    confidence: 0,
+                    message: 'Nenhum dado disponível para análise. Carregue dados primeiro.'
+                };
+                return;
+            }
+
+            // Extrair palavras-chave da pergunta
+            const keywords = extractKeywordsFromQuestion(question.text);
+
+            if (keywords.length === 0) {
+                question.results = [];
+                question.analysis = {
+                    totalMatches: 0,
+                    confidence: 0,
+                    message: 'Não foi possível identificar palavras-chave relevantes na pergunta. Tente reformular.'
+                };
+                return;
+            }
+
+            // Buscar ocorrências nos dados
+            const searchResults = searchForInsights(keywords);
+
+            // Analisar os resultados
+            question.results = searchResults.matches;
+            question.analysis = {
+                totalMatches: searchResults.matches.length,
+                confidence: searchResults.confidence,
+                keywords: keywords,
+                message: searchResults.matches.length > 0 
+                    ? `Encontradas ${searchResults.matches.length} possíveis ocorrências relacionadas.`
+                    : 'Nenhuma ocorrência encontrada para os critérios de busca.'
+            };
+        }
+
+        function extractKeywordsFromQuestion(question) {
+            // Tokenizar a pergunta
+            const tokens = appState.textAnalyzer.tokenize(question);
+
+            // Filtrar palavras relevantes (remover stop words e palavras muito comuns)
+            const relevantWords = tokens.filter(word => {
+                // Remover palavras muito curtas
+                if (word.length < 3) return false;
+
+                // Lista de palavras de pergunta para remover
+                const questionWords = ['qual', 'quais', 'como', 'quando', 'onde', 'porque', 'por', 'que', 
+                                       'foi', 'esta', 'este', 'isso', 'disso', 'sobre', 'tem', 'teve'];
+                if (questionWords.includes(word)) return false;
+
+                return true;
+            });
+
+            return relevantWords;
+        }
+
+        function searchForInsights(keywords) {
+            if (keywords.length === 0) {
+                return { matches: [], confidence: 0 };
+            }
+
+            let allMatches = [];
+            let totalConfidence = 0;
+            
+            // Expandir keywords com sinônimos e stemming
+            const expandedKeywords = new Set();
+            keywords.forEach(keyword => {
+                const variations = stemmer.expandWithSynonyms(keyword);
+                variations.forEach(v => expandedKeywords.add(v));
+            });
+            
+            console.log('🔍 Palavras-chave originais:', keywords);
+            console.log('🔍 Termos expandidos:', Array.from(expandedKeywords));
+
+            // Para cada palavra-chave expandida, buscar ocorrências
+            Array.from(expandedKeywords).forEach(keyword => {
+                const results = appState.textAnalyzer.search(keyword, 'all', 50);
+
+                results.forEach(result => {
+                    // Calcular relevância para esta palavra-chave
+                    const relevanceScore = calculateRelevanceScore(result, keyword);
+
+                    // Verificar se já existe este item nos resultados
+                    const existingIndex = allMatches.findIndex(match => 
+                        match.item.Agente === result.item.Agente &&
+                        match.item.Data === result.item.Data &&
+                        Math.abs(match.item.Pontuacao - result.item.Pontuacao) < 0.1
+                    );
+
+                    if (existingIndex >= 0) {
+                        // Atualizar score existente
+                        allMatches[existingIndex].relevanceScore += relevanceScore;
+                        allMatches[existingIndex].keywords.push(keyword);
+                    } else {
+                        // Adicionar novo resultado
+                        allMatches.push({
+                            ...result,
+                            relevanceScore: relevanceScore,
+                            keywords: [keyword]
+                        });
+                    }
+
+                    totalConfidence += relevanceScore;
+                });
+            });
+
+            // Ordenar por relevância
+            allMatches.sort((a, b) => b.relevanceScore - a.relevanceScore);
+
+            // Limitar a um número razoável de resultados
+            const topMatches = allMatches.slice(0, 20);
+
+            // Calcular confiança geral (0-100)
+            const avgConfidence = allMatches.length > 0 
+                ? Math.min(100, (totalConfidence / allMatches.length) * 100) 
+                : 0;
+
+            return {
+                matches: topMatches,
+                confidence: Math.round(avgConfidence)
+            };
+        }
+
+        function calculateRelevanceScore(result, keyword) {
+            let score = 0;
+
+            // Base score from Fuse.js (invertido, pois menor score é melhor no Fuse)
+            if (result.score !== undefined) {
+                score += (1 - result.score) * 50; // Max 50 pontos
+            } else {
+                score += 50; // Se não tem score, assume match exato
+            }
+
+            // Bonus por sentimento positivo
+            if (result.item.Sentimento === 'Positivo' || result.item.Sentimento === 'Muito Positivo') {
+                score += 10;
+            }
+
+            // Bonus por múltiplas ocorrências da palavra no texto
+            const texto = (result.item.Texto || '').toLowerCase();
+            const occurrences = (texto.match(new RegExp(keyword, 'gi')) || []).length;
+            score += occurrences * 5; // 5 pontos por ocorrência
+
+            return score;
+        }
+
+        function renderQuestionAnalysis(question) {
+            if (!question.analysis) return '';
+
+            return `
+                <div class="keyword-tags">
+                    <strong><i class="fas fa-tags"></i> Palavras-chave:</strong>
+                    ${question.analysis.keywords ? question.analysis.keywords.map(kw => 
+                        `<span class="keyword-tag">${kw}</span>`
+                    ).join('') : ''}
+                </div>
+            `;
+        }
+
+
         // SISTEMA DE CLASSIFICAÇÃO
         // ============================================
         let insightClassifications = {}; // {questionId: {resultIndex: 'procedente'|'improcedente'}}
@@ -5977,11 +7391,7 @@ function exportSearchResults() {
 
 
         // =============================================
-        // SISTEMA DE INSIGHTS INTELIGENTES
-        // =============================================
 
-// =============================================
-// SISTEMA DE INSIGHTS INTELIGENTES
 // =============================================
 
 // Estado para gerenciar as perguntas e respostas

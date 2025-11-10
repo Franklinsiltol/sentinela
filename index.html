@@ -881,7 +881,9 @@
             display: none;
         }
     
-        /* Estilos para Insights */
+        /* ===================================== */
+        /* ESTILOS PARA INSIGHTS */
+        /* ===================================== */
         .question-card {
             margin-bottom: 20px;
             border-left: 4px solid var(--info-color);
@@ -1486,7 +1488,49 @@
                     </div>
                     
                     <!-- Nova Aba: Monitoria -->
-                    <div class="tab-content" id="monitoring">
+                    
+                <!-- Aba Insights -->
+                <div class="tab-content" id="insights">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <i class="fas fa-lightbulb"></i>
+                                Sistema de Insights Inteligentes
+                            </div>
+                            <button class="button button-success" id="exportAllInsights">
+                                <i class="fas fa-download"></i>
+                                Exportar Todos
+                            </button>
+                        </div>
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            <div>
+                                <strong>Como usar:</strong> Digite uma pergunta sobre seus dados e o sistema irá buscar automaticamente por respostas relevantes nas conversas analisadas.
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group" style="flex: 3;">
+                                <input type="text" id="newQuestion" placeholder="Ex: Quais são os principais problemas relatados pelos clientes?">
+                            </div>
+                            <button class="button button-primary" id="addQuestion">
+                                <i class="fas fa-plus"></i>
+                                Adicionar Pergunta
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="noQuestionsMessage" class="alert alert-warning">
+                        <i class="fas fa-question-circle"></i>
+                        <div>
+                            <strong>Nenhuma pergunta adicionada ainda.</strong>
+                            Comece adicionando uma pergunta acima para obter insights dos seus dados.
+                        </div>
+                    </div>
+
+                    <div id="questionsList"></div>
+                </div>
+
+<div class="tab-content" id="monitoring">
                         <div class="card config-section">
                             <div class="input-group" style="flex-grow: 2;">
                                 <label for="monitoringSheetId">📄 Google Sheet ID</label>
@@ -4369,11 +4413,12 @@ function exportSearchResults() {
         btn.style.background = '#4CAF50';
     }, 2000);
 }
+</script>
 
-
-// =============================================
-// SISTEMA DE INSIGHTS INTELIGENTES
-// =============================================
+    <script>
+        // =============================================
+        // SISTEMA DE INSIGHTS INTELIGENTES
+        // =============================================
 
 // =============================================
 // SISTEMA DE INSIGHTS INTELIGENTES
@@ -4887,6 +4932,17 @@ const styleSheet = document.createElement('style');
 styleSheet.textContent = insightsStyles;
 document.head.appendChild(styleSheet);
 
-</script>
+        // Inicializar Insights quando a aba for ativada
+        document.addEventListener('DOMContentLoaded', function() {
+            const insightsTab = document.querySelector('[data-tab="insights"]');
+            if (insightsTab) {
+                insightsTab.addEventListener('click', function() {
+                    if (typeof initializeInsights === 'function') {
+                        initializeInsights();
+                    }
+                });
+            }
+        });
+    </script>
 </body>
 </html>

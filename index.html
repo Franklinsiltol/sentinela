@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -879,6 +880,161 @@
         .sidebar.collapsed #statsContainer {
             display: none;
         }
+    
+        /* Estilos para Insights */
+        .question-card {
+            margin-bottom: 20px;
+            border-left: 4px solid var(--info-color);
+        }
+
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .question-text {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--primary-color);
+            flex: 1;
+        }
+
+        .question-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .question-details {
+            padding-top: 15px;
+            border-top: 1px solid var(--medium-gray);
+            margin-top: 15px;
+        }
+
+        .keyword-tags {
+            margin-bottom: 15px;
+        }
+
+        .keyword-tag {
+            display: inline-block;
+            background: var(--light-gray);
+            padding: 4px 12px;
+            margin: 2px 4px 2px 0;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            color: var(--dark-gray);
+        }
+
+        .insights-results {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .insight-item {
+            background: var(--light-gray);
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: var(--border-radius);
+            border-left: 3px solid var(--info-color);
+        }
+
+        .result-meta {
+            font-size: 0.85rem;
+            color: var(--dark-gray);
+            margin-bottom: 8px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .result-text {
+            margin: 8px 0;
+            line-height: 1.6;
+        }
+
+        .result-sentiment {
+            font-size: 0.85rem;
+            margin-top: 8px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            margin-right: 5px;
+        }
+
+        .badge-success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .badge-warning {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+
+        .badge-danger {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .badge-info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .confidence-bar {
+            width: 100%;
+            height: 8px;
+            background-color: var(--medium-gray);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--danger-color), var(--warning-color), var(--accent-color));
+            transition: width 0.3s ease;
+        }
+
+        .analysis-summary {
+            background: var(--light-gray);
+            padding: 12px;
+            border-radius: var(--border-radius);
+            margin-bottom: 15px;
+        }
+
+        .summary-stats {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .summary-stat {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .summary-stat i {
+            font-size: 1.2rem;
+        }
+
+        mark.search-highlight {
+            background-color: #ffeb3b;
+            padding: 1px 3px;
+            border-radius: 2px;
+            font-weight: 500;
+        }
+
     </style>
 </head>
 <body>
@@ -1110,6 +1266,10 @@
                     <div class="tab" data-tab="words">
                         <i class="fas fa-font"></i>
                         Análise de Texto
+                    </div>
+                    <div class="tab" data-tab="insights">
+                        <i class="fas fa-lightbulb"></i>
+                        Insights
                     </div>
                     <div class="tab" data-tab="monitoring">
                         <i class="fas fa-chart-line"></i>
@@ -4209,6 +4369,524 @@ function exportSearchResults() {
         btn.style.background = '#4CAF50';
     }, 2000);
 }
+
+
+// =============================================
+// SISTEMA DE INSIGHTS INTELIGENTES
+// =============================================
+
+// =============================================
+// SISTEMA DE INSIGHTS INTELIGENTES
+// =============================================
+
+// Estado para gerenciar as perguntas e respostas
+const insightsState = {
+    questions: [],
+    searchIndex: null
+};
+
+// Inicializar o sistema de insights
+function initializeInsights() {
+    setupInsightsEventListeners();
+}
+
+// Configurar event listeners para a seção de insights
+function setupInsightsEventListeners() {
+    document.getElementById('addQuestion').addEventListener('click', addNewQuestion);
+    document.getElementById('newQuestion').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') addNewQuestion();
+    });
+    document.getElementById('exportAllInsights').addEventListener('click', exportAllInsights);
+}
+
+// Adicionar uma nova pergunta
+function addNewQuestion() {
+    const questionInput = document.getElementById('newQuestion');
+    const questionText = questionInput.value.trim();
+    
+    if (!questionText) {
+        showAlert('⚠️ Por favor, digite uma pergunta antes de adicionar', 'warning');
+        return;
+    }
+    
+    // Criar objeto para a pergunta
+    const question = {
+        id: Date.now(),
+        text: questionText,
+        timestamp: new Date().toISOString(),
+        results: []
+    };
+    
+    // Processar a pergunta e buscar respostas
+    processQuestion(question);
+    
+    // Adicionar à lista de perguntas
+    insightsState.questions.push(question);
+    
+    // Limpar o campo de entrada
+    questionInput.value = '';
+    
+    // Atualizar a interface
+    renderQuestionsList();
+    
+    showAlert('✅ Pergunta adicionada com sucesso! Analisando dados...', 'success');
+}
+
+// Processar uma pergunta e buscar respostas nos dados
+function processQuestion(question) {
+    if (!appState.textAnalyzer || appState.filteredData.length === 0) {
+        question.results = [];
+        question.analysis = {
+            totalMatches: 0,
+            confidence: 0,
+            message: 'Nenhum dado disponível para análise. Carregue dados primeiro.'
+        };
+        return;
+    }
+    
+    // Extrair palavras-chave da pergunta
+    const keywords = extractKeywordsFromQuestion(question.text);
+    
+    if (keywords.length === 0) {
+        question.results = [];
+        question.analysis = {
+            totalMatches: 0,
+            confidence: 0,
+            message: 'Não foi possível identificar palavras-chave relevantes na pergunta. Tente reformular.'
+        };
+        return;
+    }
+    
+    // Buscar ocorrências nos dados
+    const searchResults = searchForInsights(keywords);
+    
+    // Analisar os resultados
+    question.results = searchResults.matches;
+    question.analysis = {
+        totalMatches: searchResults.matches.length,
+        confidence: searchResults.confidence,
+        keywords: keywords,
+        message: searchResults.matches.length > 0 ? 
+            `Encontradas ${searchResults.matches.length} possíveis ocorrências relacionadas.` :
+            'Nenhuma ocorrência encontrada para os critérios de busca.'
+    };
+}
+
+// Extrair palavras-chave relevantes de uma pergunta
+function extractKeywordsFromQuestion(question) {
+    // Tokenizar a pergunta
+    const tokens = appState.textAnalyzer.tokenize(question);
+    
+    // Filtrar palavras relevantes (remover stop words e palavras muito comuns)
+    const relevantWords = tokens.filter(word => {
+        // Remover palavras muito curtas
+        if (word.length < 3) return false;
+        
+        // Lista de palavras de pergunta para remover
+        const questionWords = ['qual', 'quais', 'como', 'quando', 'onde', 'porque', 'por', 'que', 'foi', 'foi', 'esta', 'este', 'isso', 'disso'];
+        if (questionWords.includes(word)) return false;
+        
+        return true;
+    });
+    
+    return relevantWords;
+}
+
+// Buscar insights baseados em palavras-chave
+function searchForInsights(keywords) {
+    if (keywords.length === 0) {
+        return { matches: [], confidence: 0 };
+    }
+    
+    let allMatches = [];
+    let totalConfidence = 0;
+    
+    // Para cada palavra-chave, buscar ocorrências
+    keywords.forEach(keyword => {
+        const results = appState.textAnalyzer.search(keyword, 'all', 50); // Buscar mais resultados
+        
+        results.forEach(result => {
+            // Calcular relevância para esta palavra-chave
+            const relevanceScore = calculateRelevanceScore(result, keyword);
+            
+            // Verificar se já existe este item nos resultados
+            const existingIndex = allMatches.findIndex(match => 
+                match.item.Agente === result.item.Agente && 
+                match.item.Data === result.item.Data &&
+                Math.abs(match.item.Pontuacao - result.item.Pontuacao) < 0.1
+            );
+            
+            if (existingIndex >= 0) {
+                // Atualizar score existente
+                allMatches[existingIndex].relevanceScore += relevanceScore;
+                allMatches[existingIndex].keywords.push(keyword);
+            } else {
+                // Adicionar novo resultado
+                allMatches.push({
+                    ...result,
+                    relevanceScore: relevanceScore,
+                    keywords: [keyword]
+                });
+            }
+            
+            totalConfidence += relevanceScore;
+        });
+    });
+    
+    // Ordenar por relevância
+    allMatches.sort((a, b) => b.relevanceScore - a.relevanceScore);
+    
+    // Limitar a um número razoável de resultados
+    const topMatches = allMatches.slice(0, 20);
+    
+    // Calcular confiança geral (0-100)
+    const avgConfidence = allMatches.length > 0 ? 
+        Math.min(100, (totalConfidence / allMatches.length) * 100) : 0;
+    
+    return {
+        matches: topMatches,
+        confidence: Math.round(avgConfidence)
+    };
+}
+
+// Calcular pontuação de relevância para um resultado
+function calculateRelevanceScore(result, keyword) {
+    let score = 0;
+    
+    // Base score from Fuse.js (invertido, pois menor score é melhor no Fuse)
+    if (result.score !== undefined) {
+        score += (1 - Math.min(result.score, 1)) * 40;
+    }
+    
+    // Bônus por correspondência exata
+    const text = result.item.Texto.toLowerCase();
+    if (text.includes(keyword.toLowerCase())) {
+        score += 20;
+    }
+    
+    // Bônus por sentimento positivo (para perguntas sobre soluções)
+    if (result.item.Sentimento === 'Positivo' || result.item.Sentimento === 'Muito Positivo') {
+        score += 10;
+    }
+    
+    // Bônus por mensagens mais longas (mais contexto)
+    if (text.length > 100) {
+        score += 5;
+    }
+    
+    return score;
+}
+
+// Renderizar a lista de perguntas e respostas
+function renderQuestionsList() {
+    const container = document.getElementById('questionsList');
+    const noQuestionsMessage = document.getElementById('noQuestionsMessage');
+    
+    if (insightsState.questions.length === 0) {
+        noQuestionsMessage.style.display = 'block';
+        container.innerHTML = '';
+        return;
+    }
+    
+    noQuestionsMessage.style.display = 'none';
+    
+    let html = '';
+    
+    insightsState.questions.forEach(question => {
+        const confidenceColor = question.analysis.confidence > 70 ? 'status-success' : 
+                              question.analysis.confidence > 40 ? 'status-warning' : 'status-error';
+        
+        html += `
+            <div class="card question-card" data-question-id="${question.id}">
+                <div class="card-header">
+                    <div class="card-title">${question.text}</div>
+                    <div>
+                        <span class="badge ${confidenceColor}">${question.analysis.confidence}% confiança</span>
+                        <span class="badge">${question.analysis.totalMatches} ocorrências</span>
+                        <button class="button button-info toggle-question" data-question-id="${question.id}">
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <button class="button button-danger delete-question" data-question-id="${question.id}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                        <button class="button button-success export-question" data-question-id="${question.id}">
+                            <i class="fas fa-download"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="question-details hidden">
+                    <div class="alert alert-${question.analysis.totalMatches > 0 ? 'info' : 'warning'}">
+                        <i class="fas fa-${question.analysis.totalMatches > 0 ? 'check-circle' : 'exclamation-triangle'}"></i>
+                        <div>${question.analysis.message}</div>
+                    </div>
+                    
+                    ${question.analysis.keywords ? `
+                        <div class="keyword-tags">
+                            <strong>Palavras-chave analisadas:</strong>
+                            ${question.analysis.keywords.map(keyword => 
+                                `<span class="keyword-tag">${keyword}</span>`
+                            ).join('')}
+                        </div>
+                    ` : ''}
+                    
+                    ${question.results.length > 0 ? `
+                        <div class="insights-results">
+                            <h4>Ocorrências Encontradas:</h4>
+                            ${question.results.map(result => `
+                                <div class="search-result-item">
+                                    <div class="result-meta">
+                                        <strong>Agente:</strong> ${result.item.Agente} | 
+                                        <strong>Data:</strong> ${result.item.Data} ${result.item.Hora || ''}
+                                        ${result.item.Email ? `| <strong>Email:</strong> ${result.item.Email}` : ''}
+                                        | <strong>Relevância:</strong> ${Math.round(result.relevanceScore)}%
+                                    </div>
+                                    <div class="result-text">${highlightKeywords(result.item.Texto, result.keywords)}</div>
+                                    <div class="result-sentiment">
+                                        <span class="status-indicator status-${result.item.Sentimento === 'Positivo' ? 'success' : result.item.Sentimento === 'Negativo' ? 'error' : 'warning'}"></span>
+                                        Sentimento: ${result.item.Sentimento} (Pontuação: ${result.item.Pontuacao || 'N/A'})
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+    
+    // Adicionar event listeners para os botões das perguntas
+    document.querySelectorAll('.toggle-question').forEach(button => {
+        button.addEventListener('click', function() {
+            const questionId = this.getAttribute('data-question-id');
+            toggleQuestionDetails(questionId);
+        });
+    });
+    
+    document.querySelectorAll('.delete-question').forEach(button => {
+        button.addEventListener('click', function() {
+            const questionId = this.getAttribute('data-question-id');
+            deleteQuestion(questionId);
+        });
+    });
+    
+    document.querySelectorAll('.export-question').forEach(button => {
+        button.addEventListener('click', function() {
+            const questionId = this.getAttribute('data-question-id');
+            exportQuestionResults(questionId);
+        });
+    });
+}
+
+// Alternar visibilidade dos detalhes da pergunta
+function toggleQuestionDetails(questionId) {
+    const questionCard = document.querySelector(`.question-card[data-question-id="${questionId}"]`);
+    const details = questionCard.querySelector('.question-details');
+    const toggleButton = questionCard.querySelector('.toggle-question i');
+    
+    details.classList.toggle('hidden');
+    
+    if (details.classList.contains('hidden')) {
+        toggleButton.className = 'fas fa-chevron-down';
+    } else {
+        toggleButton.className = 'fas fa-chevron-up';
+    }
+}
+
+// Excluir uma pergunta
+function deleteQuestion(questionId) {
+    if (confirm('Tem certeza que deseja excluir esta pergunta e todos os seus resultados?')) {
+        insightsState.questions = insightsState.questions.filter(q => q.id != questionId);
+        renderQuestionsList();
+        showAlert('✅ Pergunta excluída com sucesso!', 'success');
+    }
+}
+
+// Exportar resultados de uma pergunta específica
+function exportQuestionResults(questionId) {
+    const question = insightsState.questions.find(q => q.id == questionId);
+    
+    if (!question || question.results.length === 0) {
+        showAlert('⚠️ Nenhum resultado para exportar para esta pergunta', 'warning');
+        return;
+    }
+    
+    const csvData = [
+        ['Pergunta', question.text],
+        ['Data da Análise', new Date(question.timestamp).toLocaleString('pt-BR')],
+        ['Total de Ocorrências', question.analysis.totalMatches],
+        ['Confiança da Análise', question.analysis.confidence + '%'],
+        [], // Linha em branco
+        ['Agente', 'Data', 'Hora', 'Email', 'Texto', 'Sentimento', 'Pontuação', 'Palavras-chave Encontradas']
+    ];
+    
+    question.results.forEach(result => {
+        csvData.push([
+            result.item.Agente,
+            result.item.Data,
+            result.item.Hora || '',
+            result.item.Email || '',
+            result.item.Texto,
+            result.item.Sentimento,
+            result.item.Pontuacao || '',
+            result.keywords.join(', ')
+        ]);
+    });
+    
+    const csvContent = csvData.map(row => 
+        row.map(field => `"${(field || '').toString().replace(/"/g, '""')}"`).join(',')
+    ).join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `insight-${question.text.substring(0, 30).replace(/[^a-z0-9]/gi, '_')}-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    showAlert('✅ Resultados da pergunta exportados com sucesso!', 'success');
+}
+
+// Exportar todos os insights
+function exportAllInsights() {
+    if (insightsState.questions.length === 0) {
+        showAlert('⚠️ Nenhuma pergunta para exportar', 'warning');
+        return;
+    }
+    
+    let csvData = [
+        ['Relatório de Insights - Sentinela'],
+        ['Data de geração', new Date().toLocaleString('pt-BR')],
+        ['Total de perguntas analisadas', insightsState.questions.length],
+        [] // Linha em branco
+    ];
+    
+    insightsState.questions.forEach(question => {
+        csvData.push(['PERGUNTA:', question.text]);
+        csvData.push(['Data da análise:', new Date(question.timestamp).toLocaleString('pt-BR')]);
+        csvData.push(['Ocorrências encontradas:', question.analysis.totalMatches]);
+        csvData.push(['Confiança da análise:', question.analysis.confidence + '%']);
+        csvData.push(['Palavras-chave analisadas:', question.analysis.keywords ? question.analysis.keywords.join(', ') : 'N/A']);
+        csvData.push([]);
+        
+        if (question.results.length > 0) {
+            csvData.push(['Agente', 'Data', 'Hora', 'Email', 'Texto', 'Sentimento', 'Pontuação', 'Palavras-chave Encontradas']);
+            
+            question.results.forEach(result => {
+                csvData.push([
+                    result.item.Agente,
+                    result.item.Data,
+                    result.item.Hora || '',
+                    result.item.Email || '',
+                    result.item.Texto,
+                    result.item.Sentimento,
+                    result.item.Pontuacao || '',
+                    result.keywords.join(', ')
+                ]);
+            });
+        } else {
+            csvData.push(['Nenhuma ocorrência encontrada para esta pergunta.']);
+        }
+        
+        csvData.push([]);
+        csvData.push([]);
+    });
+    
+    const csvContent = csvData.map(row => 
+        row.map(field => `"${(field || '').toString().replace(/"/g, '""')}"`).join(',')
+    ).join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `insights-completos-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    showAlert('✅ Todos os insights exportados com sucesso!', 'success');
+}
+
+// Destacar palavras-chave no texto
+function highlightKeywords(text, keywords) {
+    let highlightedText = text;
+    
+    keywords.forEach(keyword => {
+        const regex = new RegExp(`(${keyword})`, 'gi');
+        highlightedText = highlightedText.replace(regex, '<mark class="search-highlight">$1</mark>');
+    });
+    
+    return highlightedText;
+}
+
+// Adicionar estilos CSS para a nova seção
+const insightsStyles = `
+    .question-card {
+        margin-bottom: 20px;
+        border-left: 4px solid var(--info-color);
+    }
+    
+    .question-details {
+        padding-top: 15px;
+        border-top: 1px solid var(--medium-gray);
+    }
+    
+    .keyword-tags {
+        margin-bottom: 15px;
+    }
+    
+    .keyword-tag {
+        display: inline-block;
+        background: var(--light-gray);
+        padding: 4px 8px;
+        margin: 2px 4px 2px 0;
+        border-radius: 12px;
+        font-size: 0.8rem;
+    }
+    
+    .insights-results {
+        max-height: 500px;
+        overflow-y: auto;
+    }
+    
+    .result-meta {
+        font-size: 0.85rem;
+        color: var(--dark-gray);
+        margin-bottom: 5px;
+    }
+    
+    .result-sentiment {
+        font-size: 0.85rem;
+        margin-top: 5px;
+    }
+    
+    .badge {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        font-weight: 500;
+        margin-right: 5px;
+    }
+    
+    mark.search-highlight {
+        background-color: #ffeb3b;
+        padding: 1px 2px;
+        border-radius: 2px;
+    }
+`;
+
+// Adicionar os estilos ao documento
+const styleSheet = document.createElement('style');
+styleSheet.textContent = insightsStyles;
+document.head.appendChild(styleSheet);
+
 </script>
 </body>
 </html>

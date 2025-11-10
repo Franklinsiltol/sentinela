@@ -1,5 +1,3 @@
-
-
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -3401,7 +3399,66 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
 
-    </style>
+    
+/* Estilos para a seção de Insights */
+.insight-question-input {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 25px;
+    border-radius: 12px;
+    margin-bottom: 25px;
+    box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
+}
+
+.insight-question-input .input-group label {
+    color: white;
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin-bottom: 12px;
+}
+
+.insight-question-input .form-control {
+    padding: 15px;
+    font-size: 1rem;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.insight-question-input .form-control:focus {
+    border-color: white;
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.2);
+    background: white;
+}
+
+.insight-question-input .button {
+    margin-top: 15px;
+    width: 100%;
+    padding: 15px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    background: white;
+    color: #667eea;
+    border: none;
+    transition: all 0.3s ease;
+}
+
+.insight-question-input .button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+    background: #f8f9fa;
+}
+
+.questions-list {
+    margin-top: 20px;
+}
+
+.export-section {
+    border-top: 2px solid var(--medium-gray);
+    padding-top: 20px;
+}
+
+</style>
 </head>
 <body>
     <div class="container">
@@ -5913,8 +5970,7 @@
         // =============================================
         // INICIALIZAÇÃO DA APLICAÇÃO
         // =============================================
-        async function initializeApplication() {
-            try {
+        async function initializeApplication() {try {
                 appState.textAnalyzer = new TextAnalyzer();
                 appState.sentimentAnalyzer = new SentimentAnalyzer();
                 
@@ -5926,6 +5982,11 @@
                 document.getElementById('contentArea').classList.remove('hidden');
                 
                 showAlert('✅ Sistema Sentinela inicializado com sucesso!', 'success');
+    
+    document.getElementById('loadingState').classList.add('hidden');
+    document.getElementById('dashboardContent').classList.remove('hidden');
+    showAlert('✅ Sistema Sentinela inicializado com sucesso!', 'success');
+    
                 
             } catch (error) {
                 console.error('Erro na inicialização:', error);
@@ -5988,39 +6049,7 @@
                 document.getElementById('columnMappingModal').style.display = 'none';
             });
             
-                // Event listeners para Insights
-    const addQuestionBtn = document.getElementById('addQuestion');
-    if (addQuestionBtn) {
-        addQuestionBtn.addEventListener('click', addInsightQuestion);
-    }
-    
-    const insightQuestionInput = document.getElementById('insightQuestion');
-    if (insightQuestionInput) {
-        insightQuestionInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                addInsightQuestion();
-            }
-        });
-    }
-    
-        // Event listeners para Insights
-    const addQuestionBtn = document.getElementById('addQuestion');
-    if (addQuestionBtn) {
-        addQuestionBtn.addEventListener('click', addInsightQuestion);
-    }
-    
-    const insightQuestionInput = document.getElementById('insightQuestion');
-    if (insightQuestionInput) {
-        insightQuestionInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                addInsightQuestion();
-            }
-        });
-    }
-    
-    // Event listeners para busca
+            // Event listeners para busca
             document.getElementById('wordSearch').addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') performWordSearch();
             });
@@ -7850,6 +7879,11 @@ function renderQuestionsList() {
             showAlert('✅ Arquivo Excel exportado com sucesso!', 'success');
         }
 
-    </script>
+    
+document.addEventListener('DOMContentLoaded', function() {
+    initializeApplication();
+});
+
+</script>
 </body>
 </html>

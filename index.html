@@ -1037,6 +1037,255 @@
             font-weight: 500;
         }
 
+    
+        /* ===================================== */
+        /* ESTILOS PARA INSIGHTS COM CLASSIFICAÇÃO */
+        /* ===================================== */
+        .question-card {
+            margin-bottom: 20px;
+            border-left: 4px solid var(--info-color);
+            transition: all 0.3s ease;
+        }
+
+        .question-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+            gap: 15px;
+        }
+
+        .question-text {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--primary-color);
+            flex: 1;
+        }
+
+        .question-actions {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .button-sm {
+            padding: 6px 12px;
+            font-size: 0.85rem;
+        }
+
+        .question-details {
+            padding-top: 15px;
+            border-top: 1px solid var(--medium-gray);
+            margin-top: 15px;
+        }
+
+        .keyword-tags {
+            margin-bottom: 15px;
+        }
+
+        .keyword-tag {
+            display: inline-block;
+            background: var(--light-gray);
+            padding: 4px 12px;
+            margin: 2px 4px 2px 0;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            color: var(--dark-gray);
+            border: 1px solid var(--medium-gray);
+        }
+
+        .insights-results {
+            max-height: 600px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+
+        .insight-item {
+            background: var(--light-gray);
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: var(--border-radius);
+            border-left: 3px solid var(--info-color);
+            transition: all 0.3s ease;
+        }
+
+        .insight-item:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            transform: translateX(2px);
+        }
+
+        /* Classificações visuais */
+        .insight-item.classified-procedente {
+            border-left-color: var(--accent-color);
+            background: linear-gradient(to right, rgba(76, 175, 80, 0.05), var(--light-gray));
+        }
+
+        .insight-item.classified-improcedente {
+            border-left-color: var(--danger-color);
+            background: linear-gradient(to right, rgba(244, 67, 54, 0.05), var(--light-gray));
+        }
+
+        .result-meta {
+            font-size: 0.85rem;
+            color: var(--dark-gray);
+            margin-bottom: 10px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .result-text {
+            margin: 10px 0;
+            line-height: 1.6;
+            color: var(--text-color);
+        }
+
+        .result-sentiment {
+            font-size: 0.85rem;
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            color: var(--dark-gray);
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .badge-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .badge-danger {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .badge-warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .badge-info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .classification-buttons {
+            margin-top: 12px;
+            display: flex;
+            gap: 8px;
+            padding-top: 12px;
+            border-top: 1px dashed var(--medium-gray);
+        }
+
+        .classify-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .analysis-summary {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            padding: 15px;
+            border-radius: var(--border-radius);
+            margin-bottom: 15px;
+            border: 1px solid var(--medium-gray);
+        }
+
+        .summary-stats {
+            display: flex;
+            gap: 25px;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+        }
+
+        .summary-stat {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+        }
+
+        .summary-stat i {
+            font-size: 1.2rem;
+        }
+
+        .summary-stat strong {
+            margin-right: 4px;
+        }
+
+        .classification-progress {
+            margin-top: 10px;
+        }
+
+        mark.search-highlight {
+            background-color: #ffeb3b;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-weight: 500;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        /* Animações */
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .question-card {
+            animation: slideIn 0.3s ease;
+        }
+
+        /* Responsividade */
+        @media (max-width: 768px) {
+            .question-header {
+                flex-direction: column;
+            }
+
+            .question-actions {
+                width: 100%;
+                justify-content: flex-start;
+            }
+
+            .summary-stats {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .classification-buttons {
+                flex-direction: column;
+            }
+
+            .button-sm {
+                width: 100%;
+            }
+        }
+
     </style>
 </head>
 <body>

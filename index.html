@@ -1,3 +1,5 @@
+
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -17,10 +19,7 @@ function initializeInsights() {
     const addQuestionBtn = document.getElementById('addQuestion');
     if (addQuestionBtn) {
         addQuestionBtn.addEventListener('click', addInsightQuestion);
-    } else {
-        console.error("initializeInsights: Botão #addQuestion não encontrado!");
     }
-    
     const questionInput = document.getElementById('newQuestion');
     if (questionInput) {
         questionInput.addEventListener('keypress', function(e) {
@@ -29,13 +28,10 @@ function initializeInsights() {
                 addInsightQuestion();
             }
         });
-    } else {
-        console.error("initializeInsights: Input #newQuestion não encontrado!");
     }
 }
 
 function addInsightQuestion() {
-    console.log("addInsightQuestion: Tentando adicionar pergunta...");
     const questionInput = document.getElementById('newQuestion');
     if (!questionInput) return;
 
@@ -58,7 +54,7 @@ function addInsightQuestion() {
     };
 
     processQuestion(question);
-    insightsState.questions.unshift(question); // Adiciona no início da lista
+    insightsState.questions.unshift(question);
     questionInput.value = '';
     renderQuestionsList();
     showAlert('✅ Pergunta adicionada! Analisando dados...', 'success');
@@ -150,8 +146,6 @@ function calculateRelevanceScore(result, keyword) {
     score += occurrences * 5;
     return score;
 }
-
-// Adicionar outras funções de renderização aqui...
 
 
 </script>
@@ -168,10 +162,7 @@ function initializeInsights() {
     const addQuestionBtn = document.getElementById('addQuestion');
     if (addQuestionBtn) {
         addQuestionBtn.addEventListener('click', addInsightQuestion);
-    } else {
-        console.error("initializeInsights: Botão #addQuestion não encontrado!");
     }
-    
     const questionInput = document.getElementById('newQuestion');
     if (questionInput) {
         questionInput.addEventListener('keypress', function(e) {
@@ -180,13 +171,10 @@ function initializeInsights() {
                 addInsightQuestion();
             }
         });
-    } else {
-        console.error("initializeInsights: Input #newQuestion não encontrado!");
     }
 }
 
 function addInsightQuestion() {
-    console.log("addInsightQuestion: Tentando adicionar pergunta...");
     const questionInput = document.getElementById('newQuestion');
     if (!questionInput) return;
 
@@ -209,7 +197,7 @@ function addInsightQuestion() {
     };
 
     processQuestion(question);
-    insightsState.questions.unshift(question); // Adiciona no início da lista
+    insightsState.questions.unshift(question);
     questionInput.value = '';
     renderQuestionsList();
     showAlert('✅ Pergunta adicionada! Analisando dados...', 'success');
@@ -301,8 +289,6 @@ function calculateRelevanceScore(result, keyword) {
     score += occurrences * 5;
     return score;
 }
-
-// Adicionar outras funções de renderização aqui...
 
 
 </script>
@@ -319,10 +305,7 @@ function initializeInsights() {
     const addQuestionBtn = document.getElementById('addQuestion');
     if (addQuestionBtn) {
         addQuestionBtn.addEventListener('click', addInsightQuestion);
-    } else {
-        console.error("initializeInsights: Botão #addQuestion não encontrado!");
     }
-    
     const questionInput = document.getElementById('newQuestion');
     if (questionInput) {
         questionInput.addEventListener('keypress', function(e) {
@@ -331,13 +314,10 @@ function initializeInsights() {
                 addInsightQuestion();
             }
         });
-    } else {
-        console.error("initializeInsights: Input #newQuestion não encontrado!");
     }
 }
 
 function addInsightQuestion() {
-    console.log("addInsightQuestion: Tentando adicionar pergunta...");
     const questionInput = document.getElementById('newQuestion');
     if (!questionInput) return;
 
@@ -360,7 +340,7 @@ function addInsightQuestion() {
     };
 
     processQuestion(question);
-    insightsState.questions.unshift(question); // Adiciona no início da lista
+    insightsState.questions.unshift(question);
     questionInput.value = '';
     renderQuestionsList();
     showAlert('✅ Pergunta adicionada! Analisando dados...', 'success');
@@ -452,8 +432,6 @@ function calculateRelevanceScore(result, keyword) {
     score += occurrences * 5;
     return score;
 }
-
-// Adicionar outras funções de renderização aqui...
 
 
 </script>
@@ -470,10 +448,7 @@ function initializeInsights() {
     const addQuestionBtn = document.getElementById('addQuestion');
     if (addQuestionBtn) {
         addQuestionBtn.addEventListener('click', addInsightQuestion);
-    } else {
-        console.error("initializeInsights: Botão #addQuestion não encontrado!");
     }
-    
     const questionInput = document.getElementById('newQuestion');
     if (questionInput) {
         questionInput.addEventListener('keypress', function(e) {
@@ -482,13 +457,10 @@ function initializeInsights() {
                 addInsightQuestion();
             }
         });
-    } else {
-        console.error("initializeInsights: Input #newQuestion não encontrado!");
     }
 }
 
 function addInsightQuestion() {
-    console.log("addInsightQuestion: Tentando adicionar pergunta...");
     const questionInput = document.getElementById('newQuestion');
     if (!questionInput) return;
 
@@ -511,7 +483,7 @@ function addInsightQuestion() {
     };
 
     processQuestion(question);
-    insightsState.questions.unshift(question); // Adiciona no início da lista
+    insightsState.questions.unshift(question);
     questionInput.value = '';
     renderQuestionsList();
     showAlert('✅ Pergunta adicionada! Analisando dados...', 'success');
@@ -603,8 +575,6 @@ function calculateRelevanceScore(result, keyword) {
     score += occurrences * 5;
     return score;
 }
-
-// Adicionar outras funções de renderização aqui...
 
 
 </script>
@@ -621,10 +591,7 @@ function initializeInsights() {
     const addQuestionBtn = document.getElementById('addQuestion');
     if (addQuestionBtn) {
         addQuestionBtn.addEventListener('click', addInsightQuestion);
-    } else {
-        console.error("initializeInsights: Botão #addQuestion não encontrado!");
     }
-    
     const questionInput = document.getElementById('newQuestion');
     if (questionInput) {
         questionInput.addEventListener('keypress', function(e) {
@@ -633,13 +600,10 @@ function initializeInsights() {
                 addInsightQuestion();
             }
         });
-    } else {
-        console.error("initializeInsights: Input #newQuestion não encontrado!");
     }
 }
 
 function addInsightQuestion() {
-    console.log("addInsightQuestion: Tentando adicionar pergunta...");
     const questionInput = document.getElementById('newQuestion');
     if (!questionInput) return;
 
@@ -662,7 +626,7 @@ function addInsightQuestion() {
     };
 
     processQuestion(question);
-    insightsState.questions.unshift(question); // Adiciona no início da lista
+    insightsState.questions.unshift(question);
     questionInput.value = '';
     renderQuestionsList();
     showAlert('✅ Pergunta adicionada! Analisando dados...', 'success');
@@ -754,8 +718,6 @@ function calculateRelevanceScore(result, keyword) {
     score += occurrences * 5;
     return score;
 }
-
-// Adicionar outras funções de renderização aqui...
 
 
 </script>
@@ -5424,10 +5386,7 @@ function initializeInsights() {
     const addQuestionBtn = document.getElementById('addQuestion');
     if (addQuestionBtn) {
         addQuestionBtn.addEventListener('click', addInsightQuestion);
-    } else {
-        console.error("initializeInsights: Botão #addQuestion não encontrado!");
     }
-    
     const questionInput = document.getElementById('newQuestion');
     if (questionInput) {
         questionInput.addEventListener('keypress', function(e) {
@@ -5436,13 +5395,10 @@ function initializeInsights() {
                 addInsightQuestion();
             }
         });
-    } else {
-        console.error("initializeInsights: Input #newQuestion não encontrado!");
     }
 }
 
 function addInsightQuestion() {
-    console.log("addInsightQuestion: Tentando adicionar pergunta...");
     const questionInput = document.getElementById('newQuestion');
     if (!questionInput) return;
 
@@ -5465,7 +5421,7 @@ function addInsightQuestion() {
     };
 
     processQuestion(question);
-    insightsState.questions.unshift(question); // Adiciona no início da lista
+    insightsState.questions.unshift(question);
     questionInput.value = '';
     renderQuestionsList();
     showAlert('✅ Pergunta adicionada! Analisando dados...', 'success');
@@ -5557,8 +5513,6 @@ function calculateRelevanceScore(result, keyword) {
     score += occurrences * 5;
     return score;
 }
-
-// Adicionar outras funções de renderização aqui...
 
 
 </script>
@@ -6102,10 +6056,7 @@ function initializeInsights() {
     const addQuestionBtn = document.getElementById('addQuestion');
     if (addQuestionBtn) {
         addQuestionBtn.addEventListener('click', addInsightQuestion);
-    } else {
-        console.error("initializeInsights: Botão #addQuestion não encontrado!");
     }
-    
     const questionInput = document.getElementById('newQuestion');
     if (questionInput) {
         questionInput.addEventListener('keypress', function(e) {
@@ -6114,13 +6065,10 @@ function initializeInsights() {
                 addInsightQuestion();
             }
         });
-    } else {
-        console.error("initializeInsights: Input #newQuestion não encontrado!");
     }
 }
 
 function addInsightQuestion() {
-    console.log("addInsightQuestion: Tentando adicionar pergunta...");
     const questionInput = document.getElementById('newQuestion');
     if (!questionInput) return;
 
@@ -6143,7 +6091,7 @@ function addInsightQuestion() {
     };
 
     processQuestion(question);
-    insightsState.questions.unshift(question); // Adiciona no início da lista
+    insightsState.questions.unshift(question);
     questionInput.value = '';
     renderQuestionsList();
     showAlert('✅ Pergunta adicionada! Analisando dados...', 'success');
@@ -6235,8 +6183,6 @@ function calculateRelevanceScore(result, keyword) {
     score += occurrences * 5;
     return score;
 }
-
-// Adicionar outras funções de renderização aqui...
 
 
 </script>

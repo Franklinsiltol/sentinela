@@ -5,6 +5,69 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sentinela - Análise Inteligente de Conversas</title>
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js">
+
+    // ============================================
+    // SISTEMA DE STEMMING SIMPLES PARA PORTUGUÊS
+    // ============================================
+    class PortugueseStemmer {
+        constructor() {
+            this.suffixes = [
+                // Verbos
+                'aram', 'eram', 'avam', 'emos', 'aram', 'ando', 'endo', 'indo', 'ondo',
+                'ada', 'ido', 'ado', 'ida', 'idos', 'adas', 'idas', 'ados',
+                'ou', 'ei', 'eu', 'ia', 'am', 'em', 'ar', 'er', 'ir',
+                // Substantivos e adjetivos
+                'eza', 'eza', 'dade', 'mente', 'idade', 'ância', 'ancia', 'ência', 'encia',
+                'oso', 'osa', 'osos', 'osas', 'ivo', 'iva', 'ivos', 'ivas',
+                'vel', 'eis', 'al', 'ais', 'or', 'ores',
+                // Plurais
+                'es', 's'
+            ];
+        }
+const stemmer = new PortugueseStemmer();
+
+        stem(word) {
+            word = word.toLowerCase().trim();
+            if (word.length <= 3) return word;
+            word = word.normalize('NFD').replace(/[̀-ͯ]/g, '');
+            for (const suffix of this.suffixes) {
+                if (word.endsWith(suffix) && word.length - suffix.length >= 3) {
+                    return word.slice(0, -suffix.length);
+                }
+            }
+            return word;
+        }
+
+        expandWithSynonyms(word) {
+            const stemmed = this.stem(word);
+            const expanded = new Set([word, stemmed]);
+            for (const [key, synonyms] of Object.entries(SYNONYM_DICTIONARY)) {
+                const keyStemmed = this.stem(key);
+                if (stemmed === keyStemmed || word.toLowerCase() === key) {
+                    synonyms.forEach(syn => {
+                        expanded.add(syn);
+                        expanded.add(this.stem(syn));
+                    });
+                    expanded.add(key);
+                    break;
+                }
+                for (const syn of synonyms) {
+                    const synStemmed = this.stem(syn);
+                    if (stemmed === synStemmed || word.toLowerCase() === syn) {
+                        expanded.add(key);
+                        expanded.add(keyStemmed);
+                        synonyms.forEach(s => {
+                            expanded.add(s);
+                            expanded.add(this.stem(s));
+                        });
+                        break;
+                    }
+                }
+            }
+            return Array.from(expanded);
+        }
+    }
+    
 // ============================================
 // SISTEMA DE INSIGHTS (RECONSTRUÍDO DO ZERO)
 // ============================================
@@ -147,6 +210,12 @@ function calculateRelevanceScore(result, keyword) {
 
 </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js">
+
+    // ============================================
+    // SISTEMA DE STEMMING SIMPLES PARA PORTUGUÊS
+    // ============================================
+    
+    
 // ============================================
 // SISTEMA DE INSIGHTS (RECONSTRUÍDO DO ZERO)
 // ============================================
@@ -287,6 +356,12 @@ function calculateRelevanceScore(result, keyword) {
 
 </script>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js">
+
+    // ============================================
+    // SISTEMA DE STEMMING SIMPLES PARA PORTUGUÊS
+    // ============================================
+    
+    
 // ============================================
 // SISTEMA DE INSIGHTS (RECONSTRUÍDO DO ZERO)
 // ============================================
@@ -427,6 +502,12 @@ function calculateRelevanceScore(result, keyword) {
 
 </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js">
+
+    // ============================================
+    // SISTEMA DE STEMMING SIMPLES PARA PORTUGUÊS
+    // ============================================
+    
+    
 // ============================================
 // SISTEMA DE INSIGHTS (RECONSTRUÍDO DO ZERO)
 // ============================================
@@ -567,6 +648,12 @@ function calculateRelevanceScore(result, keyword) {
 
 </script>
     <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.min.js">
+
+    // ============================================
+    // SISTEMA DE STEMMING SIMPLES PARA PORTUGUÊS
+    // ============================================
+    
+    
 // ============================================
 // SISTEMA DE INSIGHTS (RECONSTRUÍDO DO ZERO)
 // ============================================
@@ -5359,6 +5446,12 @@ function exportSearchResults() {
     }, 2000);
 }
 
+
+    // ============================================
+    // SISTEMA DE STEMMING SIMPLES PARA PORTUGUÊS
+    // ============================================
+    
+    
 // ============================================
 // SISTEMA DE INSIGHTS (RECONSTRUÍDO DO ZERO)
 // ============================================
@@ -6020,6 +6113,12 @@ document.head.appendChild(styleSheet);
                 });
             }
         });
+    
+
+    // ============================================
+    // SISTEMA DE STEMMING SIMPLES PARA PORTUGUÊS
+    // ============================================
+    
     
 // ============================================
 // SISTEMA DE INSIGHTS (RECONSTRUÍDO DO ZERO)

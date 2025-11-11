@@ -4903,6 +4903,13 @@ function renderQuestionsList() {
         const confidenceColor = question.analysis.confidence > 70 ? 'status-success' : 
                               question.analysis.confidence > 40 ? 'status-warning' : 'status-error';
         
+        // Calcular tabulação por classificação
+        const tabulation = {};
+        question.results.forEach(result => {
+            const classification = result.item.Classificacao || 'Sem Classificação';
+            tabulation[classification] = (tabulation[classification] || 0) + 1;
+        });
+        
         html += `
             <div class="card question-card" data-question-id="${question.id}">
                 <div class="card-header">
@@ -4910,6 +4917,9 @@ function renderQuestionsList() {
                     <div>
                         <span class="badge ${confidenceColor}">${question.analysis.confidence}% confiança</span>
                         <span class="badge">${question.analysis.totalMatches} ocorrências</span>
+                        <button class="button button-warning tabulate-question" data-question-id="${question.id}">
+                            <i class="fas fa-table"></i> Tabular
+                        </button>
                         <button class="button button-info toggle-question" data-question-id="${question.id}">
                             <i class="fas fa-chevron-down"></i>
                         </button>
@@ -4921,7 +4931,7 @@ function renderQuestionsList() {
                         </button>
                     </div>
                 </div>
-                <div class="question-details hidden">
+                <div class="question-details">
                     <div class="alert alert-${question.analysis.totalMatches > 0 ? 'info' : 'warning'}">
                         <i class="fas fa-${question.analysis.totalMatches > 0 ? 'check-circle' : 'exclamation-triangle'}"></i>
                         <div>${question.analysis.message}</div>
@@ -4936,16 +4946,41 @@ function renderQuestionsList() {
                         </div>
                     ` : ''}
                     
+                    <!-- TABULAÇÃO POR CLASSIFICAÇÃO -->
+                    ${Object.keys(tabulation).length > 0 ? `
+                        <div class="tabulation-summary" style="margin: 1rem 0; padding: 1rem; background: #f5f5f5; border-radius: 8px;">
+                            <h4 style="margin: 0 0 0.5rem 0;"><i class="fas fa-chart-pie"></i> Tabulação por Classificação:</h4>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.5rem;">
+                                ${Object.entries(tabulation)
+                                    .sort((a, b) => b[1] - a[1])
+                                    .map(([classification, count]) => {
+                                        const percentage = ((count / question.results.length) * 100).toFixed(1);
+                                        return `
+                                            <div style="padding: 0.5rem; background: white; border-radius: 4px; border-left: 3px solid #3498db;">
+                                                <strong>${classification}</strong><br>
+                                                <span style="font-size: 1.2em; color: #3498db;">${count}</span> ocorrências (${percentage}%)
+                                            </div>
+                                        `;
+                                    }).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                    
                     ${question.results.length > 0 ? `
                         <div class="insights-results">
-                            <h4>Ocorrências Encontradas:</h4>
-                            ${question.results.map(result => `
-                                <div class="search-result-item">
+                            <h4>Ocorrências Encontradas (${question.results.length}):</h4>
+                            ${question.results.map((result, index) => `
+                                <div class="search-result-item" style="border-left: 3px solid ${
+                                    result.item.Sentimento === 'Positivo' ? '#27ae60' : 
+                                    result.item.Sentimento === 'Negativo' ? '#e74c3c' : '#f39c12'
+                                };">
                                     <div class="result-meta">
+                                        <strong>#${index + 1}</strong> | 
                                         <strong>Agente:</strong> ${result.item.Agente} | 
                                         <strong>Data:</strong> ${result.item.Data} ${result.item.Hora || ''}
                                         ${result.item.Email ? `| <strong>Email:</strong> ${result.item.Email}` : ''}
                                         | <strong>Relevância:</strong> ${Math.round(result.relevanceScore)}%
+                                        ${result.item.Classificacao ? `| <strong>Classificação:</strong> <span class="badge" style="background: #9b59b6;">${result.item.Classificacao}</span>` : ''}
                                     </div>
                                     <div class="result-text">${highlightKeywords(result.item.Texto, result.keywords)}</div>
                                     <div class="result-sentiment">
@@ -4963,25 +4998,44 @@ function renderQuestionsList() {
     
     container.innerHTML = html;
     
-    // Adicionar event listeners para os botões das perguntas
+    // Event listeners
     document.querySelectorAll('.toggle-question').forEach(button => {
         button.addEventListener('click', function() {
             const questionId = this.getAttribute('data-question-id');
-            toggleQuestionDetails(questionId);
+            const card = document.querySelector(`.question-card[data-question-id="${questionId}"]`);
+            const details = card.querySelector('.question-details');
+            const icon = this.querySelector('i');
+            
+            details.classList.toggle('hidden');
+            icon.classList.toggle('fa-chevron-down');
+            icon.classList.toggle('fa-chevron-up');
         });
     });
     
     document.querySelectorAll('.delete-question').forEach(button => {
         button.addEventListener('click', function() {
             const questionId = this.getAttribute('data-question-id');
-            deleteQuestion(questionId);
+            if (confirm('Tem certeza que deseja excluir esta pergunta?')) {
+                insightsState.questions = insightsState.questions.filter(q => q.id !== questionId);
+                renderQuestionsList();
+            }
         });
     });
     
     document.querySelectorAll('.export-question').forEach(button => {
         button.addEventListener('click', function() {
             const questionId = this.getAttribute('data-question-id');
-            exportQuestionResults(questionId);
+            const question = insightsState.questions.find(q => q.id === questionId);
+            exportQuestionResults(question);
+        });
+    });
+    
+    // NOVO: Event listener para tabulação
+    document.querySelectorAll('.tabulate-question').forEach(button => {
+        button.addEventListener('click', function() {
+            const questionId = this.getAttribute('data-question-id');
+            const question = insightsState.questions.find(q => q.id === questionId);
+            showTabulationModal(question);
         });
     });
 }
@@ -5206,163 +5260,152 @@ document.head.appendChild(styleSheet);
             }
         });
     
-// ============================================
-// SISTEMA DE CLASSIFICAÇÃO DE INSIGHTS
-// ============================================
 
-// Atualizar APENAS as estatísticas de uma pergunta (SEM recarregar tudo)
-function updateQuestionStats(questionId) {
-    const counts = countClassifications(questionId);
-    const total = counts.total;
+// Função para mostrar modal de tabulação detalhada
+function showTabulationModal(question) {
+    // Calcular tabulação
+    const tabulation = {};
+    const details = {};
     
-    // Encontrar o card específico
-    const questionCards = document.querySelectorAll('.question-card');
-    let questionCard = null;
-    
-    questionCards.forEach(card => {
-        const titleElement = card.querySelector('.question-text');
-        if (titleElement && titleElement.textContent.includes(questionId)) {
-            questionCard = card;
+    question.results.forEach(result => {
+        const classification = result.item.Classificacao || 'Sem Classificação';
+        if (!tabulation[classification]) {
+            tabulation[classification] = 0;
+            details[classification] = [];
         }
+        tabulation[classification]++;
+        details[classification].push(result);
     });
     
-    if (!questionCard) return;
+    // Criar HTML do modal
+    const modalHTML = `
+        <div class="modal" id="tabulationModal" style="display: flex;">
+            <div class="modal-content" style="max-width: 1000px; max-height: 90vh; overflow-y: auto;">
+                <div class="modal-header">
+                    <h2><i class="fas fa-table"></i> Tabulação Detalhada: ${question.text}</h2>
+                    <button class="close-modal" onclick="document.getElementById('tabulationModal').remove()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <!-- Resumo -->
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <div>
+                            <strong>Total de ocorrências:</strong> ${question.results.length}<br>
+                            <strong>Classificações encontradas:</strong> ${Object.keys(tabulation).length}
+                        </div>
+                    </div>
+                    
+                    <!-- Gráfico de barras -->
+                    <div style="background: white; padding: 1.5rem; border-radius: 8px; margin: 1rem 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <h3 style="margin-top: 0;"><i class="fas fa-chart-bar"></i> Distribuição por Classificação</h3>
+                        ${Object.entries(tabulation)
+                            .sort((a, b) => b[1] - a[1])
+                            .map(([classification, count]) => {
+                                const percentage = ((count / question.results.length) * 100).toFixed(1);
+                                return `
+                                    <div style="margin: 1rem 0;">
+                                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
+                                            <strong>${classification}</strong>
+                                            <span>${count} (${percentage}%)</span>
+                                        </div>
+                                        <div style="background: #ecf0f1; height: 30px; border-radius: 4px; overflow: hidden;">
+                                            <div style="background: linear-gradient(90deg, #3498db, #2980b9); height: 100%; width: ${percentage}%; transition: width 0.3s;"></div>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                    </div>
+                    
+                    <!-- Detalhes por classificação -->
+                    <div style="margin-top: 2rem;">
+                        <h3><i class="fas fa-list"></i> Detalhes por Classificação</h3>
+                        ${Object.entries(details)
+                            .sort((a, b) => b[1].length - a[1].length)
+                            .map(([classification, results]) => `
+                                <div class="card" style="margin: 1rem 0;">
+                                    <div class="card-header" style="background: #3498db; color: white;">
+                                        <div class="card-title">${classification}</div>
+                                        <span class="badge" style="background: white; color: #3498db;">${results.length} ocorrências</span>
+                                    </div>
+                                    <div style="padding: 1rem;">
+                                        ${results.slice(0, 5).map((result, index) => `
+                                            <div style="padding: 0.75rem; margin: 0.5rem 0; background: #f8f9fa; border-radius: 4px; border-left: 3px solid ${
+                                                result.item.Sentimento === 'Positivo' ? '#27ae60' : 
+                                                result.item.Sentimento === 'Negativo' ? '#e74c3c' : '#f39c12'
+                                            };">
+                                                <div style="font-size: 0.85em; color: #666; margin-bottom: 0.5rem;">
+                                                    <strong>Agente:</strong> ${result.item.Agente} | 
+                                                    <strong>Data:</strong> ${result.item.Data} ${result.item.Hora || ''} |
+                                                    <strong>Sentimento:</strong> ${result.item.Sentimento}
+                                                </div>
+                                                <div style="font-size: 0.9em;">${result.item.Texto.substring(0, 200)}${result.item.Texto.length > 200 ? '...' : ''}</div>
+                                            </div>
+                                        `).join('')}
+                                        ${results.length > 5 ? `
+                                            <div style="text-align: center; padding: 0.5rem; color: #666; font-style: italic;">
+                                                ... e mais ${results.length - 5} ocorrências
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                            `).join('')}
+                    </div>
+                    
+                    <!-- Botões de ação -->
+                    <div style="margin-top: 2rem; text-align: right;">
+                        <button class="button button-success" onclick="exportTabulationToCSV_${question.id}()">
+                            <i class="fas fa-file-csv"></i> Exportar para CSV
+                        </button>
+                        <button class="button button-secondary" onclick="document.getElementById('tabulationModal').remove()">
+                            <i class="fas fa-times"></i> Fechar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
     
-    // Atualizar contadores
-    const statsContainer = questionCard.querySelector('.classification-summary');
-    if (statsContainer) {
-        const procCounter = statsContainer.querySelector('.counter-procedente');
-        const improcCounter = statsContainer.querySelector('.counter-improcedente');
-        const pendCounter = statsContainer.querySelector('.counter-pendente');
-        
-        if (procCounter) {
-            procCounter.innerHTML = `✅ ${counts.procedente} Procedente${counts.procedente !== 1 ? 's' : ''}`;
-        }
-        if (improcCounter) {
-            improcCounter.innerHTML = `❌ ${counts.improcedente} Improcedente${counts.improcedente !== 1 ? 's' : ''}`;
-        }
-        if (pendCounter) {
-            pendCounter.innerHTML = `⏳ ${counts.pending} Não Classificado${counts.pending !== 1 ? 's' : ''}`;
-        }
-    }
+    // Adicionar ao body
+    const modalElement = document.createElement('div');
+    modalElement.innerHTML = modalHTML;
+    document.body.appendChild(modalElement.firstElementChild);
     
-    // Atualizar barra de progresso
-    const progressInfo = questionCard.querySelector('.classification-progress');
-    if (progressInfo && total > 0) {
-        const completePct = Math.round(((counts.procedente + counts.improcedente) / total) * 100);
-        progressInfo.textContent = `Progresso: ${counts.procedente + counts.improcedente} de ${total} classificados (${completePct}%)`;
-        
-        const progressBar = questionCard.querySelector('.progress-bar-fill');
-        if (progressBar) {
-            progressBar.style.width = `${completePct}%`;
-        }
-    }
+    // Criar função de exportação específica para esta pergunta
+    window[`exportTabulationToCSV_${question.id}`] = function() {
+        exportTabulationToCSV(question, tabulation, details);
+    };
 }
 
-// Classificar resultado (VERSÃO QUE NÃO RECOLHE O CARD!)
-function classifyResult(questionId, resultIndex, classification) {
-    const key = `${questionId}_${resultIndex}`;
+// Função para exportar tabulação para CSV
+function exportTabulationToCSV(question, tabulation, details) {
+    let csv = 'Classificação,Quantidade,Percentual\n';
     
-    // Salvar classificação
-    if (!insightsState.manualClassifications) {
-        insightsState.manualClassifications = {};
-    }
-    insightsState.manualClassifications[key] = classification;
-    
-    // ===== IMPORTANTE: NÃO RECARREGAR A LISTA! =====
-    // Em vez de renderQuestionsList(), apenas atualizar as estatísticas
-    updateQuestionStats(questionId);
-    
-    // Atualizar visualmente APENAS este resultado
-    const allResults = document.querySelectorAll('.search-result-item');
-    allResults.forEach((resultEl, idx) => {
-        if (idx === resultIndex) {
-            // Atualizar botões
-            const buttons = resultEl.querySelectorAll('.classify-btn');
-            buttons.forEach(btn => {
-                if (btn.textContent.includes(classification === 'Procedente' ? '✅' : '❌')) {
-                    btn.classList.add('selected');
-                } else {
-                    btn.classList.remove('selected');
-                }
-            });
-            
-            // Atualizar status
-            const statusSpan = resultEl.querySelector('.classification-status');
-            if (statusSpan) {
-                const isProc = classification === 'Procedente';
-                statusSpan.className = 'classification-status ' + classification.toLowerCase();
-                statusSpan.innerHTML = isProc ? '✅ SIM' : '❌ NÃO';
-            }
-        }
-    });
-    
-    // Feedback visual
-    const emoji = classification === 'Procedente' ? '✅' : '❌';
-    showAlert(`${emoji} Resultado marcado como ${classification}`, 'success');
-}
-
-// Limpar classificação de um resultado específico
-function clearClassification(questionId, resultIndex) {
-    const key = `${questionId}_${resultIndex}`;
-    
-    if (insightsState.manualClassifications && insightsState.manualClassifications[key]) {
-        delete insightsState.manualClassifications[key];
-        
-        // Atualizar estatísticas
-        updateQuestionStats(questionId);
-        
-        // Atualizar visualmente
-        const allResults = document.querySelectorAll('.search-result-item');
-        allResults.forEach((resultEl, idx) => {
-            if (idx === resultIndex) {
-                const buttons = resultEl.querySelectorAll('.classify-btn');
-                buttons.forEach(btn => btn.classList.remove('selected'));
-                
-                const statusSpan = resultEl.querySelector('.classification-status');
-                if (statusSpan) {
-                    statusSpan.remove();
-                }
-            }
+    Object.entries(tabulation)
+        .sort((a, b) => b[1] - a[1])
+        .forEach(([classification, count]) => {
+            const percentage = ((count / question.results.length) * 100).toFixed(2);
+            csv += `"${classification}",${count},${percentage}%\n`;
         });
-        
-        showAlert('🔄 Classificação removida', 'info');
-    }
-}
-
-// Contar classificações de uma pergunta
-function countClassifications(questionId) {
-    if (!insightsState.manualClassifications) {
-        insightsState.manualClassifications = {};
-    }
     
-    const question = insightsState.questions.find(q => q.id === questionId);
-    if (!question || !question.results) {
-        return { procedente: 0, improcedente: 0, pending: 0, total: 0 };
-    }
+    csv += '\n\nDetalhamento Completo\n';
+    csv += 'Classificação,Agente,Data,Hora,Email,Sentimento,Pontuação,Texto\n';
     
-    const total = question.results.length;
-    let procedente = 0;
-    let improcedente = 0;
-    
-    question.results.forEach((result, index) => {
-        const key = `${questionId}_${index}`;
-        const classification = insightsState.manualClassifications[key];
-        
-        if (classification === 'Procedente') {
-            procedente++;
-        } else if (classification === 'Improcedente') {
-            improcedente++;
-        }
+    Object.entries(details).forEach(([classification, results]) => {
+        results.forEach(result => {
+            csv += `"${classification}","${result.item.Agente}","${result.item.Data}","${result.item.Hora || ''}","${result.item.Email || ''}","${result.item.Sentimento}","${result.item.Pontuacao || ''}","${result.item.Texto.replace(/"/g, '""')}"\n`;
+        });
     });
     
-    const pending = total - (procedente + improcedente);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `tabulacao_${question.text.substring(0, 30).replace(/[^a-z0-9]/gi, '_')}.csv`;
+    link.click();
     
-    return { procedente, improcedente, pending, total };
+    showNotification('Tabulação exportada com sucesso!', 'success');
 }
-
-console.log("✅ Sistema de classificação SEM recolhimento carregado!");
-
 
 </script>
 </body>

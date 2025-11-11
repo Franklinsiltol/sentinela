@@ -1,17 +1,10 @@
-<!DO
-                        <td>
-                            <span class="badge ${item.Classificacao === 'Procedente' ? 'status-success' : 
-                                               item.Classificacao === 'Improcedente' ? 'status-error' : 
-                                               'status-warning'}">
-                                ${item.Classificacao || 'Não Classificado'}
-                            </span>
-                        </td>CTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sentinela - Análise Inteligente de Conversas</title>
-    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -1311,54 +1304,6 @@
         justify-content: center;
     }
 }
-
-        .result-classification {
-            margin-top: 10px;
-            padding-top: 10px;
-            border-top: 1px solid #e0e0e0;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .result-classification strong {
-            margin-right: 5px;
-        }
-        
-        .classify-btn {
-            padding: 5px 12px;
-            font-size: 0.85em;
-            cursor: pointer;
-        }
-        
-        .classify-btn.selected {
-            opacity: 1;
-            font-weight: bold;
-            box-shadow: 0 0 0 2px rgba(0,0,0,0.2);
-        }
-        
-        .classify-btn:not(.selected) {
-            opacity: 0.6;
-        }
-        
-        .classification-status {
-            margin-left: 10px;
-            padding: 4px 10px;
-            border-radius: 4px;
-            font-size: 0.85em;
-            font-weight: bold;
-        }
-        
-        .classification-status.procedente {
-            background-color: #d4edda;
-            color: #155724;
-        }
-        
-        .classification-status.improcedente {
-            background-color: #f8d7da;
-            color: #721c24;
-        }
-
 </style>
 </head>
 <body>
@@ -1977,32 +1922,6 @@
                     </div>
                 </div>
             </div>
-
-            <!-- Card de Classificação -->
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-title">
-                        <i class="fas fa-balance-scale"></i> Classificação
-                    </div>
-                </div>
-                <div class="card-content">
-                    <div class="stat-grid">
-                        <div class="stat-item">
-                            <div class="stat-value" id="statProcedentes">0</div>
-                            <div class="stat-label">Procedentes</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-value" id="statImprocedentes">0</div>
-                            <div class="stat-label">Improcedentes</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-value" id="statNaoClassificados">0</div>
-                            <div class="stat-label">Não Classificados</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
         </div>
     </div>
 
@@ -4770,8 +4689,6 @@ function exportSearchResults() {
 // Estado para gerenciar as perguntas e respostas
 const insightsState = {
     questions: [],
-    
-    manualClassifications: {}, // Armazena classificações manuais por resultado
     searchIndex: null
 };
 
@@ -4988,37 +4905,22 @@ function renderQuestionsList() {
         
         html += `
             <div class="card question-card" data-question-id="${question.id}">
-
-                    <div class="card-header">
-                        <div class="card-title">${question.text}</div>
-                        <div>
-                            <span class="badge ${confidenceColor}">${question.analysis.confidence}% confiança</span>
-                            <span class="badge">${question.analysis.totalMatches} ocorrências</span>
-                            ${(() => {
-                                const counts = countClassifications(question.id);
-                                return `
-                                    <span class="badge status-success" title="Procedentes (SIM)">
-                                        ✅ ${counts.procedente}
-                                    </span>
-                                    <span class="badge status-error" title="Improcedentes (NÃO)">
-                                        ❌ ${counts.improcedente}
-                                    </span>
-                                    <span class="badge status-warning" title="Pendentes">
-                                        ⏳ ${counts.pending}
-                                    </span>
-                                `;
-                            })()}
-                            <button class="button button-info toggle-question" data-question-id="${question.id}">
-                                <i class="fas fa-chevron-down"></i>
-                            </button>
-                            <button class="button button-danger delete-question" data-question-id="${question.id}">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                            <button class="button button-success export-question" data-question-id="${question.id}">
-                                <i class="fas fa-download"></i>
-                            </button>
-                        </div>
+                <div class="card-header">
+                    <div class="card-title">${question.text}</div>
+                    <div>
+                        <span class="badge ${confidenceColor}">${question.analysis.confidence}% confiança</span>
+                        <span class="badge">${question.analysis.totalMatches} ocorrências</span>
+                        <button class="button button-info toggle-question" data-question-id="${question.id}">
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <button class="button button-danger delete-question" data-question-id="${question.id}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                        <button class="button button-success export-question" data-question-id="${question.id}">
+                            <i class="fas fa-download"></i>
+                        </button>
                     </div>
+                </div>
                 <div class="question-details hidden">
                     <div class="alert alert-${question.analysis.totalMatches > 0 ? 'info' : 'warning'}">
                         <i class="fas fa-${question.analysis.totalMatches > 0 ? 'check-circle' : 'exclamation-triangle'}"></i>
@@ -5035,29 +4937,9 @@ function renderQuestionsList() {
                     ` : ''}
                     
                     ${question.results.length > 0 ? `
-                        
-                    
-                    ${question.results.length > 0 ? `
-                        <div class="alert alert-info" style="margin-top: 10px;">
-                            <i class="fas fa-chart-bar"></i>
-                            <div>
-                                <strong>Resumo da Tabulação Manual:</strong><br>
-                                ${(() => {
-                                    const counts = countClassifications(question.id);
-                                    const procedentePct = counts.total > 0 ? Math.round((counts.procedente / counts.total) * 100) : 0;
-                                    const improcedentePct = counts.total > 0 ? Math.round((counts.improcedente / counts.total) * 100) : 0;
-                                    return `
-                                        ✅ <strong>${counts.procedente}</strong> Procedente(s) (SIM) - ${procedentePct}% | 
-                                        ❌ <strong>${counts.improcedente}</strong> Improcedente(s) (NÃO) - ${improcedentePct}% | 
-                                        ⏳ <strong>${counts.pending}</strong> Pendente(s)
-                                    `;
-                                })()}
-                            </div>
-                        </div>
-                    ` : ''}
-                    <div class="insights-results">
+                        <div class="insights-results">
                             <h4>Ocorrências Encontradas:</h4>
-                            ${question.results.map((result, index) => `
+                            ${question.results.map(result => `
                                 <div class="search-result-item">
                                     <div class="result-meta">
                                         <strong>Agente:</strong> ${result.item.Agente} | 
@@ -5069,22 +4951,6 @@ function renderQuestionsList() {
                                     <div class="result-sentiment">
                                         <span class="status-indicator status-${result.item.Sentimento === 'Positivo' ? 'success' : result.item.Sentimento === 'Negativo' ? 'error' : 'warning'}"></span>
                                         Sentimento: ${result.item.Sentimento} (Pontuação: ${result.item.Pontuacao || 'N/A'})
-                                    </div>
-                                    <div class="result-classification">
-                                        <strong>Tabulação:</strong>
-                                        <button class="button button-success classify-btn ${getResultClassification(question.id, index) === 'Procedente' ? 'selected' : ''}" 
-                                                onclick="classifyResult(${question.id}, ${index}, 'Procedente')">
-                                            <i class="fas fa-check"></i> Procedente (SIM)
-                                        </button>
-                                        <button class="button button-danger classify-btn ${getResultClassification(question.id, index) === 'Improcedente' ? 'selected' : ''}"
-                                                onclick="classifyResult(${question.id}, ${index}, 'Improcedente')">
-                                            <i class="fas fa-times"></i> Improcedente (NÃO)
-                                        </button>
-                                        ${getResultClassification(question.id, index) ? 
-                                            `<span class="classification-status ${getResultClassification(question.id, index).toLowerCase()}">
-                                                ${getResultClassification(question.id, index) === 'Procedente' ? '✅ SIM' : '❌ NÃO'}
-                                            </span>` : 
-                                            '<span class="classification-status" style="color: #666;">⏳ Pendente</span>'}
                                     </div>
                                 </div>
                             `).join('')}
@@ -5145,52 +5011,6 @@ function deleteQuestion(questionId) {
 }
 
 // Exportar resultados de uma pergunta específica
-
-
-// Classificar resultado manualmente
-function classifyResult(questionId, resultIndex, classification) {
-    // Criar chave única para este resultado
-    const key = `${questionId}_${resultIndex}`;
-    
-    // Salvar classificação
-    insightsState.manualClassifications[key] = classification;
-    
-    // Atualizar a interface
-    renderQuestionsList();
-    
-    // Mostrar feedback
-    const emoji = classification === 'Procedente' ? '✅' : '❌';
-    showAlert(`${emoji} Resultado marcado como ${classification}`, 'success');
-}
-
-// Obter classificação de um resultado
-function getResultClassification(questionId, resultIndex) {
-    const key = `${questionId}_${resultIndex}`;
-    return insightsState.manualClassifications[key] || null;
-}
-
-// Contar classificações de uma pergunta
-function countClassifications(questionId) {
-    const question = insightsState.questions.find(q => q.id == questionId);
-    if (!question) return { procedente: 0, improcedente: 0, total: 0 };
-    
-    let procedente = 0;
-    let improcedente = 0;
-    
-    question.results.forEach((result, index) => {
-        const classification = getResultClassification(questionId, index);
-        if (classification === 'Procedente') procedente++;
-        if (classification === 'Improcedente') improcedente++;
-    });
-    
-    return {
-        procedente,
-        improcedente,
-        total: question.results.length,
-        pending: question.results.length - procedente - improcedente
-    };
-}
-
 function exportQuestionResults(questionId) {
     const question = insightsState.questions.find(q => q.id == questionId);
     
@@ -5205,12 +5025,10 @@ function exportQuestionResults(questionId) {
         ['Total de Ocorrências', question.analysis.totalMatches],
         ['Confiança da Análise', question.analysis.confidence + '%'],
         [], // Linha em branco
-        ['Agente', 'Data', 'Hora', 'Email', 'Texto', 'Sentimento', 'Pontuação', 'Palavras-chave Encontradas', 'Classificação Manual']
+        ['Agente', 'Data', 'Hora', 'Email', 'Texto', 'Sentimento', 'Pontuação', 'Palavras-chave Encontradas']
     ];
-
     
-    question.results.forEach((result, index) => {
-        const manualClassification = getResultClassification(questionId, index);
+    question.results.forEach(result => {
         csvData.push([
             result.item.Agente,
             result.item.Data,
@@ -5219,8 +5037,7 @@ function exportQuestionResults(questionId) {
             result.item.Texto,
             result.item.Sentimento,
             result.item.Pontuacao || '',
-            result.keywords.join(', '),
-            manualClassification || 'Pendente'
+            result.keywords.join(', ')
         ]);
     });
     
@@ -5264,7 +5081,7 @@ function exportAllInsights() {
         csvData.push([]);
         
         if (question.results.length > 0) {
-            csvData.push(['Agente', 'Data', 'Hora', 'Email', 'Texto', 'Sentimento', 'Pontuação', 'Palavras-chave Encontradas', 'Classificação Manual']);
+            csvData.push(['Agente', 'Data', 'Hora', 'Email', 'Texto', 'Sentimento', 'Pontuação', 'Palavras-chave Encontradas']);
             
             question.results.forEach(result => {
                 csvData.push([
@@ -5388,6 +5205,165 @@ document.head.appendChild(styleSheet);
                 });
             }
         });
-    </script>
+    
+// ============================================
+// SISTEMA DE CLASSIFICAÇÃO DE INSIGHTS
+// ============================================
+
+// Atualizar APENAS as estatísticas de uma pergunta (SEM recarregar tudo)
+function updateQuestionStats(questionId) {
+    const counts = countClassifications(questionId);
+    const total = counts.total;
+    
+    // Encontrar o card específico
+    const questionCards = document.querySelectorAll('.question-card');
+    let questionCard = null;
+    
+    questionCards.forEach(card => {
+        const titleElement = card.querySelector('.question-text');
+        if (titleElement && titleElement.textContent.includes(questionId)) {
+            questionCard = card;
+        }
+    });
+    
+    if (!questionCard) return;
+    
+    // Atualizar contadores
+    const statsContainer = questionCard.querySelector('.classification-summary');
+    if (statsContainer) {
+        const procCounter = statsContainer.querySelector('.counter-procedente');
+        const improcCounter = statsContainer.querySelector('.counter-improcedente');
+        const pendCounter = statsContainer.querySelector('.counter-pendente');
+        
+        if (procCounter) {
+            procCounter.innerHTML = `✅ ${counts.procedente} Procedente${counts.procedente !== 1 ? 's' : ''}`;
+        }
+        if (improcCounter) {
+            improcCounter.innerHTML = `❌ ${counts.improcedente} Improcedente${counts.improcedente !== 1 ? 's' : ''}`;
+        }
+        if (pendCounter) {
+            pendCounter.innerHTML = `⏳ ${counts.pending} Não Classificado${counts.pending !== 1 ? 's' : ''}`;
+        }
+    }
+    
+    // Atualizar barra de progresso
+    const progressInfo = questionCard.querySelector('.classification-progress');
+    if (progressInfo && total > 0) {
+        const completePct = Math.round(((counts.procedente + counts.improcedente) / total) * 100);
+        progressInfo.textContent = `Progresso: ${counts.procedente + counts.improcedente} de ${total} classificados (${completePct}%)`;
+        
+        const progressBar = questionCard.querySelector('.progress-bar-fill');
+        if (progressBar) {
+            progressBar.style.width = `${completePct}%`;
+        }
+    }
+}
+
+// Classificar resultado (VERSÃO QUE NÃO RECOLHE O CARD!)
+function classifyResult(questionId, resultIndex, classification) {
+    const key = `${questionId}_${resultIndex}`;
+    
+    // Salvar classificação
+    if (!insightsState.manualClassifications) {
+        insightsState.manualClassifications = {};
+    }
+    insightsState.manualClassifications[key] = classification;
+    
+    // ===== IMPORTANTE: NÃO RECARREGAR A LISTA! =====
+    // Em vez de renderQuestionsList(), apenas atualizar as estatísticas
+    updateQuestionStats(questionId);
+    
+    // Atualizar visualmente APENAS este resultado
+    const allResults = document.querySelectorAll('.search-result-item');
+    allResults.forEach((resultEl, idx) => {
+        if (idx === resultIndex) {
+            // Atualizar botões
+            const buttons = resultEl.querySelectorAll('.classify-btn');
+            buttons.forEach(btn => {
+                if (btn.textContent.includes(classification === 'Procedente' ? '✅' : '❌')) {
+                    btn.classList.add('selected');
+                } else {
+                    btn.classList.remove('selected');
+                }
+            });
+            
+            // Atualizar status
+            const statusSpan = resultEl.querySelector('.classification-status');
+            if (statusSpan) {
+                const isProc = classification === 'Procedente';
+                statusSpan.className = 'classification-status ' + classification.toLowerCase();
+                statusSpan.innerHTML = isProc ? '✅ SIM' : '❌ NÃO';
+            }
+        }
+    });
+    
+    // Feedback visual
+    const emoji = classification === 'Procedente' ? '✅' : '❌';
+    showAlert(`${emoji} Resultado marcado como ${classification}`, 'success');
+}
+
+// Limpar classificação de um resultado específico
+function clearClassification(questionId, resultIndex) {
+    const key = `${questionId}_${resultIndex}`;
+    
+    if (insightsState.manualClassifications && insightsState.manualClassifications[key]) {
+        delete insightsState.manualClassifications[key];
+        
+        // Atualizar estatísticas
+        updateQuestionStats(questionId);
+        
+        // Atualizar visualmente
+        const allResults = document.querySelectorAll('.search-result-item');
+        allResults.forEach((resultEl, idx) => {
+            if (idx === resultIndex) {
+                const buttons = resultEl.querySelectorAll('.classify-btn');
+                buttons.forEach(btn => btn.classList.remove('selected'));
+                
+                const statusSpan = resultEl.querySelector('.classification-status');
+                if (statusSpan) {
+                    statusSpan.remove();
+                }
+            }
+        });
+        
+        showAlert('🔄 Classificação removida', 'info');
+    }
+}
+
+// Contar classificações de uma pergunta
+function countClassifications(questionId) {
+    if (!insightsState.manualClassifications) {
+        insightsState.manualClassifications = {};
+    }
+    
+    const question = insightsState.questions.find(q => q.id === questionId);
+    if (!question || !question.results) {
+        return { procedente: 0, improcedente: 0, pending: 0, total: 0 };
+    }
+    
+    const total = question.results.length;
+    let procedente = 0;
+    let improcedente = 0;
+    
+    question.results.forEach((result, index) => {
+        const key = `${questionId}_${index}`;
+        const classification = insightsState.manualClassifications[key];
+        
+        if (classification === 'Procedente') {
+            procedente++;
+        } else if (classification === 'Improcedente') {
+            improcedente++;
+        }
+    });
+    
+    const pending = total - (procedente + improcedente);
+    
+    return { procedente, improcedente, pending, total };
+}
+
+console.log("✅ Sistema de classificação SEM recolhimento carregado!");
+
+
+</script>
 </body>
 </html>

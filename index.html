@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sentinela - Análise Inteligente de Conversas</title>
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -1304,24 +1304,6 @@
         justify-content: center;
     }
 }
-
-.badge-procedente {
-    background-color: #28a745;
-    color: white;
-}
-
-.badge-improcedente {
-    background-color: #dc3545;
-    color: white;
-}
-
-.classification-status {
-    margin-bottom: 10px;
-    padding: 8px;
-    background-color: rgba(0,0,0,0.05);
-    border-radius: 6px;
-}
-
 </style>
 </head>
 <body>
@@ -4928,20 +4910,6 @@ function renderQuestionsList() {
                     <div>
                         <span class="badge ${confidenceColor}">${question.analysis.confidence}% confiança</span>
                         <span class="badge">${question.analysis.totalMatches} ocorrências</span>
-                        ${(() => {
-                            const counters = updateClassificationCounters(question.id);
-                            return `
-                                <span class="classification-counter counter-procedente">
-                                    <i class="fas fa-check-circle"></i> ${counters.Procedente || 0}
-                                </span>
-                                <span class="classification-counter counter-improcedente">
-                                    <i class="fas fa-times-circle"></i> ${counters.Improcedente || 0}
-                                </span>
-                                <span class="classification-counter counter-pendente">
-                                    <i class="fas fa-clock"></i> ${counters.Pendente || 0}
-                                </span>
-                            `;
-                        })()}
                         <button class="button button-info toggle-question" data-question-id="${question.id}">
                             <i class="fas fa-chevron-down"></i>
                         </button>
@@ -4971,32 +4939,8 @@ function renderQuestionsList() {
                     ${question.results.length > 0 ? `
                         <div class="insights-results">
                             <h4>Ocorrências Encontradas:</h4>
-                            ${question.results.map(result => {
-                                    const resultKey = `${question.id}_${result.agentName}`;
-                                    const classification = (insightsState.classifications && insightsState.classifications[resultKey]) 
-                                        ? insightsState.classifications[resultKey].classification 
-                                        : null;
-                                    const classifiedClass = classification ? `classified-${classification.toLowerCase()}` : '';
-                                    return `
-                                <div class="search-result-item ${classifiedClass}">
-                                    <div class="result-meta">
-                                    ${classification ? `<div class="classification-status">
-                                        <span class="badge badge-${classification.toLowerCase()}">
-                                            <i class="fas fa-${classification === 'Procedente' ? 'check' : 'times'}-circle"></i>
-                                            Classificado como: ${classification}
-                                        </span>
-                                    </div>` : ''}
-                                    <div class="classification-buttons">
-                                        <button class="btn-classify btn-procedente" onclick="classifyResult('${result.agentName}', '${question.id}', 'Procedente')">
-                                            <i class="fas fa-check-circle"></i> Procedente
-                                        </button>
-                                        <button class="btn-classify btn-improcedente" onclick="classifyResult('${result.agentName}', '${question.id}', 'Improcedente')">
-                                            <i class="fas fa-times-circle"></i> Improcedente
-                                        </button>
-                                        <button class="btn-classify btn-limpar-classificacao" onclick="classifyResult('${result.agentName}', '${question.id}', null)">
-                                            <i class="fas fa-eraser"></i> Limpar
-                                        </button>
-                                    </div>
+                            ${question.results.map(result => `
+                                <div class="search-result-item">
                                     <div class="result-meta">
                                         <strong>Agente:</strong> ${result.item.Agente} | 
                                         <strong>Data:</strong> ${result.item.Data} ${result.item.Hora || ''}
@@ -5261,109 +5205,6 @@ document.head.appendChild(styleSheet);
                 });
             }
         });
-    
-        // Função para classificar resultados
-        function classifyResult(agentName, questionId, classification) {
-            // Inicializar o objeto de classificações se não existir
-            if (!insightsState.classifications) {
-                insightsState.classifications = {};
-            }
-            
-            // Criar chave única para o resultado
-            const resultKey = `${questionId}_${agentName}`;
-            
-            // Atualizar classificação
-            if (classification === null) {
-                delete insightsState.classifications[resultKey];
-            } else {
-                insightsState.classifications[resultKey] = {
-                    agentName: agentName,
-                    questionId: questionId,
-                    classification: classification,
-                    timestamp: new Date().toISOString()
-                };
-            }
-            
-            // Salvar no localStorage
-            localStorage.setItem('sentinela_classifications', JSON.stringify(insightsState.classifications));
-            
-            // Atualizar contadores
-            updateClassificationCounters(questionId);
-            
-            // Notificar usuário
-            showNotification(`Classificação ${classification || 'removida'} aplicada com sucesso!`, 'success');
-            
-            // Re-renderizar para atualizar a visualização
-            renderQuestionsList();
-        }
-        
-        // Função para atualizar contadores de classificação
-        function updateClassificationCounters(questionId) {
-            const classifications = insightsState.classifications || {};
-            const counters = {
-                Procedente: 0,
-                Improcedente: 0,
-                Pendente: 0
-            };
-            
-            // Contar classificações para esta pergunta
-            Object.values(classifications).forEach(item => {
-                if (item.questionId === questionId) {
-                    counters[item.classification]++;
-                }
-            });
-            
-            // Contar pendentes (resultados sem classificação)
-            const question = insightsState.questions.find(q => q.id === questionId);
-            if (question) {
-                const totalResults = question.results.length;
-                const classified = counters.Procedente + counters.Improcedente;
-                counters.Pendente = totalResults - classified;
-            }
-            
-            return counters;
-        }
-        
-        // Função para mostrar notificação
-        function showNotification(message, type = 'info') {
-            // Criar elemento de notificação
-            const notification = document.createElement('div');
-            notification.className = `notification notification-${type}`;
-            notification.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                background: ${type === 'success' ? '#28a745' : '#dc3545'};
-                color: white;
-                padding: 15px 20px;
-                border-radius: 8px;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-                z-index: 10000;
-                animation: slideIn 0.3s ease;
-            `;
-            notification.textContent = message;
-            
-            document.body.appendChild(notification);
-            
-            // Remover após 3 segundos
-            setTimeout(() => {
-                notification.style.animation = 'slideOut 0.3s ease';
-                setTimeout(() => notification.remove(), 300);
-            }, 3000);
-        }
-        
-        // Carregar classificações salvas ao iniciar
-        function loadSavedClassifications() {
-            const saved = localStorage.getItem('sentinela_classifications');
-            if (saved) {
-                insightsState.classifications = JSON.parse(saved);
-            }
-        }
-        
-        // Chamar ao carregar a página
-        loadSavedClassifications();
-        
-
-</script>
+    </script>
 </body>
 </html>

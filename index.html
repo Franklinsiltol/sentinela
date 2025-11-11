@@ -5057,7 +5057,7 @@ function renderQuestionsList() {
                     ` : ''}
                     <div class="insights-results">
                             <h4>Ocorrências Encontradas:</h4>
-                            ${question.results.map(result => `
+                            ${question.results.map((result, index) => `
                                 <div class="search-result-item">
                                     <div class="result-meta">
                                         <strong>Agente:</strong> ${result.item.Agente} | 

@@ -4903,13 +4903,6 @@ function renderQuestionsList() {
         const confidenceColor = question.analysis.confidence > 70 ? 'status-success' : 
                               question.analysis.confidence > 40 ? 'status-warning' : 'status-error';
         
-        // Calcular tabulação por classificação
-        const tabulation = {};
-        question.results.forEach(result => {
-            const classification = result.item.Classificacao || 'Sem Classificação';
-            tabulation[classification] = (tabulation[classification] || 0) + 1;
-        });
-        
         html += `
             <div class="card question-card" data-question-id="${question.id}">
                 <div class="card-header">
@@ -4917,9 +4910,6 @@ function renderQuestionsList() {
                     <div>
                         <span class="badge ${confidenceColor}">${question.analysis.confidence}% confiança</span>
                         <span class="badge">${question.analysis.totalMatches} ocorrências</span>
-                        <button class="button button-warning tabulate-question" data-question-id="${question.id}">
-                            <i class="fas fa-table"></i> Tabular
-                        </button>
                         <button class="button button-info toggle-question" data-question-id="${question.id}">
                             <i class="fas fa-chevron-down"></i>
                         </button>
@@ -4931,7 +4921,7 @@ function renderQuestionsList() {
                         </button>
                     </div>
                 </div>
-                <div class="question-details">
+                <div class="question-details hidden">
                     <div class="alert alert-${question.analysis.totalMatches > 0 ? 'info' : 'warning'}">
                         <i class="fas fa-${question.analysis.totalMatches > 0 ? 'check-circle' : 'exclamation-triangle'}"></i>
                         <div>${question.analysis.message}</div>
@@ -4946,41 +4936,16 @@ function renderQuestionsList() {
                         </div>
                     ` : ''}
                     
-                    <!-- TABULAÇÃO POR CLASSIFICAÇÃO -->
-                    ${Object.keys(tabulation).length > 0 ? `
-                        <div class="tabulation-summary" style="margin: 1rem 0; padding: 1rem; background: #f5f5f5; border-radius: 8px;">
-                            <h4 style="margin: 0 0 0.5rem 0;"><i class="fas fa-chart-pie"></i> Tabulação por Classificação:</h4>
-                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.5rem;">
-                                ${Object.entries(tabulation)
-                                    .sort((a, b) => b[1] - a[1])
-                                    .map(([classification, count]) => {
-                                        const percentage = ((count / question.results.length) * 100).toFixed(1);
-                                        return `
-                                            <div style="padding: 0.5rem; background: white; border-radius: 4px; border-left: 3px solid #3498db;">
-                                                <strong>${classification}</strong><br>
-                                                <span style="font-size: 1.2em; color: #3498db;">${count}</span> ocorrências (${percentage}%)
-                                            </div>
-                                        `;
-                                    }).join('')}
-                            </div>
-                        </div>
-                    ` : ''}
-                    
                     ${question.results.length > 0 ? `
                         <div class="insights-results">
-                            <h4>Ocorrências Encontradas (${question.results.length}):</h4>
-                            ${question.results.map((result, index) => `
-                                <div class="search-result-item" style="border-left: 3px solid ${
-                                    result.item.Sentimento === 'Positivo' ? '#27ae60' : 
-                                    result.item.Sentimento === 'Negativo' ? '#e74c3c' : '#f39c12'
-                                };">
+                            <h4>Ocorrências Encontradas:</h4>
+                            ${question.results.map(result => `
+                                <div class="search-result-item">
                                     <div class="result-meta">
-                                        <strong>#${index + 1}</strong> | 
                                         <strong>Agente:</strong> ${result.item.Agente} | 
                                         <strong>Data:</strong> ${result.item.Data} ${result.item.Hora || ''}
                                         ${result.item.Email ? `| <strong>Email:</strong> ${result.item.Email}` : ''}
                                         | <strong>Relevância:</strong> ${Math.round(result.relevanceScore)}%
-                                        ${result.item.Classificacao ? `| <strong>Classificação:</strong> <span class="badge" style="background: #9b59b6;">${result.item.Classificacao}</span>` : ''}
                                     </div>
                                     <div class="result-text">${highlightKeywords(result.item.Texto, result.keywords)}</div>
                                     <div class="result-sentiment">
@@ -4998,44 +4963,25 @@ function renderQuestionsList() {
     
     container.innerHTML = html;
     
-    // Event listeners
+    // Adicionar event listeners para os botões das perguntas
     document.querySelectorAll('.toggle-question').forEach(button => {
         button.addEventListener('click', function() {
             const questionId = this.getAttribute('data-question-id');
-            const card = document.querySelector(`.question-card[data-question-id="${questionId}"]`);
-            const details = card.querySelector('.question-details');
-            const icon = this.querySelector('i');
-            
-            details.classList.toggle('hidden');
-            icon.classList.toggle('fa-chevron-down');
-            icon.classList.toggle('fa-chevron-up');
+            toggleQuestionDetails(questionId);
         });
     });
     
     document.querySelectorAll('.delete-question').forEach(button => {
         button.addEventListener('click', function() {
             const questionId = this.getAttribute('data-question-id');
-            if (confirm('Tem certeza que deseja excluir esta pergunta?')) {
-                insightsState.questions = insightsState.questions.filter(q => q.id !== questionId);
-                renderQuestionsList();
-            }
+            deleteQuestion(questionId);
         });
     });
     
     document.querySelectorAll('.export-question').forEach(button => {
         button.addEventListener('click', function() {
             const questionId = this.getAttribute('data-question-id');
-            const question = insightsState.questions.find(q => q.id === questionId);
-            exportQuestionResults(question);
-        });
-    });
-    
-    // NOVO: Event listener para tabulação
-    document.querySelectorAll('.tabulate-question').forEach(button => {
-        button.addEventListener('click', function() {
-            const questionId = this.getAttribute('data-question-id');
-            const question = insightsState.questions.find(q => q.id === questionId);
-            showTabulationModal(question);
+            exportQuestionResults(questionId);
         });
     });
 }
@@ -5259,154 +5205,6 @@ document.head.appendChild(styleSheet);
                 });
             }
         });
-    
-
-// Função para mostrar modal de tabulação detalhada
-function showTabulationModal(question) {
-    // Calcular tabulação
-    const tabulation = {};
-    const details = {};
-    
-    question.results.forEach(result => {
-        const classification = result.item.Classificacao || 'Sem Classificação';
-        if (!tabulation[classification]) {
-            tabulation[classification] = 0;
-            details[classification] = [];
-        }
-        tabulation[classification]++;
-        details[classification].push(result);
-    });
-    
-    // Criar HTML do modal
-    const modalHTML = `
-        <div class="modal" id="tabulationModal" style="display: flex;">
-            <div class="modal-content" style="max-width: 1000px; max-height: 90vh; overflow-y: auto;">
-                <div class="modal-header">
-                    <h2><i class="fas fa-table"></i> Tabulação Detalhada: ${question.text}</h2>
-                    <button class="close-modal" onclick="document.getElementById('tabulationModal').remove()">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    <!-- Resumo -->
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle"></i>
-                        <div>
-                            <strong>Total de ocorrências:</strong> ${question.results.length}<br>
-                            <strong>Classificações encontradas:</strong> ${Object.keys(tabulation).length}
-                        </div>
-                    </div>
-                    
-                    <!-- Gráfico de barras -->
-                    <div style="background: white; padding: 1.5rem; border-radius: 8px; margin: 1rem 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                        <h3 style="margin-top: 0;"><i class="fas fa-chart-bar"></i> Distribuição por Classificação</h3>
-                        ${Object.entries(tabulation)
-                            .sort((a, b) => b[1] - a[1])
-                            .map(([classification, count]) => {
-                                const percentage = ((count / question.results.length) * 100).toFixed(1);
-                                return `
-                                    <div style="margin: 1rem 0;">
-                                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
-                                            <strong>${classification}</strong>
-                                            <span>${count} (${percentage}%)</span>
-                                        </div>
-                                        <div style="background: #ecf0f1; height: 30px; border-radius: 4px; overflow: hidden;">
-                                            <div style="background: linear-gradient(90deg, #3498db, #2980b9); height: 100%; width: ${percentage}%; transition: width 0.3s;"></div>
-                                        </div>
-                                    </div>
-                                `;
-                            }).join('')}
-                    </div>
-                    
-                    <!-- Detalhes por classificação -->
-                    <div style="margin-top: 2rem;">
-                        <h3><i class="fas fa-list"></i> Detalhes por Classificação</h3>
-                        ${Object.entries(details)
-                            .sort((a, b) => b[1].length - a[1].length)
-                            .map(([classification, results]) => `
-                                <div class="card" style="margin: 1rem 0;">
-                                    <div class="card-header" style="background: #3498db; color: white;">
-                                        <div class="card-title">${classification}</div>
-                                        <span class="badge" style="background: white; color: #3498db;">${results.length} ocorrências</span>
-                                    </div>
-                                    <div style="padding: 1rem;">
-                                        ${results.slice(0, 5).map((result, index) => `
-                                            <div style="padding: 0.75rem; margin: 0.5rem 0; background: #f8f9fa; border-radius: 4px; border-left: 3px solid ${
-                                                result.item.Sentimento === 'Positivo' ? '#27ae60' : 
-                                                result.item.Sentimento === 'Negativo' ? '#e74c3c' : '#f39c12'
-                                            };">
-                                                <div style="font-size: 0.85em; color: #666; margin-bottom: 0.5rem;">
-                                                    <strong>Agente:</strong> ${result.item.Agente} | 
-                                                    <strong>Data:</strong> ${result.item.Data} ${result.item.Hora || ''} |
-                                                    <strong>Sentimento:</strong> ${result.item.Sentimento}
-                                                </div>
-                                                <div style="font-size: 0.9em;">${result.item.Texto.substring(0, 200)}${result.item.Texto.length > 200 ? '...' : ''}</div>
-                                            </div>
-                                        `).join('')}
-                                        ${results.length > 5 ? `
-                                            <div style="text-align: center; padding: 0.5rem; color: #666; font-style: italic;">
-                                                ... e mais ${results.length - 5} ocorrências
-                                            </div>
-                                        ` : ''}
-                                    </div>
-                                </div>
-                            `).join('')}
-                    </div>
-                    
-                    <!-- Botões de ação -->
-                    <div style="margin-top: 2rem; text-align: right;">
-                        <button class="button button-success" onclick="exportTabulationToCSV_${question.id}()">
-                            <i class="fas fa-file-csv"></i> Exportar para CSV
-                        </button>
-                        <button class="button button-secondary" onclick="document.getElementById('tabulationModal').remove()">
-                            <i class="fas fa-times"></i> Fechar
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    // Adicionar ao body
-    const modalElement = document.createElement('div');
-    modalElement.innerHTML = modalHTML;
-    document.body.appendChild(modalElement.firstElementChild);
-    
-    // Criar função de exportação específica para esta pergunta
-    window[`exportTabulationToCSV_${question.id}`] = function() {
-        exportTabulationToCSV(question, tabulation, details);
-    };
-}
-
-// Função para exportar tabulação para CSV
-function exportTabulationToCSV(question, tabulation, details) {
-    let csv = 'Classificação,Quantidade,Percentual\n';
-    
-    Object.entries(tabulation)
-        .sort((a, b) => b[1] - a[1])
-        .forEach(([classification, count]) => {
-            const percentage = ((count / question.results.length) * 100).toFixed(2);
-            csv += `"${classification}",${count},${percentage}%\n`;
-        });
-    
-    csv += '\n\nDetalhamento Completo\n';
-    csv += 'Classificação,Agente,Data,Hora,Email,Sentimento,Pontuação,Texto\n';
-    
-    Object.entries(details).forEach(([classification, results]) => {
-        results.forEach(result => {
-            csv += `"${classification}","${result.item.Agente}","${result.item.Data}","${result.item.Hora || ''}","${result.item.Email || ''}","${result.item.Sentimento}","${result.item.Pontuacao || ''}","${result.item.Texto.replace(/"/g, '""')}"\n`;
-        });
-    });
-    
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `tabulacao_${question.text.substring(0, 30).replace(/[^a-z0-9]/gi, '_')}.csv`;
-    link.click();
-    
-    showNotification('Tabulação exportada com sucesso!', 'success');
-}
-
-</script>
+    </script>
 </body>
 </html>

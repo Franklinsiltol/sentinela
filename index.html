@@ -4972,6 +4972,16 @@ function renderQuestionsList() {
     const container = document.getElementById('questionsList');
     const noQuestionsMessage = document.getElementById('noQuestionsMessage');
     
+    
+    // Salvar o estado dos cards abertos antes de renderizar
+    const openCards = new Set();
+    document.querySelectorAll('.question-details:not(.hidden)').forEach(detail => {
+        const card = detail.closest('.question-card');
+        if (card) {
+            openCards.add(card.dataset.questionId);
+        }
+    });
+
     if (insightsState.questions.length === 0) {
         noQuestionsMessage.style.display = 'block';
         container.innerHTML = '';
@@ -5019,7 +5029,7 @@ function renderQuestionsList() {
                             </button>
                         </div>
                     </div>
-                <div class="question-details hidden">
+                <div class="question-details ${openCards.has(question.id.toString()) ? "" : "hidden"}">
                     <div class="alert alert-${question.analysis.totalMatches > 0 ? 'info' : 'warning'}">
                         <i class="fas fa-${question.analysis.totalMatches > 0 ? 'check-circle' : 'exclamation-triangle'}"></i>
                         <div>${question.analysis.message}</div>

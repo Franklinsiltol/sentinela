@@ -4,795 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sentinela - Análise Inteligente de Conversas</title>
-    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js">
-
-    // ============================================
-    // SISTEMA DE STEMMING SIMPLES PARA PORTUGUÊS
-    // ============================================
-    class PortugueseStemmer {
-        constructor() {
-            this.suffixes = [
-                // Verbos
-                'aram', 'eram', 'avam', 'emos', 'aram', 'ando', 'endo', 'indo', 'ondo',
-                'ada', 'ido', 'ado', 'ida', 'idos', 'adas', 'idas', 'ados',
-                'ou', 'ei', 'eu', 'ia', 'am', 'em', 'ar', 'er', 'ir',
-                // Substantivos e adjetivos
-                'eza', 'eza', 'dade', 'mente', 'idade', 'ância', 'ancia', 'ência', 'encia',
-                'oso', 'osa', 'osos', 'osas', 'ivo', 'iva', 'ivos', 'ivas',
-                'vel', 'eis', 'al', 'ais', 'or', 'ores',
-                // Plurais
-                'es', 's'
-            ];
-        }
-const stemmer = new PortugueseStemmer();
-
-        stem(word) {
-            word = word.toLowerCase().trim();
-            if (word.length <= 3) return word;
-            word = word.normalize('NFD').replace(/[̀-ͯ]/g, '');
-            for (const suffix of this.suffixes) {
-                if (word.endsWith(suffix) && word.length - suffix.length >= 3) {
-                    return word.slice(0, -suffix.length);
-                }
-            }
-            return word;
-        }
-
-        expandWithSynonyms(word) {
-            const stemmed = this.stem(word);
-            const expanded = new Set([word, stemmed]);
-            for (const [key, synonyms] of Object.entries(SYNONYM_DICTIONARY)) {
-                const keyStemmed = this.stem(key);
-                if (stemmed === keyStemmed || word.toLowerCase() === key) {
-                    synonyms.forEach(syn => {
-                        expanded.add(syn);
-                        expanded.add(this.stem(syn));
-                    });
-                    expanded.add(key);
-                    break;
-                }
-                for (const syn of synonyms) {
-                    const synStemmed = this.stem(syn);
-                    if (stemmed === synStemmed || word.toLowerCase() === syn) {
-                        expanded.add(key);
-                        expanded.add(keyStemmed);
-                        synonyms.forEach(s => {
-                            expanded.add(s);
-                            expanded.add(this.stem(s));
-                        });
-                        break;
-                    }
-                }
-            }
-            return Array.from(expanded);
-        }
-    }
-    
-// ============================================
-// SISTEMA DE INSIGHTS (RECONSTRUÍDO DO ZERO)
-// ============================================
-const insightsState = {
-    questions: []
-};
-
-function initializeInsights() {
-    const addQuestionBtn = document.getElementById('addQuestion');
-    if (addQuestionBtn) {
-        addQuestionBtn.addEventListener('click', addInsightQuestion);
-    }
-    const questionInput = document.getElementById('newQuestion');
-    if (questionInput) {
-        questionInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                addInsightQuestion();
-            }
-        });
-    }
-}
-
-function addInsightQuestion() {
-    const questionInput = document.getElementById('newQuestion');
-    if (!questionInput) return;
-
-    const questionText = questionInput.value.trim();
-    if (!questionText) {
-        showAlert('⚠️ Por favor, digite uma pergunta.', 'warning');
-        return;
-    }
-
-    if (!appState.filteredData || appState.filteredData.length === 0) {
-        showAlert('⚠️ Carregue os dados antes de adicionar uma pergunta.', 'warning');
-        return;
-    }
-
-    const question = {
-        id: Date.now(),
-        text: questionText,
-        timestamp: new Date().toISOString(),
-        results: []
-    };
-
-    processQuestion(question);
-    insightsState.questions.unshift(question);
-    questionInput.value = '';
-    renderQuestionsList();
-    showAlert('✅ Pergunta adicionada! Analisando dados...', 'success');
-}
-
-function removeInsightQuestion(questionId) {
-    if (confirm('Tem certeza que deseja remover esta pergunta?')) {
-        insightsState.questions = insightsState.questions.filter(q => q.id !== questionId);
-        if (insightClassifications[questionId]) {
-            delete insightClassifications[questionId];
-            saveClassificationsToStorage();
-        }
-        renderQuestionsList();
-        showAlert('Pergunta removida.', 'success');
-    }
-}
-
-function processQuestion(question) {
-    const keywords = extractKeywordsFromQuestion(question.text);
-    if (keywords.length === 0) {
-        question.results = [];
-        question.analysis = { totalMatches: 0, confidence: 0, message: 'Não foi possível identificar palavras-chave relevantes.' };
-        return;
-    }
-    const searchResults = searchForInsights(keywords);
-    question.results = searchResults.matches;
-    question.analysis = {
-        totalMatches: searchResults.matches.length,
-        confidence: searchResults.confidence,
-        keywords: keywords,
-        message: `Encontradas ${searchResults.matches.length} ocorrências.`
-    };
-}
-
-function extractKeywordsFromQuestion(question) {
-    const tokens = appState.textAnalyzer.tokenize(question);
-    const questionWords = ['qual', 'quais', 'como', 'quando', 'onde', 'porque', 'por', 'que', 'foi', 'esta', 'este', 'isso', 'disso', 'sobre', 'tem', 'teve'];
-    return tokens.filter(word => word.length >= 3 && !questionWords.includes(word));
-}
-
-function searchForInsights(keywords) {
-    if (keywords.length === 0) return { matches: [], confidence: 0 };
-
-    let allMatches = [];
-    const expandedKeywords = new Set();
-    keywords.forEach(keyword => {
-        const variations = stemmer.expandWithSynonyms(keyword);
-        variations.forEach(v => expandedKeywords.add(v));
-    });
-
-    const fuse = new Fuse(appState.filteredData, {
-        keys: ['Texto'],
-        includeScore: true,
-        threshold: 0.4,
-        minMatchCharLength: 3,
-        ignoreLocation: true
-    });
-
-    Array.from(expandedKeywords).forEach(term => {
-        const results = fuse.search(term);
-        results.forEach(result => {
-            const relevanceScore = calculateRelevanceScore(result, term);
-            const existingIndex = allMatches.findIndex(match => match.item.Texto === result.item.Texto && match.item.Data === result.item.Data);
-
-            if (existingIndex >= 0) {
-                allMatches[existingIndex].relevanceScore += relevanceScore;
-                if (!allMatches[existingIndex].keywords.includes(term)) {
-                    allMatches[existingIndex].keywords.push(term);
-                }
-            } else {
-                allMatches.push({ ...result, relevanceScore: relevanceScore, keywords: [term] });
-            }
-        });
-    });
-
-    allMatches.sort((a, b) => b.relevanceScore - a.relevanceScore);
-    const topMatches = allMatches.slice(0, 30);
-    const avgConfidence = topMatches.length > 0 ? Math.min(100, (topMatches.reduce((sum, m) => sum + m.relevanceScore, 0) / topMatches.length)) : 0;
-
-    return { matches: topMatches, confidence: Math.round(avgConfidence) };
-}
-
-function calculateRelevanceScore(result, keyword) {
-    let score = (1 - (result.score || 0)) * 50;
-    if (result.item.Sentimento === 'Positivo' || result.item.Sentimento === 'Muito Positivo') score += 10;
-    const texto = (result.item.Texto || '').toLowerCase();
-    const escapedKeyword = keyword.replace(/[-\/\^$*+?.()|[\]{}]/g, '\$&');
-    const occurrences = (texto.match(new RegExp(escapedKeyword, 'gi')) || []).length;
-    score += occurrences * 5;
-    return score;
-}
-
-
-</script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js">
-
-    // ============================================
-    // SISTEMA DE STEMMING SIMPLES PARA PORTUGUÊS
-    // ============================================
-    
-    
-// ============================================
-// SISTEMA DE INSIGHTS (RECONSTRUÍDO DO ZERO)
-// ============================================
-
-
-function initializeInsights() {
-    const addQuestionBtn = document.getElementById('addQuestion');
-    if (addQuestionBtn) {
-        addQuestionBtn.addEventListener('click', addInsightQuestion);
-    }
-    const questionInput = document.getElementById('newQuestion');
-    if (questionInput) {
-        questionInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                addInsightQuestion();
-            }
-        });
-    }
-}
-
-function addInsightQuestion() {
-    const questionInput = document.getElementById('newQuestion');
-    if (!questionInput) return;
-
-    const questionText = questionInput.value.trim();
-    if (!questionText) {
-        showAlert('⚠️ Por favor, digite uma pergunta.', 'warning');
-        return;
-    }
-
-    if (!appState.filteredData || appState.filteredData.length === 0) {
-        showAlert('⚠️ Carregue os dados antes de adicionar uma pergunta.', 'warning');
-        return;
-    }
-
-    const question = {
-        id: Date.now(),
-        text: questionText,
-        timestamp: new Date().toISOString(),
-        results: []
-    };
-
-    processQuestion(question);
-    insightsState.questions.unshift(question);
-    questionInput.value = '';
-    renderQuestionsList();
-    showAlert('✅ Pergunta adicionada! Analisando dados...', 'success');
-}
-
-function removeInsightQuestion(questionId) {
-    if (confirm('Tem certeza que deseja remover esta pergunta?')) {
-        insightsState.questions = insightsState.questions.filter(q => q.id !== questionId);
-        if (insightClassifications[questionId]) {
-            delete insightClassifications[questionId];
-            saveClassificationsToStorage();
-        }
-        renderQuestionsList();
-        showAlert('Pergunta removida.', 'success');
-    }
-}
-
-function processQuestion(question) {
-    const keywords = extractKeywordsFromQuestion(question.text);
-    if (keywords.length === 0) {
-        question.results = [];
-        question.analysis = { totalMatches: 0, confidence: 0, message: 'Não foi possível identificar palavras-chave relevantes.' };
-        return;
-    }
-    const searchResults = searchForInsights(keywords);
-    question.results = searchResults.matches;
-    question.analysis = {
-        totalMatches: searchResults.matches.length,
-        confidence: searchResults.confidence,
-        keywords: keywords,
-        message: `Encontradas ${searchResults.matches.length} ocorrências.`
-    };
-}
-
-function extractKeywordsFromQuestion(question) {
-    const tokens = appState.textAnalyzer.tokenize(question);
-    const questionWords = ['qual', 'quais', 'como', 'quando', 'onde', 'porque', 'por', 'que', 'foi', 'esta', 'este', 'isso', 'disso', 'sobre', 'tem', 'teve'];
-    return tokens.filter(word => word.length >= 3 && !questionWords.includes(word));
-}
-
-function searchForInsights(keywords) {
-    if (keywords.length === 0) return { matches: [], confidence: 0 };
-
-    let allMatches = [];
-    const expandedKeywords = new Set();
-    keywords.forEach(keyword => {
-        const variations = stemmer.expandWithSynonyms(keyword);
-        variations.forEach(v => expandedKeywords.add(v));
-    });
-
-    const fuse = new Fuse(appState.filteredData, {
-        keys: ['Texto'],
-        includeScore: true,
-        threshold: 0.4,
-        minMatchCharLength: 3,
-        ignoreLocation: true
-    });
-
-    Array.from(expandedKeywords).forEach(term => {
-        const results = fuse.search(term);
-        results.forEach(result => {
-            const relevanceScore = calculateRelevanceScore(result, term);
-            const existingIndex = allMatches.findIndex(match => match.item.Texto === result.item.Texto && match.item.Data === result.item.Data);
-
-            if (existingIndex >= 0) {
-                allMatches[existingIndex].relevanceScore += relevanceScore;
-                if (!allMatches[existingIndex].keywords.includes(term)) {
-                    allMatches[existingIndex].keywords.push(term);
-                }
-            } else {
-                allMatches.push({ ...result, relevanceScore: relevanceScore, keywords: [term] });
-            }
-        });
-    });
-
-    allMatches.sort((a, b) => b.relevanceScore - a.relevanceScore);
-    const topMatches = allMatches.slice(0, 30);
-    const avgConfidence = topMatches.length > 0 ? Math.min(100, (topMatches.reduce((sum, m) => sum + m.relevanceScore, 0) / topMatches.length)) : 0;
-
-    return { matches: topMatches, confidence: Math.round(avgConfidence) };
-}
-
-function calculateRelevanceScore(result, keyword) {
-    let score = (1 - (result.score || 0)) * 50;
-    if (result.item.Sentimento === 'Positivo' || result.item.Sentimento === 'Muito Positivo') score += 10;
-    const texto = (result.item.Texto || '').toLowerCase();
-    const escapedKeyword = keyword.replace(/[-\/\^$*+?.()|[\]{}]/g, '\$&');
-    const occurrences = (texto.match(new RegExp(escapedKeyword, 'gi')) || []).length;
-    score += occurrences * 5;
-    return score;
-}
-
-
-</script>
-    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js">
-
-    // ============================================
-    // SISTEMA DE STEMMING SIMPLES PARA PORTUGUÊS
-    // ============================================
-    
-    
-// ============================================
-// SISTEMA DE INSIGHTS (RECONSTRUÍDO DO ZERO)
-// ============================================
-
-
-function initializeInsights() {
-    const addQuestionBtn = document.getElementById('addQuestion');
-    if (addQuestionBtn) {
-        addQuestionBtn.addEventListener('click', addInsightQuestion);
-    }
-    const questionInput = document.getElementById('newQuestion');
-    if (questionInput) {
-        questionInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                addInsightQuestion();
-            }
-        });
-    }
-}
-
-function addInsightQuestion() {
-    const questionInput = document.getElementById('newQuestion');
-    if (!questionInput) return;
-
-    const questionText = questionInput.value.trim();
-    if (!questionText) {
-        showAlert('⚠️ Por favor, digite uma pergunta.', 'warning');
-        return;
-    }
-
-    if (!appState.filteredData || appState.filteredData.length === 0) {
-        showAlert('⚠️ Carregue os dados antes de adicionar uma pergunta.', 'warning');
-        return;
-    }
-
-    const question = {
-        id: Date.now(),
-        text: questionText,
-        timestamp: new Date().toISOString(),
-        results: []
-    };
-
-    processQuestion(question);
-    insightsState.questions.unshift(question);
-    questionInput.value = '';
-    renderQuestionsList();
-    showAlert('✅ Pergunta adicionada! Analisando dados...', 'success');
-}
-
-function removeInsightQuestion(questionId) {
-    if (confirm('Tem certeza que deseja remover esta pergunta?')) {
-        insightsState.questions = insightsState.questions.filter(q => q.id !== questionId);
-        if (insightClassifications[questionId]) {
-            delete insightClassifications[questionId];
-            saveClassificationsToStorage();
-        }
-        renderQuestionsList();
-        showAlert('Pergunta removida.', 'success');
-    }
-}
-
-function processQuestion(question) {
-    const keywords = extractKeywordsFromQuestion(question.text);
-    if (keywords.length === 0) {
-        question.results = [];
-        question.analysis = { totalMatches: 0, confidence: 0, message: 'Não foi possível identificar palavras-chave relevantes.' };
-        return;
-    }
-    const searchResults = searchForInsights(keywords);
-    question.results = searchResults.matches;
-    question.analysis = {
-        totalMatches: searchResults.matches.length,
-        confidence: searchResults.confidence,
-        keywords: keywords,
-        message: `Encontradas ${searchResults.matches.length} ocorrências.`
-    };
-}
-
-function extractKeywordsFromQuestion(question) {
-    const tokens = appState.textAnalyzer.tokenize(question);
-    const questionWords = ['qual', 'quais', 'como', 'quando', 'onde', 'porque', 'por', 'que', 'foi', 'esta', 'este', 'isso', 'disso', 'sobre', 'tem', 'teve'];
-    return tokens.filter(word => word.length >= 3 && !questionWords.includes(word));
-}
-
-function searchForInsights(keywords) {
-    if (keywords.length === 0) return { matches: [], confidence: 0 };
-
-    let allMatches = [];
-    const expandedKeywords = new Set();
-    keywords.forEach(keyword => {
-        const variations = stemmer.expandWithSynonyms(keyword);
-        variations.forEach(v => expandedKeywords.add(v));
-    });
-
-    const fuse = new Fuse(appState.filteredData, {
-        keys: ['Texto'],
-        includeScore: true,
-        threshold: 0.4,
-        minMatchCharLength: 3,
-        ignoreLocation: true
-    });
-
-    Array.from(expandedKeywords).forEach(term => {
-        const results = fuse.search(term);
-        results.forEach(result => {
-            const relevanceScore = calculateRelevanceScore(result, term);
-            const existingIndex = allMatches.findIndex(match => match.item.Texto === result.item.Texto && match.item.Data === result.item.Data);
-
-            if (existingIndex >= 0) {
-                allMatches[existingIndex].relevanceScore += relevanceScore;
-                if (!allMatches[existingIndex].keywords.includes(term)) {
-                    allMatches[existingIndex].keywords.push(term);
-                }
-            } else {
-                allMatches.push({ ...result, relevanceScore: relevanceScore, keywords: [term] });
-            }
-        });
-    });
-
-    allMatches.sort((a, b) => b.relevanceScore - a.relevanceScore);
-    const topMatches = allMatches.slice(0, 30);
-    const avgConfidence = topMatches.length > 0 ? Math.min(100, (topMatches.reduce((sum, m) => sum + m.relevanceScore, 0) / topMatches.length)) : 0;
-
-    return { matches: topMatches, confidence: Math.round(avgConfidence) };
-}
-
-function calculateRelevanceScore(result, keyword) {
-    let score = (1 - (result.score || 0)) * 50;
-    if (result.item.Sentimento === 'Positivo' || result.item.Sentimento === 'Muito Positivo') score += 10;
-    const texto = (result.item.Texto || '').toLowerCase();
-    const escapedKeyword = keyword.replace(/[-\/\^$*+?.()|[\]{}]/g, '\$&');
-    const occurrences = (texto.match(new RegExp(escapedKeyword, 'gi')) || []).length;
-    score += occurrences * 5;
-    return score;
-}
-
-
-</script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js">
-
-    // ============================================
-    // SISTEMA DE STEMMING SIMPLES PARA PORTUGUÊS
-    // ============================================
-    
-    
-// ============================================
-// SISTEMA DE INSIGHTS (RECONSTRUÍDO DO ZERO)
-// ============================================
-
-
-function initializeInsights() {
-    const addQuestionBtn = document.getElementById('addQuestion');
-    if (addQuestionBtn) {
-        addQuestionBtn.addEventListener('click', addInsightQuestion);
-    }
-    const questionInput = document.getElementById('newQuestion');
-    if (questionInput) {
-        questionInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                addInsightQuestion();
-            }
-        });
-    }
-}
-
-function addInsightQuestion() {
-    const questionInput = document.getElementById('newQuestion');
-    if (!questionInput) return;
-
-    const questionText = questionInput.value.trim();
-    if (!questionText) {
-        showAlert('⚠️ Por favor, digite uma pergunta.', 'warning');
-        return;
-    }
-
-    if (!appState.filteredData || appState.filteredData.length === 0) {
-        showAlert('⚠️ Carregue os dados antes de adicionar uma pergunta.', 'warning');
-        return;
-    }
-
-    const question = {
-        id: Date.now(),
-        text: questionText,
-        timestamp: new Date().toISOString(),
-        results: []
-    };
-
-    processQuestion(question);
-    insightsState.questions.unshift(question);
-    questionInput.value = '';
-    renderQuestionsList();
-    showAlert('✅ Pergunta adicionada! Analisando dados...', 'success');
-}
-
-function removeInsightQuestion(questionId) {
-    if (confirm('Tem certeza que deseja remover esta pergunta?')) {
-        insightsState.questions = insightsState.questions.filter(q => q.id !== questionId);
-        if (insightClassifications[questionId]) {
-            delete insightClassifications[questionId];
-            saveClassificationsToStorage();
-        }
-        renderQuestionsList();
-        showAlert('Pergunta removida.', 'success');
-    }
-}
-
-function processQuestion(question) {
-    const keywords = extractKeywordsFromQuestion(question.text);
-    if (keywords.length === 0) {
-        question.results = [];
-        question.analysis = { totalMatches: 0, confidence: 0, message: 'Não foi possível identificar palavras-chave relevantes.' };
-        return;
-    }
-    const searchResults = searchForInsights(keywords);
-    question.results = searchResults.matches;
-    question.analysis = {
-        totalMatches: searchResults.matches.length,
-        confidence: searchResults.confidence,
-        keywords: keywords,
-        message: `Encontradas ${searchResults.matches.length} ocorrências.`
-    };
-}
-
-function extractKeywordsFromQuestion(question) {
-    const tokens = appState.textAnalyzer.tokenize(question);
-    const questionWords = ['qual', 'quais', 'como', 'quando', 'onde', 'porque', 'por', 'que', 'foi', 'esta', 'este', 'isso', 'disso', 'sobre', 'tem', 'teve'];
-    return tokens.filter(word => word.length >= 3 && !questionWords.includes(word));
-}
-
-function searchForInsights(keywords) {
-    if (keywords.length === 0) return { matches: [], confidence: 0 };
-
-    let allMatches = [];
-    const expandedKeywords = new Set();
-    keywords.forEach(keyword => {
-        const variations = stemmer.expandWithSynonyms(keyword);
-        variations.forEach(v => expandedKeywords.add(v));
-    });
-
-    const fuse = new Fuse(appState.filteredData, {
-        keys: ['Texto'],
-        includeScore: true,
-        threshold: 0.4,
-        minMatchCharLength: 3,
-        ignoreLocation: true
-    });
-
-    Array.from(expandedKeywords).forEach(term => {
-        const results = fuse.search(term);
-        results.forEach(result => {
-            const relevanceScore = calculateRelevanceScore(result, term);
-            const existingIndex = allMatches.findIndex(match => match.item.Texto === result.item.Texto && match.item.Data === result.item.Data);
-
-            if (existingIndex >= 0) {
-                allMatches[existingIndex].relevanceScore += relevanceScore;
-                if (!allMatches[existingIndex].keywords.includes(term)) {
-                    allMatches[existingIndex].keywords.push(term);
-                }
-            } else {
-                allMatches.push({ ...result, relevanceScore: relevanceScore, keywords: [term] });
-            }
-        });
-    });
-
-    allMatches.sort((a, b) => b.relevanceScore - a.relevanceScore);
-    const topMatches = allMatches.slice(0, 30);
-    const avgConfidence = topMatches.length > 0 ? Math.min(100, (topMatches.reduce((sum, m) => sum + m.relevanceScore, 0) / topMatches.length)) : 0;
-
-    return { matches: topMatches, confidence: Math.round(avgConfidence) };
-}
-
-function calculateRelevanceScore(result, keyword) {
-    let score = (1 - (result.score || 0)) * 50;
-    if (result.item.Sentimento === 'Positivo' || result.item.Sentimento === 'Muito Positivo') score += 10;
-    const texto = (result.item.Texto || '').toLowerCase();
-    const escapedKeyword = keyword.replace(/[-\/\^$*+?.()|[\]{}]/g, '\$&');
-    const occurrences = (texto.match(new RegExp(escapedKeyword, 'gi')) || []).length;
-    score += occurrences * 5;
-    return score;
-}
-
-
-</script>
-    <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.min.js">
-
-    // ============================================
-    // SISTEMA DE STEMMING SIMPLES PARA PORTUGUÊS
-    // ============================================
-    
-    
-// ============================================
-// SISTEMA DE INSIGHTS (RECONSTRUÍDO DO ZERO)
-// ============================================
-
-
-function initializeInsights() {
-    const addQuestionBtn = document.getElementById('addQuestion');
-    if (addQuestionBtn) {
-        addQuestionBtn.addEventListener('click', addInsightQuestion);
-    }
-    const questionInput = document.getElementById('newQuestion');
-    if (questionInput) {
-        questionInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                addInsightQuestion();
-            }
-        });
-    }
-}
-
-function addInsightQuestion() {
-    const questionInput = document.getElementById('newQuestion');
-    if (!questionInput) return;
-
-    const questionText = questionInput.value.trim();
-    if (!questionText) {
-        showAlert('⚠️ Por favor, digite uma pergunta.', 'warning');
-        return;
-    }
-
-    if (!appState.filteredData || appState.filteredData.length === 0) {
-        showAlert('⚠️ Carregue os dados antes de adicionar uma pergunta.', 'warning');
-        return;
-    }
-
-    const question = {
-        id: Date.now(),
-        text: questionText,
-        timestamp: new Date().toISOString(),
-        results: []
-    };
-
-    processQuestion(question);
-    insightsState.questions.unshift(question);
-    questionInput.value = '';
-    renderQuestionsList();
-    showAlert('✅ Pergunta adicionada! Analisando dados...', 'success');
-}
-
-function removeInsightQuestion(questionId) {
-    if (confirm('Tem certeza que deseja remover esta pergunta?')) {
-        insightsState.questions = insightsState.questions.filter(q => q.id !== questionId);
-        if (insightClassifications[questionId]) {
-            delete insightClassifications[questionId];
-            saveClassificationsToStorage();
-        }
-        renderQuestionsList();
-        showAlert('Pergunta removida.', 'success');
-    }
-}
-
-function processQuestion(question) {
-    const keywords = extractKeywordsFromQuestion(question.text);
-    if (keywords.length === 0) {
-        question.results = [];
-        question.analysis = { totalMatches: 0, confidence: 0, message: 'Não foi possível identificar palavras-chave relevantes.' };
-        return;
-    }
-    const searchResults = searchForInsights(keywords);
-    question.results = searchResults.matches;
-    question.analysis = {
-        totalMatches: searchResults.matches.length,
-        confidence: searchResults.confidence,
-        keywords: keywords,
-        message: `Encontradas ${searchResults.matches.length} ocorrências.`
-    };
-}
-
-function extractKeywordsFromQuestion(question) {
-    const tokens = appState.textAnalyzer.tokenize(question);
-    const questionWords = ['qual', 'quais', 'como', 'quando', 'onde', 'porque', 'por', 'que', 'foi', 'esta', 'este', 'isso', 'disso', 'sobre', 'tem', 'teve'];
-    return tokens.filter(word => word.length >= 3 && !questionWords.includes(word));
-}
-
-function searchForInsights(keywords) {
-    if (keywords.length === 0) return { matches: [], confidence: 0 };
-
-    let allMatches = [];
-    const expandedKeywords = new Set();
-    keywords.forEach(keyword => {
-        const variations = stemmer.expandWithSynonyms(keyword);
-        variations.forEach(v => expandedKeywords.add(v));
-    });
-
-    const fuse = new Fuse(appState.filteredData, {
-        keys: ['Texto'],
-        includeScore: true,
-        threshold: 0.4,
-        minMatchCharLength: 3,
-        ignoreLocation: true
-    });
-
-    Array.from(expandedKeywords).forEach(term => {
-        const results = fuse.search(term);
-        results.forEach(result => {
-            const relevanceScore = calculateRelevanceScore(result, term);
-            const existingIndex = allMatches.findIndex(match => match.item.Texto === result.item.Texto && match.item.Data === result.item.Data);
-
-            if (existingIndex >= 0) {
-                allMatches[existingIndex].relevanceScore += relevanceScore;
-                if (!allMatches[existingIndex].keywords.includes(term)) {
-                    allMatches[existingIndex].keywords.push(term);
-                }
-            } else {
-                allMatches.push({ ...result, relevanceScore: relevanceScore, keywords: [term] });
-            }
-        });
-    });
-
-    allMatches.sort((a, b) => b.relevanceScore - a.relevanceScore);
-    const topMatches = allMatches.slice(0, 30);
-    const avgConfidence = topMatches.length > 0 ? Math.min(100, (topMatches.reduce((sum, m) => sum + m.relevanceScore, 0) / topMatches.length)) : 0;
-
-    return { matches: topMatches, confidence: Math.round(avgConfidence) };
-}
-
-function calculateRelevanceScore(result, keyword) {
-    let score = (1 - (result.score || 0)) * 50;
-    if (result.item.Sentimento === 'Positivo' || result.item.Sentimento === 'Muito Positivo') score += 10;
-    const texto = (result.item.Texto || '').toLowerCase();
-    const escapedKeyword = keyword.replace(/[-\/\^$*+?.()|[\]{}]/g, '\$&');
-    const occurrences = (texto.match(new RegExp(escapedKeyword, 'gi')) || []).length;
-    score += occurrences * 5;
-    return score;
-}
-
-
-</script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1821,255 +1037,274 @@ function calculateRelevanceScore(result, keyword) {
         }
 
     
-        /* ===================================== */
-        /* ESTILOS PARA INSIGHTS COM CLASSIFICAÇÃO */
-        /* ===================================== */
-        .question-card {
-            margin-bottom: 20px;
-            border-left: 4px solid var(--info-color);
-            transition: all 0.3s ease;
-        }
+/* ===================================== */
+/* ESTILOS PARA CLASSIFICAÇÃO DE INSIGHTS */
+/* ===================================== */
+.classification-section {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid var(--medium-gray);
+}
 
-        .question-card:hover {
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
+.classification-summary {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
 
-        .question-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 15px;
-            gap: 15px;
-        }
+.classification-counter {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 6px;
+}
 
-        .question-text {
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: var(--primary-color);
-            flex: 1;
-        }
+.counter-procedente {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
 
-        .question-actions {
-            display: flex;
-            gap: 8px;
-            flex-shrink: 0;
-        }
+.counter-improcedente {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
 
-        .button-sm {
-            padding: 6px 12px;
-            font-size: 0.85rem;
-        }
+.counter-pendente {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}
 
-        .question-details {
-            padding-top: 15px;
-            border-top: 1px solid var(--medium-gray);
-            margin-top: 15px;
-        }
+.classification-buttons {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
 
-        .keyword-tags {
-            margin-bottom: 15px;
-        }
+.btn-classify {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
 
-        .keyword-tag {
-            display: inline-block;
-            background: var(--light-gray);
-            padding: 4px 12px;
-            margin: 2px 4px 2px 0;
-            border-radius: 12px;
-            font-size: 0.85rem;
-            color: var(--dark-gray);
-            border: 1px solid var(--medium-gray);
-        }
+.btn-procedente {
+    background-color: #28a745;
+    color: white;
+}
 
-        .insights-results {
-            max-height: 600px;
-            overflow-y: auto;
-            padding-right: 10px;
-        }
+.btn-procedente:hover {
+    background-color: #218838;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+}
 
-        .insight-item {
-            background: var(--light-gray);
-            padding: 15px;
-            margin: 10px 0;
-            border-radius: var(--border-radius);
-            border-left: 3px solid var(--info-color);
-            transition: all 0.3s ease;
-        }
+.btn-improcedente {
+    background-color: #dc3545;
+    color: white;
+}
 
-        .insight-item:hover {
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            transform: translateX(2px);
-        }
+.btn-improcedente:hover {
+    background-color: #c82333;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+}
 
-        /* Classificações visuais */
-        .insight-item.classified-procedente {
-            border-left-color: var(--accent-color);
-            background: linear-gradient(to right, rgba(76, 175, 80, 0.05), var(--light-gray));
-        }
+.btn-limpar-classificacao {
+    background-color: #6c757d;
+    color: white;
+}
 
-        .insight-item.classified-improcedente {
-            border-left-color: var(--danger-color);
-            background: linear-gradient(to right, rgba(244, 67, 54, 0.05), var(--light-gray));
-        }
+.btn-limpar-classificacao:hover {
+    background-color: #5a6268;
+    transform: scale(1.05);
+}
 
-        .result-meta {
-            font-size: 0.85rem;
-            color: var(--dark-gray);
-            margin-bottom: 10px;
-            display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
-            align-items: center;
-        }
+.insight-item.classified-procedente {
+    border-left-color: #28a745;
+    background: linear-gradient(90deg, rgba(40, 167, 69, 0.05) 0%, var(--light-gray) 100%);
+}
 
-        .result-text {
-            margin: 10px 0;
-            line-height: 1.6;
-            color: var(--text-color);
-        }
+.insight-item.classified-improcedente {
+    border-left-color: #dc3545;
+    background: linear-gradient(90deg, rgba(220, 53, 69, 0.05) 0%, var(--light-gray) 100%);
+}
 
-        .result-sentiment {
-            font-size: 0.85rem;
-            margin-top: 10px;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            color: var(--dark-gray);
-        }
+.classification-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-left: 8px;
+}
 
-        .badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
+.badge-procedente-item {
+    background-color: #28a745;
+    color: white;
+}
 
-        .badge-success {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
+.badge-improcedente-item {
+    background-color: #dc3545;
+    color: white;
+}
 
-        .badge-danger {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
+.storage-controls {
+    margin-top: 15px;
+    margin-bottom: 20px;
+    padding: 15px;
+    background: var(--light-gray);
+    border-radius: var(--border-radius);
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
 
-        .badge-warning {
-            background-color: #fff3cd;
-            color: #856404;
-            border: 1px solid #ffeaa7;
-        }
+.storage-info {
+    flex: 1;
+    font-size: 0.9rem;
+    color: var(--dark-gray);
+    min-width: 200px;
+}
 
-        .badge-info {
-            background-color: #d1ecf1;
-            color: #0c5460;
-            border: 1px solid #bee5eb;
-        }
+.btn-clear-storage {
+    background-color: var(--warning-color);
+    color: black;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
 
-        .classification-buttons {
-            margin-top: 12px;
-            display: flex;
-            gap: 8px;
-            padding-top: 12px;
-            border-top: 1px dashed var(--medium-gray);
-        }
+.btn-clear-storage:hover {
+    background-color: #e0a800;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(255, 193, 7, 0.3);
+}
 
-        .classify-btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
+.btn-export-classifications {
+    background-color: var(--info-color);
+    color: white;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
 
-        .analysis-summary {
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-            padding: 15px;
-            border-radius: var(--border-radius);
-            margin-bottom: 15px;
-            border: 1px solid var(--medium-gray);
-        }
+.btn-export-classifications:hover {
+    background-color: #0b7dda;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(33, 150, 243, 0.3);
+}
 
-        .summary-stats {
-            display: flex;
-            gap: 25px;
-            flex-wrap: wrap;
-            margin-bottom: 10px;
-        }
+.classification-progress {
+    width: 100%;
+    margin-top: 10px;
+    font-size: 0.85rem;
+    color: var(--dark-gray);
+}
 
-        .summary-stat {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.9rem;
-        }
+.progress-bar-container {
+    width: 100%;
+    height: 8px;
+    background-color: var(--medium-gray);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 5px;
+}
 
-        .summary-stat i {
-            font-size: 1.2rem;
-        }
+.progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #28a745, #20c997);
+    transition: width 0.3s ease;
+}
 
-        .summary-stat strong {
-            margin-right: 4px;
-        }
+@keyframes slideInRight {
+    from {
+        transform: translateX(400px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
 
-        .classification-progress {
-            margin-top: 10px;
-        }
+@keyframes slideOutRight {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(400px);
+        opacity: 0;
+    }
+}
 
-        mark.search-highlight {
-            background-color: #ffeb3b;
-            padding: 2px 4px;
-            border-radius: 3px;
-            font-weight: 500;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    min-width: 300px;
+    max-width: 500px;
+    animation: slideInRight 0.3s ease;
+}
 
-        /* Animações */
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
+.notification.removing {
+    animation: slideOutRight 0.3s ease;
+}
 
-        .question-card {
-            animation: slideIn 0.3s ease;
-        }
-
-        /* Responsividade */
-        @media (max-width: 768px) {
-            .question-header {
-                flex-direction: column;
-            }
-
-            .question-actions {
-                width: 100%;
-                justify-content: flex-start;
-            }
-
-            .summary-stats {
-                flex-direction: column;
-                gap: 10px;
-            }
-
-            .classification-buttons {
-                flex-direction: column;
-            }
-
-            .button-sm {
-                width: 100%;
-            }
-        }
-
-    </style>
+/* Responsividade */
+@media (max-width: 768px) {
+    .classification-summary {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .classification-counter {
+        justify-content: center;
+    }
+    
+    .storage-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .btn-clear-storage,
+    .btn-export-classifications {
+        width: 100%;
+        justify-content: center;
+    }
+}
+</style>
 </head>
 <body>
     <div class="container">
@@ -2078,11 +1313,6 @@ function calculateRelevanceScore(result, keyword) {
             <button class="sidebar-toggle" id="sidebarToggle">
                 <i class="fas fa-bars"></i>
             </button>
-            
-            <div class="logo">
-                <div class="logo-icon">🛡️</div>
-                <div class="logo-text">Sentinela</div>
-            </div>
             
             <div class="sidebar-content">
                 <div class="section">
@@ -5445,160 +4675,22 @@ function exportSearchResults() {
         btn.style.background = '#4CAF50';
     }, 2000);
 }
-
-
-    // ============================================
-    // SISTEMA DE STEMMING SIMPLES PARA PORTUGUÊS
-    // ============================================
-    
-    
-// ============================================
-// SISTEMA DE INSIGHTS (RECONSTRUÍDO DO ZERO)
-// ============================================
-
-
-function initializeInsights() {
-    const addQuestionBtn = document.getElementById('addQuestion');
-    if (addQuestionBtn) {
-        addQuestionBtn.addEventListener('click', addInsightQuestion);
-    }
-    const questionInput = document.getElementById('newQuestion');
-    if (questionInput) {
-        questionInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                addInsightQuestion();
-            }
-        });
-    }
-}
-
-function addInsightQuestion() {
-    const questionInput = document.getElementById('newQuestion');
-    if (!questionInput) return;
-
-    const questionText = questionInput.value.trim();
-    if (!questionText) {
-        showAlert('⚠️ Por favor, digite uma pergunta.', 'warning');
-        return;
-    }
-
-    if (!appState.filteredData || appState.filteredData.length === 0) {
-        showAlert('⚠️ Carregue os dados antes de adicionar uma pergunta.', 'warning');
-        return;
-    }
-
-    const question = {
-        id: Date.now(),
-        text: questionText,
-        timestamp: new Date().toISOString(),
-        results: []
-    };
-
-    processQuestion(question);
-    insightsState.questions.unshift(question);
-    questionInput.value = '';
-    renderQuestionsList();
-    showAlert('✅ Pergunta adicionada! Analisando dados...', 'success');
-}
-
-function removeInsightQuestion(questionId) {
-    if (confirm('Tem certeza que deseja remover esta pergunta?')) {
-        insightsState.questions = insightsState.questions.filter(q => q.id !== questionId);
-        if (insightClassifications[questionId]) {
-            delete insightClassifications[questionId];
-            saveClassificationsToStorage();
-        }
-        renderQuestionsList();
-        showAlert('Pergunta removida.', 'success');
-    }
-}
-
-function processQuestion(question) {
-    const keywords = extractKeywordsFromQuestion(question.text);
-    if (keywords.length === 0) {
-        question.results = [];
-        question.analysis = { totalMatches: 0, confidence: 0, message: 'Não foi possível identificar palavras-chave relevantes.' };
-        return;
-    }
-    const searchResults = searchForInsights(keywords);
-    question.results = searchResults.matches;
-    question.analysis = {
-        totalMatches: searchResults.matches.length,
-        confidence: searchResults.confidence,
-        keywords: keywords,
-        message: `Encontradas ${searchResults.matches.length} ocorrências.`
-    };
-}
-
-function extractKeywordsFromQuestion(question) {
-    const tokens = appState.textAnalyzer.tokenize(question);
-    const questionWords = ['qual', 'quais', 'como', 'quando', 'onde', 'porque', 'por', 'que', 'foi', 'esta', 'este', 'isso', 'disso', 'sobre', 'tem', 'teve'];
-    return tokens.filter(word => word.length >= 3 && !questionWords.includes(word));
-}
-
-function searchForInsights(keywords) {
-    if (keywords.length === 0) return { matches: [], confidence: 0 };
-
-    let allMatches = [];
-    const expandedKeywords = new Set();
-    keywords.forEach(keyword => {
-        const variations = stemmer.expandWithSynonyms(keyword);
-        variations.forEach(v => expandedKeywords.add(v));
-    });
-
-    const fuse = new Fuse(appState.filteredData, {
-        keys: ['Texto'],
-        includeScore: true,
-        threshold: 0.4,
-        minMatchCharLength: 3,
-        ignoreLocation: true
-    });
-
-    Array.from(expandedKeywords).forEach(term => {
-        const results = fuse.search(term);
-        results.forEach(result => {
-            const relevanceScore = calculateRelevanceScore(result, term);
-            const existingIndex = allMatches.findIndex(match => match.item.Texto === result.item.Texto && match.item.Data === result.item.Data);
-
-            if (existingIndex >= 0) {
-                allMatches[existingIndex].relevanceScore += relevanceScore;
-                if (!allMatches[existingIndex].keywords.includes(term)) {
-                    allMatches[existingIndex].keywords.push(term);
-                }
-            } else {
-                allMatches.push({ ...result, relevanceScore: relevanceScore, keywords: [term] });
-            }
-        });
-    });
-
-    allMatches.sort((a, b) => b.relevanceScore - a.relevanceScore);
-    const topMatches = allMatches.slice(0, 30);
-    const avgConfidence = topMatches.length > 0 ? Math.min(100, (topMatches.reduce((sum, m) => sum + m.relevanceScore, 0) / topMatches.length)) : 0;
-
-    return { matches: topMatches, confidence: Math.round(avgConfidence) };
-}
-
-function calculateRelevanceScore(result, keyword) {
-    let score = (1 - (result.score || 0)) * 50;
-    if (result.item.Sentimento === 'Positivo' || result.item.Sentimento === 'Muito Positivo') score += 10;
-    const texto = (result.item.Texto || '').toLowerCase();
-    const escapedKeyword = keyword.replace(/[-\/\^$*+?.()|[\]{}]/g, '\$&');
-    const occurrences = (texto.match(new RegExp(escapedKeyword, 'gi')) || []).length;
-    score += occurrences * 5;
-    return score;
-}
-
-
 </script>
 
     <script>
         // =============================================
+        // SISTEMA DE INSIGHTS INTELIGENTES
+        // =============================================
 
+// =============================================
+// SISTEMA DE INSIGHTS INTELIGENTES
 // =============================================
 
 // Estado para gerenciar as perguntas e respostas
-
+const insightsState = {
+    questions: [],
+    searchIndex: null
+};
 
 // Inicializar o sistema de insights
 function initializeInsights() {
@@ -6113,150 +5205,607 @@ document.head.appendChild(styleSheet);
                 });
             }
         });
-    
+    </script>
 
-    // ============================================
-    // SISTEMA DE STEMMING SIMPLES PARA PORTUGUÊS
-    // ============================================
-    
-    
-// ============================================
-// SISTEMA DE INSIGHTS (RECONSTRUÍDO DO ZERO)
-// ============================================
+<script>
 
+// ============================================= 
+// SISTEMA DE CLASSIFICAÇÃO DE INSIGHTS - SENTINELA
+// Desenvolvido para análise procedente/improcedente
+// IndexedDB com persistência local
+// ============================================= 
 
-function initializeInsights() {
-    const addQuestionBtn = document.getElementById('addQuestion');
-    if (addQuestionBtn) {
-        addQuestionBtn.addEventListener('click', addInsightQuestion);
-    }
-    const questionInput = document.getElementById('newQuestion');
-    if (questionInput) {
-        questionInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                addInsightQuestion();
+// Configuração do IndexedDB
+const INSIGHTS_DB_CONFIG = {
+    name: 'SentinelaInsightsDB',
+    version: 1,
+    storeName: 'classifications'
+};
+
+let insightsDB = null;
+let insightQuestions = [];
+
+// ===== INICIALIZAÇÃO DO INDEXEDDB =====
+async function initInsightsDB() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(INSIGHTS_DB_CONFIG.name, INSIGHTS_DB_CONFIG.version);
+        
+        request.onerror = () => {
+            console.error('❌ Erro ao abrir IndexedDB:', request.error);
+            reject(request.error);
+        };
+        
+        request.onsuccess = () => {
+            insightsDB = request.result;
+            console.log('✅ IndexedDB inicializado com sucesso');
+            resolve(insightsDB);
+        };
+        
+        request.onupgradeneeded = (event) => {
+            const db = event.target.result;
+            
+            // Criar object store se não existir
+            if (!db.objectStoreNames.contains(INSIGHTS_DB_CONFIG.storeName)) {
+                const objectStore = db.createObjectStore(INSIGHTS_DB_CONFIG.storeName, { 
+                    keyPath: 'id', 
+                    autoIncrement: true 
+                });
+                
+                // Criar índices para busca eficiente
+                objectStore.createIndex('questionId', 'questionId', { unique: false });
+                objectStore.createIndex('resultIndex', 'resultIndex', { unique: false });
+                objectStore.createIndex('classification', 'classification', { unique: false });
+                objectStore.createIndex('timestamp', 'timestamp', { unique: false });
+                objectStore.createIndex('composite', ['questionId', 'resultIndex'], { unique: false });
+                
+                console.log('📊 Object Store "classifications" criado com sucesso');
             }
-        });
-    }
-}
-
-function addInsightQuestion() {
-    const questionInput = document.getElementById('newQuestion');
-    if (!questionInput) return;
-
-    const questionText = questionInput.value.trim();
-    if (!questionText) {
-        showAlert('⚠️ Por favor, digite uma pergunta.', 'warning');
-        return;
-    }
-
-    if (!appState.filteredData || appState.filteredData.length === 0) {
-        showAlert('⚠️ Carregue os dados antes de adicionar uma pergunta.', 'warning');
-        return;
-    }
-
-    const question = {
-        id: Date.now(),
-        text: questionText,
-        timestamp: new Date().toISOString(),
-        results: []
-    };
-
-    processQuestion(question);
-    insightsState.questions.unshift(question);
-    questionInput.value = '';
-    renderQuestionsList();
-    showAlert('✅ Pergunta adicionada! Analisando dados...', 'success');
-}
-
-function removeInsightQuestion(questionId) {
-    if (confirm('Tem certeza que deseja remover esta pergunta?')) {
-        insightsState.questions = insightsState.questions.filter(q => q.id !== questionId);
-        if (insightClassifications[questionId]) {
-            delete insightClassifications[questionId];
-            saveClassificationsToStorage();
-        }
-        renderQuestionsList();
-        showAlert('Pergunta removida.', 'success');
-    }
-}
-
-function processQuestion(question) {
-    const keywords = extractKeywordsFromQuestion(question.text);
-    if (keywords.length === 0) {
-        question.results = [];
-        question.analysis = { totalMatches: 0, confidence: 0, message: 'Não foi possível identificar palavras-chave relevantes.' };
-        return;
-    }
-    const searchResults = searchForInsights(keywords);
-    question.results = searchResults.matches;
-    question.analysis = {
-        totalMatches: searchResults.matches.length,
-        confidence: searchResults.confidence,
-        keywords: keywords,
-        message: `Encontradas ${searchResults.matches.length} ocorrências.`
-    };
-}
-
-function extractKeywordsFromQuestion(question) {
-    const tokens = appState.textAnalyzer.tokenize(question);
-    const questionWords = ['qual', 'quais', 'como', 'quando', 'onde', 'porque', 'por', 'que', 'foi', 'esta', 'este', 'isso', 'disso', 'sobre', 'tem', 'teve'];
-    return tokens.filter(word => word.length >= 3 && !questionWords.includes(word));
-}
-
-function searchForInsights(keywords) {
-    if (keywords.length === 0) return { matches: [], confidence: 0 };
-
-    let allMatches = [];
-    const expandedKeywords = new Set();
-    keywords.forEach(keyword => {
-        const variations = stemmer.expandWithSynonyms(keyword);
-        variations.forEach(v => expandedKeywords.add(v));
+        };
     });
+}
 
-    const fuse = new Fuse(appState.filteredData, {
-        keys: ['Texto'],
-        includeScore: true,
-        threshold: 0.4,
-        minMatchCharLength: 3,
-        ignoreLocation: true
-    });
+// ===== OPERAÇÕES DE CRUD =====
 
-    Array.from(expandedKeywords).forEach(term => {
-        const results = fuse.search(term);
-        results.forEach(result => {
-            const relevanceScore = calculateRelevanceScore(result, term);
-            const existingIndex = allMatches.findIndex(match => match.item.Texto === result.item.Texto && match.item.Data === result.item.Data);
-
-            if (existingIndex >= 0) {
-                allMatches[existingIndex].relevanceScore += relevanceScore;
-                if (!allMatches[existingIndex].keywords.includes(term)) {
-                    allMatches[existingIndex].keywords.push(term);
-                }
+// Salvar ou atualizar classificação
+async function saveInsightClassification(questionId, resultIndex, classification, resultData) {
+    return new Promise((resolve, reject) => {
+        const transaction = insightsDB.transaction([INSIGHTS_DB_CONFIG.storeName], 'readwrite');
+        const objectStore = transaction.objectStore(INSIGHTS_DB_CONFIG.storeName);
+        
+        const data = {
+            questionId: String(questionId),
+            resultIndex: Number(resultIndex),
+            classification: classification,
+            timestamp: new Date().toISOString(),
+            resultData: {
+                text: resultData.text || '',
+                agent: resultData.agent || '',
+                date: resultData.date || '',
+                sentiment: resultData.sentiment || ''
+            }
+        };
+        
+        // Buscar se já existe classificação para este item
+        const index = objectStore.index('composite');
+        const searchRequest = index.get([String(questionId), Number(resultIndex)]);
+        
+        searchRequest.onsuccess = () => {
+            const existing = searchRequest.result;
+            
+            if (existing) {
+                // Atualizar existente
+                data.id = existing.id;
+                const updateRequest = objectStore.put(data);
+                updateRequest.onsuccess = () => {
+                    console.log('✅ Classificação atualizada:', data);
+                    resolve(data);
+                };
+                updateRequest.onerror = () => reject(updateRequest.error);
             } else {
-                allMatches.push({ ...result, relevanceScore: relevanceScore, keywords: [term] });
+                // Criar novo
+                const addRequest = objectStore.add(data);
+                addRequest.onsuccess = () => {
+                    console.log('✅ Nova classificação salva:', data);
+                    resolve(data);
+                };
+                addRequest.onerror = () => reject(addRequest.error);
+            }
+        };
+        
+        searchRequest.onerror = () => reject(searchRequest.error);
+    });
+}
+
+// Obter todas as classificações de uma pergunta
+async function getQuestionClassifications(questionId) {
+    return new Promise((resolve, reject) => {
+        const transaction = insightsDB.transaction([INSIGHTS_DB_CONFIG.storeName], 'readonly');
+        const objectStore = transaction.objectStore(INSIGHTS_DB_CONFIG.storeName);
+        const index = objectStore.index('questionId');
+        const request = index.getAll(IDBKeyRange.only(String(questionId)));
+        
+        request.onsuccess = () => {
+            resolve(request.result || []);
+        };
+        request.onerror = () => reject(request.error);
+    });
+}
+
+// Obter estatísticas de classificação
+async function getClassificationStatistics(questionId) {
+    const classifications = await getQuestionClassifications(questionId);
+    
+    const stats = {
+        total: classifications.length,
+        procedente: classifications.filter(c => c.classification === 'procedente').length,
+        improcedente: classifications.filter(c => c.classification === 'improcedente').length,
+        pendente: 0
+    };
+    
+    stats.percentage = stats.total > 0 
+        ? Math.round((stats.total / stats.total) * 100) 
+        : 0;
+    
+    return stats;
+}
+
+// Limpar classificações de uma pergunta específica
+async function clearQuestionClassificationsData(questionId) {
+    return new Promise((resolve, reject) => {
+        const transaction = insightsDB.transaction([INSIGHTS_DB_CONFIG.storeName], 'readwrite');
+        const objectStore = transaction.objectStore(INSIGHTS_DB_CONFIG.storeName);
+        const index = objectStore.index('questionId');
+        const request = index.openCursor(IDBKeyRange.only(String(questionId)));
+        
+        request.onsuccess = (event) => {
+            const cursor = event.target.result;
+            if (cursor) {
+                cursor.delete();
+                cursor.continue();
+            } else {
+                console.log(`🗑️ Classificações da pergunta ${questionId} removidas`);
+                resolve();
+            }
+        };
+        
+        request.onerror = () => reject(request.error);
+    });
+}
+
+// Limpar TODAS as classificações
+async function clearAllClassificationsData() {
+    return new Promise((resolve, reject) => {
+        const transaction = insightsDB.transaction([INSIGHTS_DB_CONFIG.storeName], 'readwrite');
+        const objectStore = transaction.objectStore(INSIGHTS_DB_CONFIG.storeName);
+        const request = objectStore.clear();
+        
+        request.onsuccess = () => {
+            console.log('🗑️ TODAS as classificações foram removidas');
+            resolve();
+        };
+        request.onerror = () => reject(request.error);
+    });
+}
+
+// Remover classificação individual
+async function removeClassification(questionId, resultIndex) {
+    return new Promise((resolve, reject) => {
+        const transaction = insightsDB.transaction([INSIGHTS_DB_CONFIG.storeName], 'readwrite');
+        const objectStore = transaction.objectStore(INSIGHTS_DB_CONFIG.storeName);
+        const index = objectStore.index('composite');
+        const request = index.getKey([String(questionId), Number(resultIndex)]);
+        
+        request.onsuccess = () => {
+            const key = request.result;
+            if (key) {
+                const deleteRequest = objectStore.delete(key);
+                deleteRequest.onsuccess = () => {
+                    console.log(`🗑️ Classificação removida: Q${questionId}-R${resultIndex}`);
+                    resolve();
+                };
+                deleteRequest.onerror = () => reject(deleteRequest.error);
+            } else {
+                resolve(); // Não existe, já está "removida"
+            }
+        };
+        
+        request.onerror = () => reject(request.error);
+    });
+}
+
+// ===== INTERFACE E MANIPULAÇÃO DOM =====
+
+// Adicionar botões de classificação a um item de resultado
+function addClassificationButtonsToResult(resultElement, questionId, resultIndex, resultData) {
+    // Remover seção existente se houver
+    const existing = resultElement.querySelector('.classification-section');
+    if (existing) existing.remove();
+    
+    const classificationSection = document.createElement('div');
+    classificationSection.className = 'classification-section';
+    
+    const buttonsDiv = document.createElement('div');
+    buttonsDiv.className = 'classification-buttons';
+    
+    // Botão Procedente
+    const btnProcedente = document.createElement('button');
+    btnProcedente.className = 'btn-classify btn-procedente';
+    btnProcedente.innerHTML = '✓ Procedente';
+    btnProcedente.onclick = async () => {
+        await classifyResult(questionId, resultIndex, 'procedente', resultData, resultElement);
+    };
+    
+    // Botão Improcedente
+    const btnImprocedente = document.createElement('button');
+    btnImprocedente.className = 'btn-classify btn-improcedente';
+    btnImprocedente.innerHTML = '✗ Improcedente';
+    btnImprocedente.onclick = async () => {
+        await classifyResult(questionId, resultIndex, 'improcedente', resultData, resultElement);
+    };
+    
+    // Botão Limpar
+    const btnLimpar = document.createElement('button');
+    btnLimpar.className = 'btn-classify btn-limpar-classificacao';
+    btnLimpar.innerHTML = '⟲ Limpar';
+    btnLimpar.onclick = async () => {
+        await clearResultClassification(questionId, resultIndex, resultElement);
+    };
+    
+    buttonsDiv.appendChild(btnProcedente);
+    buttonsDiv.appendChild(btnImprocedente);
+    buttonsDiv.appendChild(btnLimpar);
+    
+    classificationSection.appendChild(buttonsDiv);
+    resultElement.appendChild(classificationSection);
+}
+
+// Classificar um resultado
+async function classifyResult(questionId, resultIndex, classification, resultData, resultElement) {
+    try {
+        // Salvar no IndexedDB
+        await saveInsightClassification(questionId, resultIndex, classification, resultData);
+        
+        // Atualizar visualmente o item
+        resultElement.classList.remove('classified-procedente', 'classified-improcedente');
+        resultElement.classList.add(`classified-${classification}`);
+        
+        // Adicionar/atualizar badge
+        const existingBadge = resultElement.querySelector('.classification-badge');
+        if (existingBadge) existingBadge.remove();
+        
+        const badge = document.createElement('span');
+        badge.className = `classification-badge badge-${classification}-item`;
+        badge.innerHTML = classification === 'procedente' 
+            ? '✓ Procedente' 
+            : '✗ Improcedente';
+        
+        const metaSection = resultElement.querySelector('.result-meta');
+        if (metaSection) {
+            metaSection.appendChild(badge);
+        }
+        
+        // Atualizar contadores no card da pergunta
+        await updateQuestionCardCounters(questionId);
+        
+        // Feedback visual
+        showInsightNotification(`Ocorrência classificada como ${classification}!`, 'success');
+        
+    } catch (error) {
+        console.error('❌ Erro ao classificar:', error);
+        showInsightNotification('Erro ao salvar classificação', 'error');
+    }
+}
+
+// Limpar classificação de um resultado
+async function clearResultClassification(questionId, resultIndex, resultElement) {
+    try {
+        await removeClassification(questionId, resultIndex);
+        
+        // Remover classes visuais
+        resultElement.classList.remove('classified-procedente', 'classified-improcedente');
+        
+        // Remover badge
+        const badge = resultElement.querySelector('.classification-badge');
+        if (badge) badge.remove();
+        
+        // Atualizar contadores
+        await updateQuestionCardCounters(questionId);
+        
+        showInsightNotification('Classificação removida', 'info');
+        
+    } catch (error) {
+        console.error('❌ Erro ao limpar classificação:', error);
+        showInsightNotification('Erro ao limpar classificação', 'error');
+    }
+}
+
+// Atualizar contadores no card da pergunta
+async function updateQuestionCardCounters(questionId) {
+    const stats = await getClassificationStatistics(questionId);
+    const questionCard = document.querySelector(`[data-question-id="${questionId}"]`);
+    
+    if (!questionCard) return;
+    
+    // Remover resumo existente
+    const existingSummary = questionCard.querySelector('.classification-summary');
+    if (existingSummary) existingSummary.remove();
+    
+    // Criar novo resumo
+    const summaryDiv = document.createElement('div');
+    summaryDiv.className = 'classification-summary';
+    
+    const counterProcedente = document.createElement('div');
+    counterProcedente.className = 'classification-counter counter-procedente';
+    counterProcedente.innerHTML = `✓ Procedentes: <strong>${stats.procedente}</strong>`;
+    
+    const counterImprocedente = document.createElement('div');
+    counterImprocedente.className = 'classification-counter counter-improcedente';
+    counterImprocedente.innerHTML = `✗ Improcedentes: <strong>${stats.improcedente}</strong>`;
+    
+    summaryDiv.appendChild(counterProcedente);
+    summaryDiv.appendChild(counterImprocedente);
+    
+    // Adicionar barra de progresso se houver classificações
+    if (stats.total > 0) {
+        const progressDiv = document.createElement('div');
+        progressDiv.className = 'classification-progress';
+        
+        const progressText = document.createElement('div');
+        progressText.textContent = `Analisadas: ${stats.total} ocorrências`;
+        
+        const progressBarContainer = document.createElement('div');
+        progressBarContainer.className = 'progress-bar-container';
+        
+        const progressBarFill = document.createElement('div');
+        progressBarFill.className = 'progress-bar-fill';
+        progressBarFill.style.width = '100%';
+        
+        progressBarContainer.appendChild(progressBarFill);
+        progressDiv.appendChild(progressText);
+        progressDiv.appendChild(progressBarContainer);
+        summaryDiv.appendChild(progressDiv);
+    }
+    
+    // Inserir no card
+    const detailsSection = questionCard.querySelector('.question-details');
+    if (detailsSection) {
+        detailsSection.insertBefore(summaryDiv, detailsSection.firstChild);
+    }
+}
+
+// Restaurar classificações salvas ao exibir resultados
+async function restoreClassificationsForResults(questionId, resultElements, resultsData) {
+    const classifications = await getQuestionClassifications(questionId);
+    
+    resultElements.forEach((element, index) => {
+        const resultData = resultsData[index] || {};
+        
+        // Adicionar botões
+        addClassificationButtonsToResult(element, questionId, index, resultData);
+        
+        // Restaurar classificação se existir
+        const savedClassification = classifications.find(c => c.resultIndex === index);
+        if (savedClassification) {
+            element.classList.add(`classified-${savedClassification.classification}`);
+            
+            const badge = document.createElement('span');
+            badge.className = `classification-badge badge-${savedClassification.classification}-item`;
+            badge.innerHTML = savedClassification.classification === 'procedente' 
+                ? '✓ Procedente' 
+                : '✗ Improcedente';
+            
+            const metaSection = element.querySelector('.result-meta');
+            if (metaSection) {
+                metaSection.appendChild(badge);
+            }
+        }
+    });
+    
+    // Atualizar contadores
+    await updateQuestionCardCounters(questionId);
+}
+
+// ===== CONTROLES DE ARMAZENAMENTO =====
+
+function createStorageControls() {
+    const controlsDiv = document.createElement('div');
+    controlsDiv.className = 'storage-controls';
+    controlsDiv.id = 'insights-storage-controls';
+    
+    const infoSpan = document.createElement('span');
+    infoSpan.className = 'storage-info';
+    infoSpan.innerHTML = '💾 As classificações são salvas automaticamente no navegador';
+    
+    const btnClearAll = document.createElement('button');
+    btnClearAll.className = 'btn-clear-storage';
+    btnClearAll.innerHTML = '🗑️ Limpar Todas Classificações';
+    btnClearAll.onclick = async () => {
+        if (confirm('⚠️ Tem certeza que deseja limpar TODAS as classificações? Esta ação não pode ser desfeita.')) {
+            try {
+                await clearAllClassificationsData();
+                showInsightNotification('Todas as classificações foram removidas', 'success');
+                setTimeout(() => location.reload(), 1500);
+            } catch (error) {
+                console.error('Erro ao limpar:', error);
+                showInsightNotification('Erro ao limpar classificações', 'error');
+            }
+        }
+    };
+    
+    const btnExport = document.createElement('button');
+    btnExport.className = 'btn-export-classifications';
+    btnExport.innerHTML = '📥 Exportar com Classificações';
+    btnExport.onclick = exportInsightsWithClassifications;
+    
+    controlsDiv.appendChild(infoSpan);
+    controlsDiv.appendChild(btnClearAll);
+    controlsDiv.appendChild(btnExport);
+    
+    return controlsDiv;
+}
+
+// ===== EXPORTAÇÃO PARA EXCEL =====
+
+async function exportInsightsWithClassifications() {
+    try {
+        if (typeof XLSX === 'undefined') {
+            showInsightNotification('Biblioteca XLSX não carregada. Por favor, recarregue a página.', 'error');
+            return;
+        }
+        
+        const allData = [];
+        
+        // Coletar dados de todas as perguntas
+        const questions = document.querySelectorAll('.question-card');
+        
+        for (const questionCard of questions) {
+            const questionId = questionCard.getAttribute('data-question-id');
+            if (!questionId) continue;
+            
+            const questionText = questionCard.querySelector('.question-text')?.textContent || 'N/A';
+            const classifications = await getQuestionClassifications(questionId);
+            const results = questionCard.querySelectorAll('.insight-item');
+            
+            results.forEach((resultElement, index) => {
+                const classification = classifications.find(c => c.resultIndex === index);
+                
+                const agent = resultElement.querySelector('.result-meta')?.textContent.match(/Agente: ([^|]+)/)?.[1]?.trim() || 'N/A';
+                const date = resultElement.querySelector('.result-meta')?.textContent.match(/Data: ([^|]+)/)?.[1]?.trim() || 'N/A';
+                const text = resultElement.querySelector('.result-text')?.textContent || '';
+                const sentiment = resultElement.querySelector('.result-sentiment')?.textContent || 'neutro';
+                
+                allData.push({
+                    'Pergunta': questionText,
+                    'Agente': agent,
+                    'Data': date,
+                    'Texto': text,
+                    'Sentimento': sentiment,
+                    'Classificação': classification ? classification.classification.toUpperCase() : 'PENDENTE',
+                    'Data da Classificação': classification ? new Date(classification.timestamp).toLocaleString('pt-BR') : '',
+                    'Análise Humana': classification ? 'SIM' : 'NÃO'
+                });
+            });
+        }
+        
+        if (allData.length === 0) {
+            showInsightNotification('Nenhum dado para exportar', 'warning');
+            return;
+        }
+        
+        // Criar workbook
+        const ws = XLSX.utils.json_to_sheet(allData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Insights Classificados');
+        
+        // Ajustar largura das colunas
+        ws['!cols'] = [
+            { wch: 50 }, // Pergunta
+            { wch: 20 }, // Agente
+            { wch: 15 }, // Data
+            { wch: 60 }, // Texto
+            { wch: 12 }, // Sentimento
+            { wch: 18 }, // Classificação
+            { wch: 22 }, // Data da Classificação
+            { wch: 15 }  // Análise Humana
+        ];
+        
+        // Gerar arquivo
+        const timestamp = new Date().toISOString().split('T')[0];
+        const filename = `Sentinela_Insights_Classificados_${timestamp}.xlsx`;
+        XLSX.writeFile(wb, filename);
+        
+        showInsightNotification(`Relatório exportado: ${filename}`, 'success');
+        
+    } catch (error) {
+        console.error('❌ Erro ao exportar:', error);
+        showInsightNotification('Erro ao exportar relatório', 'error');
+    }
+}
+
+// ===== NOTIFICAÇÕES =====
+
+function showInsightNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} notification`;
+    
+    const icons = {
+        success: '✓',
+        error: '✗',
+        warning: '⚠',
+        info: 'ℹ'
+    };
+    
+    notification.innerHTML = `<i>${icons[type] || 'ℹ'}</i> ${message}`;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.classList.add('removing');
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
+}
+
+// ===== INTEGRAÇÃO COM SISTEMA EXISTENTE =====
+
+// Interceptar a exibição de resultados do Insights
+document.addEventListener('DOMContentLoaded', async function() {
+    try {
+        // Inicializar DB
+        await initInsightsDB();
+        console.log('✅ Sistema de Classificação de Insights ativado');
+        
+        // Adicionar controles de armazenamento
+        const insightsTab = document.querySelector('[data-tab-content="insights"]');
+        if (insightsTab) {
+            const existingControls = document.getElementById('insights-storage-controls');
+            if (!existingControls) {
+                const controls = createStorageControls();
+                insightsTab.insertBefore(controls, insightsTab.firstChild);
+            }
+        }
+        
+        // Observar mudanças na seção de insights para adicionar botões dinamicamente
+        const observer = new MutationObserver(async (mutations) => {
+            for (const mutation of mutations) {
+                if (mutation.addedNodes.length > 0) {
+                    const insightItems = document.querySelectorAll('.insight-item:not([data-classification-ready])');
+                    if (insightItems.length > 0) {
+                        // Tentar identificar a pergunta atual
+                        const activeQuestion = document.querySelector('.question-card.active');
+                        if (activeQuestion) {
+                            const questionId = activeQuestion.getAttribute('data-question-id');
+                            if (questionId) {
+                                const resultsData = Array.from(insightItems).map(item => ({
+                                    text: item.querySelector('.result-text')?.textContent || '',
+                                    agent: item.querySelector('.result-meta')?.textContent.match(/Agente: ([^|]+)/)?.[1]?.trim() || '',
+                                    date: item.querySelector('.result-meta')?.textContent.match(/Data: ([^|]+)/)?.[1]?.trim() || '',
+                                    sentiment: item.querySelector('.result-sentiment')?.textContent || ''
+                                }));
+                                
+                                await restoreClassificationsForResults(questionId, insightItems, resultsData);
+                                
+                                insightItems.forEach(item => {
+                                    item.setAttribute('data-classification-ready', 'true');
+                                });
+                            }
+                        }
+                    }
+                }
             }
         });
-    });
+        
+        // Observar a seção de insights
+        const insightsResults = document.querySelector('.insights-results') || document.querySelector('[data-tab-content="insights"]');
+        if (insightsResults) {
+            observer.observe(insightsResults, { childList: true, subtree: true });
+        }
+        
+    } catch (error) {
+        console.error('❌ Erro ao inicializar sistema de classificação:', error);
+        showInsightNotification('Erro ao inicializar sistema de classificação', 'error');
+    }
+});
 
-    allMatches.sort((a, b) => b.relevanceScore - a.relevanceScore);
-    const topMatches = allMatches.slice(0, 30);
-    const avgConfidence = topMatches.length > 0 ? Math.min(100, (topMatches.reduce((sum, m) => sum + m.relevanceScore, 0) / topMatches.length)) : 0;
-
-    return { matches: topMatches, confidence: Math.round(avgConfidence) };
-}
-
-function calculateRelevanceScore(result, keyword) {
-    let score = (1 - (result.score || 0)) * 50;
-    if (result.item.Sentimento === 'Positivo' || result.item.Sentimento === 'Muito Positivo') score += 10;
-    const texto = (result.item.Texto || '').toLowerCase();
-    const escapedKeyword = keyword.replace(/[-\/\^$*+?.()|[\]{}]/g, '\$&');
-    const occurrences = (texto.match(new RegExp(escapedKeyword, 'gi')) || []).length;
-    score += occurrences * 5;
-    return score;
-}
-
+console.log('📊 Módulo de Classificação de Insights - CARREGADO ✅');
 
 </script>
 </body>

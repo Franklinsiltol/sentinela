@@ -1330,6 +1330,57 @@
                     </div>
                     <button class="button button-primary" id="applyFilter">
                         <i class="fas fa-filter"></i>
+     ow: 0 0 0 2px rgba(0,0,0,0.2);
+        }
+        
+        .classify-btn:not(.selected) {
+            opacity: 0.6;
+        }
+        
+        .classification-status {
+            margin-left: 10px;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+        
+        .classification-status.procedente {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        .classification-status.improcedente {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+</style>
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        <div class="sidebar" id="sidebar">
+            <button class="sidebar-toggle" id="sidebarToggle">
+                <i class="fas fa-bars"></i>
+            </button>
+            
+            <div class="sidebar-content">
+                <div class="section">
+                    <h3 class="section-title">
+                        <i class="fas fa-tachometer-alt"></i>
+                        <span>Dashboard</span>
+                    </h3>
+                    <div class="input-group">
+                        <label>Data Inicial</label>
+                        <input type="date" id="startDate">
+                    </div>
+                    <div class="input-group">
+                        <label>Data Final</label>
+                        <input type="date" id="endDate">
+                    </div>
+                    <button class="button button-primary" id="applyFilter">
+                        <i class="fas fa-filter"></i>
                         <span>Aplicar Filtro</span>
                     </button>
                 </div>
@@ -1922,6 +1973,32 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Card de Classificação -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-balance-scale"></i> Classificação
+                    </div>
+                </div>
+                <div class="card-content">
+                    <div class="stat-grid">
+                        <div class="stat-item">
+                            <div class="stat-value" id="statProcedentes">0</div>
+                            <div class="stat-label">Procedentes</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="statImprocedentes">0</div>
+                            <div class="stat-label">Improcedentes</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="statNaoClassificados">0</div>
+                            <div class="stat-label">Não Classificados</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
 
@@ -4689,6 +4766,8 @@ function exportSearchResults() {
 // Estado para gerenciar as perguntas e respostas
 const insightsState = {
     questions: [],
+    
+    manualClassifications: {}, // Armazena classificações manuais por resultado
     searchIndex: null
 };
 
@@ -4889,6 +4968,16 @@ function renderQuestionsList() {
     const container = document.getElementById('questionsList');
     const noQuestionsMessage = document.getElementById('noQuestionsMessage');
     
+    
+    // Salvar o estado dos cards abertos antes de renderizar
+    const openCards = new Set();
+    document.querySelectorAll('.question-details:not(.hidden)').forEach(detail => {
+        const card = detail.closest('.question-card');
+        if (card) {
+            openCards.add(card.dataset.questionId);
+        }
+    });
+
     if (insightsState.questions.length === 0) {
         noQuestionsMessage.style.display = 'block';
         container.innerHTML = '';
@@ -4905,23 +4994,38 @@ function renderQuestionsList() {
         
         html += `
             <div class="card question-card" data-question-id="${question.id}">
-                <div class="card-header">
-                    <div class="card-title">${question.text}</div>
-                    <div>
-                        <span class="badge ${confidenceColor}">${question.analysis.confidence}% confiança</span>
-                        <span class="badge">${question.analysis.totalMatches} ocorrências</span>
-                        <button class="button button-info toggle-question" data-question-id="${question.id}">
-                            <i class="fas fa-chevron-down"></i>
-                        </button>
-                        <button class="button button-danger delete-question" data-question-id="${question.id}">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                        <button class="button button-success export-question" data-question-id="${question.id}">
-                            <i class="fas fa-download"></i>
-                        </button>
+
+                    <div class="card-header">
+                        <div class="card-title">${question.text}</div>
+                        <div>
+                            <span class="badge ${confidenceColor}">${question.analysis.confidence}% confiança</span>
+                            <span class="badge">${question.analysis.totalMatches} ocorrências</span>
+                            ${(() => {
+                                const counts = countClassifications(question.id);
+                                return `
+                                    <span class="badge status-success" title="Procedentes (SIM)">
+                                        ✅ ${counts.procedente}
+                                    </span>
+                                    <span class="badge status-error" title="Improcedentes (NÃO)">
+                                        ❌ ${counts.improcedente}
+                                    </span>
+                                    <span class="badge status-warning" title="Pendentes">
+                                        ⏳ ${counts.pending}
+                                    </span>
+                                `;
+                            })()}
+                            <button class="button button-info toggle-question" data-question-id="${question.id}">
+                                <i class="fas fa-chevron-down"></i>
+                            </button>
+                            <button class="button button-danger delete-question" data-question-id="${question.id}">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                            <button class="button button-success export-question" data-question-id="${question.id}">
+                                <i class="fas fa-download"></i>
+                            </button>
+                        </div>
                     </div>
-                </div>
-                <div class="question-details hidden">
+                <div class="question-details ${openCards.has(question.id.toString()) ? "" : "hidden"}">
                     <div class="alert alert-${question.analysis.totalMatches > 0 ? 'info' : 'warning'}">
                         <i class="fas fa-${question.analysis.totalMatches > 0 ? 'check-circle' : 'exclamation-triangle'}"></i>
                         <div>${question.analysis.message}</div>
@@ -4937,9 +5041,29 @@ function renderQuestionsList() {
                     ` : ''}
                     
                     ${question.results.length > 0 ? `
-                        <div class="insights-results">
+                        
+                    
+                    ${question.results.length > 0 ? `
+                        <div class="alert alert-info" style="margin-top: 10px;">
+                            <i class="fas fa-chart-bar"></i>
+                            <div>
+                                <strong>Resumo da Tabulação Manual:</strong><br>
+                                ${(() => {
+                                    const counts = countClassifications(question.id);
+                                    const procedentePct = counts.total > 0 ? Math.round((counts.procedente / counts.total) * 100) : 0;
+                                    const improcedentePct = counts.total > 0 ? Math.round((counts.improcedente / counts.total) * 100) : 0;
+                                    return `
+                                        ✅ <strong>${counts.procedente}</strong> Procedente(s) (SIM) - ${procedentePct}% | 
+                                        ❌ <strong>${counts.improcedente}</strong> Improcedente(s) (NÃO) - ${improcedentePct}% | 
+                                        ⏳ <strong>${counts.pending}</strong> Pendente(s)
+                                    `;
+                                })()}
+                            </div>
+                        </div>
+                    ` : ''}
+                    <div class="insights-results">
                             <h4>Ocorrências Encontradas:</h4>
-                            ${question.results.map(result => `
+                            ${question.results.map((result, index) => `
                                 <div class="search-result-item">
                                     <div class="result-meta">
                                         <strong>Agente:</strong> ${result.item.Agente} | 
@@ -4952,65 +5076,103 @@ function renderQuestionsList() {
                                         <span class="status-indicator status-${result.item.Sentimento === 'Positivo' ? 'success' : result.item.Sentimento === 'Negativo' ? 'error' : 'warning'}"></span>
                                         Sentimento: ${result.item.Sentimento} (Pontuação: ${result.item.Pontuacao || 'N/A'})
                                     </div>
-                                </div>
-                            `).join('')}
-                        </div>
-                    ` : ''}
-                </div>
-            </div>
-        `;
-    });
+                                    <div class="result-classification">
+                                        <strong>Tabulação:</strong>
+                                        <button class="button button-success classify-btn ${getResultClassification(question.id, index) === 'Procedente' ? 'selected' : ''}" 
+                                                onclick="classifyResult(${question.id}, ${index}, 'Procedente')">
+                                            <i class="fas fa-check"></i> Procedente (SIM)
+                                        </button>
+                                        <button class="button button-danger classify-btn ${getResultClassification(question.id, index) === 'Improcedente' ? 'selected' : ''}"
+                                                onclick="classifyResult(${question.id}, ${index}, 'Improcedente')">
+                                            <i class="fas fa-times"></i> Improcedente (NÃO)
+                                        </button>
+                                        ${getResultClassification(question.id, index) ? 
+                                            `<span class="classification-status ${getResultClassification(question.id, index).toLowerCase()}">
+                                                ${getResultClassification(question.id, index) === 'Procedente' ? '✅ SIM' : '❌ NÃO'}
+                                            </span>` : 
+                                            '<span class="classification-status" style="color: #666;">⏳ Pendente</span>'}
+                                    </div>
+                                
+                                    
+                                    <div class="classification-buttons" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #eee; display: flex; gap: 10px;">
+                                        <button class="classify-btn procedente" 
+                                                onclick="classifyResult('${question.id}', ${index}, 'Procedente'); event.stopPropagation();"
+                                                style="flex: 1; padding: 8px 16px; border: 2px solid #4CAF50; border-radius: 8px; background: white; cursor: pointer; color: #4CAF50;">
+                                            ✅ Procedente
+                                        </button>
+                                        <button class="classify-btn improcedente" 
+                                                onclick="classifyResult('${question.id}', ${index}, 'Improcedente'); event.stopPropagation();"
+                                                style="flex: 1; padding: 8px 16px; border: 2px solid #f44336; border-radius: 8px; background: white; cursor: pointer; color: #f44336;">
+                                            ❌ Improcedente
+                                        </button>
+                                    </div>
+                                    </div>
+                            `).joino
+    const key = `${questionId}_${resultIndex}`;
     
-    container.innerHTML = html;
+    // Salvar classificação
+    insightsState.manualClassifications[key] = classification;
     
-    // Adicionar event listeners para os botões das perguntas
-    document.querySelectorAll('.toggle-question').forEach(button => {
-        button.addEventListener('click', function() {
-            const questionId = this.getAttribute('data-question-id');
-            toggleQuestionDetails(questionId);
-        });
-    });
-    
-    document.querySelectorAll('.delete-question').forEach(button => {
-        button.addEventListener('click', function() {
-            const questionId = this.getAttribute('data-question-id');
-            deleteQuestion(questionId);
-        });
-    });
-    
-    document.querySelectorAll('.export-question').forEach(button => {
-        button.addEventListener('click', function() {
-            const questionId = this.getAttribute('data-question-id');
-            exportQuestionResults(questionId);
-        });
-    });
-}
-
-// Alternar visibilidade dos detalhes da pergunta
-function toggleQuestionDetails(questionId) {
-    const questionCard = document.querySelector(`.question-card[data-question-id="${questionId}"]`);
-    const details = questionCard.querySelector('.question-details');
-    const toggleButton = questionCard.querySelector('.toggle-question i');
-    
-    details.classList.toggle('hidden');
-    
-    if (details.classList.contains('hidden')) {
-        toggleButton.className = 'fas fa-chevron-down';
-    } else {
-        toggleButton.className = 'fas fa-chevron-up';
+    // Atualizar APENAS o resultado específico, não toda a lista
+    const questionCard = document.querySelector(`[data-question-id="${questionId}"]`);
+    if (questionCard) {
+        const resultsContainer = questionCard.querySelector('.results-list');
+        if (resultsContainer) {
+            const resultItems = resultsContainer.querySelectorAll('.result-item');
+            const targetItem = resultItems[resultIndex];
+            
+            if (targetItem) {
+                // Remover classes antigas
+                targetItem.classList.remove('classified-procedente', 'classified-improcedente');
+                
+                // Adicionar nova classe
+                targetItem.classList.add(classification === 'Procedente' ? 'classified-procedente' : 'classified-improcedente');
+                
+                // Atualizar botões
+                const buttons = targetItem.querySelectorAll('.classify-btn');
+                buttons.forEach(btn => {
+                    btn.classList.remove('active');
+                    if (btn.textContent.includes(classification)) {
+                        btn.classList.add('active');
+                    }
+                });
+            }
+        }
     }
+    
+    // Mostrar feedback
+    const emoji = classification === 'Procedente' ? '✅' : '❌';
+    showAlert(`${emoji} Resultado marcado como ${classification}`, 'success');
 }
 
-// Excluir uma pergunta
-function deleteQuestion(questionId) {
-    if (confirm('Tem certeza que deseja excluir esta pergunta e todos os seus resultados?')) {
-        insightsState.questions = insightsState.questions.filter(q => q.id != questionId);
-        renderQuestionsList();
-        showAlert('✅ Pergunta excluída com sucesso!', 'success');
-    }
+// Obter classificação de um resultado
+function getResultClassification(questionId, resultIndex) {
+    const key = `${questionId}_${resultIndex}`;
+    return insightsState.manualClassifications[key] || null;
 }
 
-// Exportar resultados de uma pergunta específica
+// Contar classificações de uma pergunta
+function countClassifications(questionId) {
+    const question = insightsState.questions.find(q => q.id == questionId);
+    if (!question) return { procedente: 0, improcedente: 0, total: 0 };
+    
+    let procedente = 0;
+    let improcedente = 0;
+    
+    question.results.forEach((result, index) => {
+        const classification = getResultClassification(questionId, index);
+        if (classification === 'Procedente') procedente++;
+        if (classification === 'Improcedente') improcedente++;
+    });
+    
+    return {
+        procedente,
+        improcedente,
+        total: question.results.length,
+        pending: question.results.length - procedente - improcedente
+    };
+}
+
 function exportQuestionResults(questionId) {
     const question = insightsState.questions.find(q => q.id == questionId);
     
@@ -5025,10 +5187,12 @@ function exportQuestionResults(questionId) {
         ['Total de Ocorrências', question.analysis.totalMatches],
         ['Confiança da Análise', question.analysis.confidence + '%'],
         [], // Linha em branco
-        ['Agente', 'Data', 'Hora', 'Email', 'Texto', 'Sentimento', 'Pontuação', 'Palavras-chave Encontradas']
+        ['Agente', 'Data', 'Hora', 'Email', 'Texto', 'Sentimento', 'Pontuação', 'Palavras-chave Encontradas', 'Classificação Manual']
     ];
+
     
-    question.results.forEach(result => {
+    question.results.forEach((result, index) => {
+        const manualClassification = getResultClassification(questionId, index);
         csvData.push([
             result.item.Agente,
             result.item.Data,
@@ -5037,7 +5201,8 @@ function exportQuestionResults(questionId) {
             result.item.Texto,
             result.item.Sentimento,
             result.item.Pontuacao || '',
-            result.keywords.join(', ')
+            result.keywords.join(', '),
+            manualClassification || 'Pendente'
         ]);
     });
     
@@ -5081,7 +5246,7 @@ function exportAllInsights() {
         csvData.push([]);
         
         if (question.results.length > 0) {
-            csvData.push(['Agente', 'Data', 'Hora', 'Email', 'Texto', 'Sentimento', 'Pontuação', 'Palavras-chave Encontradas']);
+            csvData.push(['Agente', 'Data', 'Hora', 'Email', 'Texto', 'Sentimento', 'Pontuação', 'Palavras-chave Encontradas', 'Classificação Manual']);
             
             question.results.forEach(result => {
                 csvData.push([
@@ -5205,164 +5370,397 @@ document.head.appendChild(styleSheet);
                 });
             }
         });
+    </script>
+</body>
+</html>
+nt.querySelector('.classification-section');
+    if (existing) existing.remove();
     
-// ============================================
-// SISTEMA DE CLASSIFICAÇÃO DE INSIGHTS
-// ============================================
+    const classificationSection = document.createElement('div');
+    classificationSection.className = 'classification-section';
+    
+    const buttonsDiv = document.createElement('div');
+    buttonsDiv.className = 'classification-buttons';
+    
+    // Botão Procedente
+    const btnProcedente = document.createElement('button');
+    btnProcedente.className = 'btn-classify btn-procedente';
+    btnProcedente.innerHTML = '✓ Procedente';
+    btnProcedente.onclick = async () => {
+        await classifyResult(questionId, resultIndex, 'procedente', resultData, resultElement);
+    };
+    
+    // Botão Improcedente
+    const btnImprocedente = document.createElement('button');
+    btnImprocedente.className = 'btn-classify btn-improcedente';
+    btnImprocedente.innerHTML = '✗ Improcedente';
+    btnImprocedente.onclick = async () => {
+        await classifyResult(questionId, resultIndex, 'improcedente', resultData, resultElement);
+    };
+    
+    // Botão Limpar
+    const btnLimpar = document.createElement('button');
+    btnLimpar.className = 'btn-classify btn-limpar-classificacao';
+    btnLimpar.innerHTML = '⟲ Limpar';
+    btnLimpar.onclick = async () => {
+        await clearResultClassification(questionId, resultIndex, resultElement);
+    };
+    
+    buttonsDiv.appendChild(btnProcedente);
+    buttonsDiv.appendChild(btnImprocedente);
+    buttonsDiv.appendChild(btnLimpar);
+    
+    classificationSection.appendChild(buttonsDiv);
+    resultElement.appendChild(classificationSection);
+}
 
-// Atualizar APENAS as estatísticas de uma pergunta (SEM recarregar tudo)
-function updateQuestionStats(questionId) {
-    const counts = countClassifications(questionId);
-    const total = counts.total;
-    
-    // Encontrar o card específico
-    const questionCards = document.querySelectorAll('.question-card');
-    let questionCard = null;
-    
-    questionCards.forEach(card => {
-        const titleElement = card.querySelector('.question-text');
-        if (titleElement && titleElement.textContent.includes(questionId)) {
-            questionCard = card;
-        }
-    });
-    
-    if (!questionCard) return;
-    
-    // Atualizar contadores
-    const statsContainer = questionCard.querySelector('.classification-summary');
-    if (statsContainer) {
-        const procCounter = statsContainer.querySelector('.counter-procedente');
-        const improcCounter = statsContainer.querySelector('.counter-improcedente');
-        const pendCounter = statsContainer.querySelector('.counter-pendente');
+// Classificar um resultado
+async function classifyResult(questionId, resultIndex, classification, resultData, resultElement) {
+    try {
+        // Salvar no IndexedDB
+        await saveInsightClassification(questionId, resultIndex, classification, resultData);
         
-        if (procCounter) {
-            procCounter.innerHTML = `✅ ${counts.procedente} Procedente${counts.procedente !== 1 ? 's' : ''}`;
-        }
-        if (improcCounter) {
-            improcCounter.innerHTML = `❌ ${counts.improcedente} Improcedente${counts.improcedente !== 1 ? 's' : ''}`;
-        }
-        if (pendCounter) {
-            pendCounter.innerHTML = `⏳ ${counts.pending} Não Classificado${counts.pending !== 1 ? 's' : ''}`;
-        }
-    }
-    
-    // Atualizar barra de progresso
-    const progressInfo = questionCard.querySelector('.classification-progress');
-    if (progressInfo && total > 0) {
-        const completePct = Math.round(((counts.procedente + counts.improcedente) / total) * 100);
-        progressInfo.textContent = `Progresso: ${counts.procedente + counts.improcedente} de ${total} classificados (${completePct}%)`;
+        // Atualizar visualmente o item
+        resultElement.classList.remove('classified-procedente', 'classified-improcedente');
+        resultElement.classList.add(`classified-${classification}`);
         
-        const progressBar = questionCard.querySelector('.progress-bar-fill');
-        if (progressBar) {
-            progressBar.style.width = `${completePct}%`;
+        // Adicionar/atualizar badge
+        const existingBadge = resultElement.querySelector('.classification-badge');
+        if (existingBadge) existingBadge.remove();
+        
+        const badge = document.createElement('span');
+        badge.className = `classification-badge badge-${classification}-item`;
+        badge.innerHTML = classification === 'procedente' 
+            ? '✓ Procedente' 
+            : '✗ Improcedente';
+        
+        const metaSection = resultElement.querySelector('.result-meta');
+        if (metaSection) {
+            metaSection.appendChild(badge);
         }
+        
+        // Atualizar contadores no card da pergunta
+        await updateQuestionCardCounters(questionId);
+        
+        // Feedback visual
+        showInsightNotification(`Ocorrência classificada como ${classification}!`, 'success');
+        
+    } catch (error) {
+        console.error('❌ Erro ao classificar:', error);
+        showInsightNotification('Erro ao salvar classificação', 'error');
     }
 }
 
-// Classificar resultado (VERSÃO QUE NÃO RECOLHE O CARD!)
-function classifyResult(questionId, resultIndex, classification) {
-    const key = `${questionId}_${resultIndex}`;
-    
-    // Salvar classificação
-    if (!insightsState.manualClassifications) {
-        insightsState.manualClassifications = {};
+// Limpar classificação de um resultado
+async function clearResultClassification(questionId, resultIndex, resultElement) {
+    try {
+        await removeClassification(questionId, resultIndex);
+        
+        // Remover classes visuais
+        resultElement.classList.remove('classified-procedente', 'classified-improcedente');
+        
+        // Remover badge
+        const badge = resultElement.querySelector('.classification-badge');
+        if (badge) badge.remove();
+        
+        // Atualizar contadores
+        await updateQuestionCardCounters(questionId);
+        
+        showInsightNotification('Classificação removida', 'info');
+        
+    } catch (error) {
+        console.error('❌ Erro ao limpar classificação:', error);
+        showInsightNotification('Erro ao limpar classificação', 'error');
     }
-    insightsState.manualClassifications[key] = classification;
+}
+
+// Atualizar contadores no card da pergunta
+async function updateQuestionCardCounters(questionId) {
+    const stats = await getClassificationStatistics(questionId);
+    const questionCard = document.querySelector(`[data-question-id="${questionId}"]`);
     
-    // ===== IMPORTANTE: NÃO RECARREGAR A LISTA! =====
-    // Em vez de renderQuestionsList(), apenas atualizar as estatísticas
-    updateQuestionStats(questionId);
+    if (!questionCard) return;
     
-    // Atualizar visualmente APENAS este resultado
-    const allResults = document.querySelectorAll('.search-result-item');
-    allResults.forEach((resultEl, idx) => {
-        if (idx === resultIndex) {
-            // Atualizar botões
-            const buttons = resultEl.querySelectorAll('.classify-btn');
-            buttons.forEach(btn => {
-                if (btn.textContent.includes(classification === 'Procedente' ? '✅' : '❌')) {
-                    btn.classList.add('selected');
-                } else {
-                    btn.classList.remove('selected');
-                }
-            });
+    // Remover resumo existente
+    const existingSummary = questionCard.querySelector('.classification-summary');
+    if (existingSummary) existingSummary.remove();
+    
+    // Criar novo resumo
+    const summaryDiv = document.createElement('div');
+    summaryDiv.className = 'classification-summary';
+    
+    const counterProcedente = document.createElement('div');
+    counterProcedente.className = 'classification-counter counter-procedente';
+    counterProcedente.innerHTML = `✓ Procedentes: <strong>${stats.procedente}</strong>`;
+    
+    const counterImprocedente = document.createElement('div');
+    counterImprocedente.className = 'classification-counter counter-improcedente';
+    counterImprocedente.innerHTML = `✗ Improcedentes: <strong>${stats.improcedente}</strong>`;
+    
+    summaryDiv.appendChild(counterProcedente);
+    summaryDiv.appendChild(counterImprocedente);
+    
+    // Adicionar barra de progresso se houver classificações
+    if (stats.total > 0) {
+        const progressDiv = document.createElement('div');
+        progressDiv.className = 'classification-progress';
+        
+        const progressText = document.createElement('div');
+        progressText.textContent = `Analisadas: ${stats.total} ocorrências`;
+        
+        const progressBarContainer = document.createElement('div');
+        progressBarContainer.className = 'progress-bar-container';
+        
+        const progressBarFill = document.createElement('div');
+        progressBarFill.className = 'progress-bar-fill';
+        progressBarFill.style.width = '100%';
+        
+        progressBarContainer.appendChild(progressBarFill);
+        progressDiv.appendChild(progressText);
+        progressDiv.appendChild(progressBarContainer);
+        summaryDiv.appendChild(progressDiv);
+    }
+    
+    // Inserir no card
+    const detailsSection = questionCard.querySelector('.question-details');
+    if (detailsSection) {
+        detailsSection.insertBefore(summaryDiv, detailsSection.firstChild);
+    }
+}
+
+// Restaurar classificações salvas ao exibir resultados
+async function restoreClassificationsForResults(questionId, resultElements, resultsData) {
+    const classifications = await getQuestionClassifications(questionId);
+    
+    resultElements.forEach((element, index) => {
+        const resultData = resultsData[index] || {};
+        
+        // Adicionar botões
+        addClassificationButtonsToResult(element, questionId, index, resultData);
+        
+        // Restaurar classificação se existir
+        const savedClassification = classifications.find(c => c.resultIndex === index);
+        if (savedClassification) {
+            element.classList.add(`classified-${savedClassification.classification}`);
             
-            // Atualizar status
-            const statusSpan = resultEl.querySelector('.classification-status');
-            if (statusSpan) {
-                const isProc = classification === 'Procedente';
-                statusSpan.className = 'classification-status ' + classification.toLowerCase();
-                statusSpan.innerHTML = isProc ? '✅ SIM' : '❌ NÃO';
+            const badge = document.createElement('span');
+            badge.className = `classification-badge badge-${savedClassification.classification}-item`;
+            badge.innerHTML = savedClassification.classification === 'procedente' 
+                ? '✓ Procedente' 
+                : '✗ Improcedente';
+            
+            const metaSection = element.querySelector('.result-meta');
+            if (metaSection) {
+                metaSection.appendChild(badge);
             }
         }
     });
     
-    // Feedback visual
-    const emoji = classification === 'Procedente' ? '✅' : '❌';
-    showAlert(`${emoji} Resultado marcado como ${classification}`, 'success');
+    // Atualizar contadores
+    await updateQuestionCardCounters(questionId);
 }
 
-// Limpar classificação de um resultado específico
-function clearClassification(questionId, resultIndex) {
-    const key = `${questionId}_${resultIndex}`;
+// ===== CONTROLES DE ARMAZENAMENTO =====
+
+function createStorageControls() {
+    const controlsDiv = document.createElement('div');
+    controlsDiv.className = 'storage-controls';
+    controlsDiv.id = 'insights-storage-controls';
     
-    if (insightsState.manualClassifications && insightsState.manualClassifications[key]) {
-        delete insightsState.manualClassifications[key];
+    const infoSpan = document.createElement('span');
+    infoSpan.className = 'storage-info';
+    infoSpan.innerHTML = '💾 As classificações são salvas automaticamente no navegador';
+    
+    const btnClearAll = document.createElement('button');
+    btnClearAll.className = 'btn-clear-storage';
+    btnClearAll.innerHTML = '🗑️ Limpar Todas Classificações';
+    btnClearAll.onclick = async () => {
+        if (confirm('⚠️ Tem certeza que deseja limpar TODAS as classificações? Esta ação não pode ser desfeita.')) {
+            try {
+                await clearAllClassificationsData();
+                showInsightNotification('Todas as classificações foram removidas', 'success');
+                setTimeout(() => location.reload(), 1500);
+            } catch (error) {
+                console.error('Erro ao limpar:', error);
+                showInsightNotification('Erro ao limpar classificações', 'error');
+            }
+        }
+    };
+    
+    const btnExport = document.createElement('button');
+    btnExport.className = 'btn-export-classifications';
+    btnExport.innerHTML = '📥 Exportar com Classificações';
+    btnExport.onclick = exportInsightsWithClassifications;
+    
+    controlsDiv.appendChild(infoSpan);
+    controlsDiv.appendChild(btnClearAll);
+    controlsDiv.appendChild(btnExport);
+    
+    return controlsDiv;
+}
+
+// ===== EXPORTAÇÃO PARA EXCEL =====
+
+async function exportInsightsWithClassifications() {
+    try {
+        if (typeof XLSX === 'undefined') {
+            showInsightNotification('Biblioteca XLSX não carregada. Por favor, recarregue a página.', 'error');
+            return;
+        }
         
-        // Atualizar estatísticas
-        updateQuestionStats(questionId);
+        const allData = [];
         
-        // Atualizar visualmente
-        const allResults = document.querySelectorAll('.search-result-item');
-        allResults.forEach((resultEl, idx) => {
-            if (idx === resultIndex) {
-                const buttons = resultEl.querySelectorAll('.classify-btn');
-                buttons.forEach(btn => btn.classList.remove('selected'));
+        // Coletar dados de todas as perguntas
+        const questions = document.querySelectorAll('.question-card');
+        
+        for (const questionCard of questions) {
+            const questionId = questionCard.getAttribute('data-question-id');
+            if (!questionId) continue;
+            
+            const questionText = questionCard.querySelector('.question-text')?.textContent || 'N/A';
+            const classifications = await getQuestionClassifications(questionId);
+            const results = questionCard.querySelectorAll('.insight-item');
+            
+            results.forEach((resultElement, index) => {
+                const classification = classifications.find(c => c.resultIndex === index);
                 
-                const statusSpan = resultEl.querySelector('.classification-status');
-                if (statusSpan) {
-                    statusSpan.remove();
+                const agent = resultElement.querySelector('.result-meta')?.textContent.match(/Agente: ([^|]+)/)?.[1]?.trim() || 'N/A';
+                const date = resultElement.querySelector('.result-meta')?.textContent.match(/Data: ([^|]+)/)?.[1]?.trim() || 'N/A';
+                const text = resultElement.querySelector('.result-text')?.textContent || '';
+                const sentiment = resultElement.querySelector('.result-sentiment')?.textContent || 'neutro';
+                
+                allData.push({
+                    'Pergunta': questionText,
+                    'Agente': agent,
+                    'Data': date,
+                    'Texto': text,
+                    'Sentimento': sentiment,
+                    'Classificação': classification ? classification.classification.toUpperCase() : 'PENDENTE',
+                    'Data da Classificação': classification ? new Date(classification.timestamp).toLocaleString('pt-BR') : '',
+                    'Análise Humana': classification ? 'SIM' : 'NÃO'
+                });
+            });
+        }
+        
+        if (allData.length === 0) {
+            showInsightNotification('Nenhum dado para exportar', 'warning');
+            return;
+        }
+        
+        // Criar workbook
+        const ws = XLSX.utils.json_to_sheet(allData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Insights Classificados');
+        
+        // Ajustar largura das colunas
+        ws['!cols'] = [
+            { wch: 50 }, // Pergunta
+            { wch: 20 }, // Agente
+            { wch: 15 }, // Data
+            { wch: 60 }, // Texto
+            { wch: 12 }, // Sentimento
+            { wch: 18 }, // Classificação
+            { wch: 22 }, // Data da Classificação
+            { wch: 15 }  // Análise Humana
+        ];
+        
+        // Gerar arquivo
+        const timestamp = new Date().toISOString().split('T')[0];
+        const filename = `Sentinela_Insights_Classificados_${timestamp}.xlsx`;
+        XLSX.writeFile(wb, filename);
+        
+        showInsightNotification(`Relatório exportado: ${filename}`, 'success');
+        
+    } catch (error) {
+        console.error('❌ Erro ao exportar:', error);
+        showInsightNotification('Erro ao exportar relatório', 'error');
+    }
+}
+
+// ===== NOTIFICAÇÕES =====
+
+function showInsightNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} notification`;
+    
+    const icons = {
+        success: '✓',
+        error: '✗',
+        warning: '⚠',
+        info: 'ℹ'
+    };
+    
+    notification.innerHTML = `<i>${icons[type] || 'ℹ'}</i> ${message}`;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.classList.add('removing');
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
+}
+
+// ===== INTEGRAÇÃO COM SISTEMA EXISTENTE =====
+
+// Interceptar a exibição de resultados do Insights
+document.addEventListener('DOMContentLoaded', async function() {
+    try {
+        // Inicializar DB
+        await initInsightsDB();
+        console.log('✅ Sistema de Classificação de Insights ativado');
+        
+        // Adicionar controles de armazenamento
+        const insightsTab = document.querySelector('[data-tab-content="insights"]');
+        if (insightsTab) {
+            const existingControls = document.getElementById('insights-storage-controls');
+            if (!existingControls) {
+                const controls = createStorageControls();
+                insightsTab.insertBefore(controls, insightsTab.firstChild);
+            }
+        }
+        
+        // Observar mudanças na seção de insights para adicionar botões dinamicamente
+        const observer = new MutationObserver(async (mutations) => {
+            for (const mutation of mutations) {
+                if (mutation.addedNodes.length > 0) {
+                    const insightItems = document.querySelectorAll('.insight-item:not([data-classification-ready])');
+                    if (insightItems.length > 0) {
+                        // Tentar identificar a pergunta atual
+                        const activeQuestion = document.querySelector('.question-card.active');
+                        if (activeQuestion) {
+                            const questionId = activeQuestion.getAttribute('data-question-id');
+                            if (questionId) {
+                                const resultsData = Array.from(insightItems).map(item => ({
+                                    text: item.querySelector('.result-text')?.textContent || '',
+                                    agent: item.querySelector('.result-meta')?.textContent.match(/Agente: ([^|]+)/)?.[1]?.trim() || '',
+                                    date: item.querySelector('.result-meta')?.textContent.match(/Data: ([^|]+)/)?.[1]?.trim() || '',
+                                    sentiment: item.querySelector('.result-sentiment')?.textContent || ''
+                                }));
+                                
+                                await restoreClassificationsForResults(questionId, insightItems, resultsData);
+                                
+                                insightItems.forEach(item => {
+                                    item.setAttribute('data-classification-ready', 'true');
+                                });
+                            }
+                        }
+                    }
                 }
             }
         });
         
-        showAlert('🔄 Classificação removida', 'info');
-    }
-}
-
-// Contar classificações de uma pergunta
-function countClassifications(questionId) {
-    if (!insightsState.manualClassifications) {
-        insightsState.manualClassifications = {};
-    }
-    
-    const question = insightsState.questions.find(q => q.id === questionId);
-    if (!question || !question.results) {
-        return { procedente: 0, improcedente: 0, pending: 0, total: 0 };
-    }
-    
-    const total = question.results.length;
-    let procedente = 0;
-    let improcedente = 0;
-    
-    question.results.forEach((result, index) => {
-        const key = `${questionId}_${index}`;
-        const classification = insightsState.manualClassifications[key];
-        
-        if (classification === 'Procedente') {
-            procedente++;
-        } else if (classification === 'Improcedente') {
-            improcedente++;
+        // Observar a seção de insights
+        const insightsResults = document.querySelector('.insights-results') || document.querySelector('[data-tab-content="insights"]');
+        if (insightsResults) {
+            observer.observe(insightsResults, { childList: true, subtree: true });
         }
-    });
-    
-    const pending = total - (procedente + improcedente);
-    
-    return { procedente, improcedente, pending, total };
-}
+        
+    } catch (error) {
+        console.error('❌ Erro ao inicializar sistema de classificação:', error);
+        showInsightNotification('Erro ao inicializar sistema de classificação', 'error');
+    }
+});
 
-console.log("✅ Sistema de classificação SEM recolhimento carregado!");
-
+console.log('📊 Módulo de Classificação de Insights - CARREGADO ✅');
 
 </script>
 </body>

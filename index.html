@@ -4885,6 +4885,32 @@ function calculateRelevanceScore(result, keyword) {
 }
 
 // Renderizar a lista de perguntas e respostas
+function getResultClassification(questionId, resultIndex) {
+    const key = `${questionId}_${resultIndex}`;
+    return insightsState.manualClassifications[key] || null;
+}
+
+function countClassifications(questionId) {
+    const question = insightsState.questions.find(q => q.id == questionId);
+    if (!question) return { procedente: 0, improcedente: 0, total: 0 };
+    
+    let procedente = 0;
+    let improcedente = 0;
+    
+    question.results.forEach((result, index) => {
+        const classification = getResultClassification(questionId, index);
+        if (classification === 'Procedente') procedente++;
+        if (classification === 'Improcedente') improcedente++;
+    });
+    
+    return {
+        procedente,
+        improcedente,
+        total: question.results.length,
+        pending: question.results.length - procedente - improcedente
+    };
+}
+
 function renderQuestionsList() {
     const container = document.getElementById('questionsList');
     const noQuestionsMessage = document.getElementById('noQuestionsMessage');

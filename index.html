@@ -1359,6 +1359,393 @@
             color: #721c24;
         }
 
+
+
+        /* ========== MELHORIAS DE DESIGN - INSIGHTS ========== */
+        
+        /* Card de pergunta melhorado */
+        .insights-card {
+            margin-bottom: 20px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+        }
+        
+        .insights-card:hover {
+            box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+            transform: translateY(-2px);
+        }
+        
+        .insights-card .card-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .insights-card .card-title {
+            font-size: 1.1em;
+            font-weight: 600;
+            flex: 1;
+            min-width: 300px;
+            line-height: 1.4;
+        }
+        
+        /* Badges no header */
+        .header-badges {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .header-badges .badge {
+            background: rgba(255,255,255,0.25);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+            backdrop-filter: blur(10px);
+        }
+        
+        /* Resumo de Tabulação - VISUAL MELHORADO */
+        .tabulacao-summary {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            padding: 20px;
+            margin: 0;
+            border-bottom: 3px solid #667eea;
+        }
+        
+        .tabulacao-summary h4 {
+            margin: 0 0 15px 0;
+            color: #2d3748;
+            font-size: 1em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .tabulacao-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .tabulacao-stat-box {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            transition: transform 0.2s;
+        }
+        
+        .tabulacao-stat-box:hover {
+            transform: scale(1.05);
+        }
+        
+        .tabulacao-stat-box .stat-number {
+            font-size: 2em;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+        
+        .tabulacao-stat-box.procedente .stat-number {
+            color: #48bb78;
+        }
+        
+        .tabulacao-stat-box.improcedente .stat-number {
+            color: #f56565;
+        }
+        
+        .tabulacao-stat-box.pendente .stat-number {
+            color: #ed8936;
+        }
+        
+        .tabulacao-stat-box .stat-label {
+            font-size: 0.85em;
+            color: #718096;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .tabulacao-stat-box .stat-percent {
+            font-size: 0.9em;
+            color: #a0aec0;
+            margin-top: 3px;
+        }
+        
+        /* Barra de progresso */
+        .progress-bar-container {
+            background: #e2e8f0;
+            border-radius: 10px;
+            height: 24px;
+            overflow: hidden;
+            position: relative;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .progress-bar {
+            height: 100%;
+            display: flex;
+            transition: all 0.5s ease;
+        }
+        
+        .progress-segment {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75em;
+            font-weight: 600;
+            color: white;
+            transition: width 0.5s ease;
+        }
+        
+        .progress-segment.procedente {
+            background: linear-gradient(90deg, #48bb78, #38a169);
+        }
+        
+        .progress-segment.improcedente {
+            background: linear-gradient(90deg, #f56565, #e53e3e);
+        }
+        
+        .progress-segment.pendente {
+            background: linear-gradient(90deg, #ed8936, #dd6b20);
+        }
+        
+        /* Resultados individuais melhorados */
+        .search-result-item {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+        }
+        
+        .search-result-item:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            border-color: #667eea;
+        }
+        
+        .result-meta {
+            background: #f7fafc;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 12px;
+            font-size: 0.9em;
+            color: #4a5568;
+            border-left: 4px solid #667eea;
+        }
+        
+        .result-text {
+            font-size: 1em;
+            line-height: 1.6;
+            margin: 15px 0;
+            padding: 15px;
+            background: #fafafa;
+            border-radius: 6px;
+            color: #2d3748;
+        }
+        
+        .result-sentiment {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 12px 0;
+            padding: 10px;
+            background: #f7fafc;
+            border-radius: 6px;
+            font-size: 0.9em;
+        }
+        
+        /* Botões de classificação MELHORADOS */
+        .result-classification {
+            margin-top: 15px;
+            padding: 15px;
+            background: linear-gradient(135deg, #fafafa 0%, #f0f0f0 100%);
+            border-radius: 8px;
+            border: 2px dashed #e2e8f0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        
+        .result-classification strong {
+            color: #2d3748;
+            font-size: 0.95em;
+            min-width: 80px;
+        }
+        
+        .classify-btn {
+            padding: 10px 20px !important;
+            font-size: 0.9em !important;
+            font-weight: 600 !important;
+            border-radius: 8px !important;
+            transition: all 0.3s ease !important;
+            border: 2px solid transparent !important;
+            cursor: pointer !important;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .classify-btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+        
+        .classify-btn:active::before {
+            width: 300px;
+            height: 300px;
+        }
+        
+        .classify-btn.button-success {
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+        }
+        
+        .classify-btn.button-success:hover:not(.selected) {
+            background: linear-gradient(135deg, #38a169 0%, #2f855a 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(72, 187, 120, 0.3);
+        }
+        
+        .classify-btn.button-danger {
+            background: linear-gradient(135deg, #f56565 0%, #e53e3e 100%);
+        }
+        
+        .classify-btn.button-danger:hover:not(.selected) {
+            background: linear-gradient(135deg, #e53e3e 0%, #c53030 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(245, 101, 101, 0.3);
+        }
+        
+        .classify-btn.selected {
+            border: 2px solid #2d3748 !important;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.2) !important;
+            transform: scale(1.05);
+        }
+        
+        .classify-btn:not(.selected) {
+            opacity: 0.7;
+        }
+        
+        .classification-status {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        
+        .classification-status.procedente {
+            background: linear-gradient(135deg, #c6f6d5 0%, #9ae6b4 100%);
+            color: #22543d;
+        }
+        
+        .classification-status.improcedente {
+            background: linear-gradient(135deg, #fed7d7 0%, #fc8181 100%);
+            color: #742a2a;
+        }
+        
+        /* Highlight de palavras-chave melhorado */
+        .highlight {
+            background: linear-gradient(120deg, #ffd700 0%, #ffed4e 100%);
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-weight: 600;
+            color: #2d3748;
+            box-shadow: 0 2px 4px rgba(255, 215, 0, 0.3);
+        }
+        
+        /* Header actions */
+        .header-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        
+        .header-actions .button {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 8px 12px;
+            font-size: 0.85em;
+            transition: all 0.3s ease;
+        }
+        
+        .header-actions .button:hover {
+            background: rgba(255,255,255,0.3);
+            transform: scale(1.05);
+        }
+        
+        /* Título da seção de resultados */
+        .insights-results h4 {
+            color: #2d3748;
+            font-size: 1.1em;
+            margin: 0 0 15px 0;
+            padding: 15px;
+            background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+            border-left: 4px solid #667eea;
+            border-radius: 4px;
+        }
+        
+        /* Empty state melhorado */
+        .insights-empty {
+            text-align: center;
+            padding: 60px 20px;
+            color: #a0aec0;
+        }
+        
+        .insights-empty i {
+            font-size: 4em;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+        
+        /* Animação de carregamento */
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+        
+        .loading {
+            animation: pulse 2s ease-in-out infinite;
+        }
+
 </style>
 </head>
 <body>
@@ -1634,13 +2021,37 @@
                     <div class="tab-content" id="agents">
                         <div class="card">
                             <div class="card-header">
-                                <div class="card-title">Desempenho por Agente</div>
-                                <button class="button button-info" id="exportAgents">
-                                    <i class="fas fa-download"></i>
-                                    Exportar Relatório
-                                </button>
-                            </div>
-                            <div id="agentsTable"></div>
+                    <div class="card-title">${question.text}</div>
+                    <div class="header-badges">
+                        <span class="badge">${question.analysis.confidence}% confiança</span>
+                        <span class="badge">${question.analysis.totalMatches} resultados</span>
+                        ${(() => {
+                            const counts = countClassifications(question.id);
+                            return `
+                                <span class="badge" style="background: rgba(72, 187, 120, 0.3);" title="Procedentes (SIM)">
+                                    ✅ ${counts.procedente}
+                                </span>
+                                <span class="badge" style="background: rgba(245, 101, 101, 0.3);" title="Improcedentes (NÃO)">
+                                    ❌ ${counts.improcedente}
+                                </span>
+                                <span class="badge" style="background: rgba(237, 137, 54, 0.3);" title="Pendentes">
+                                    ⏳ ${counts.pending}
+                                </span>
+                            `;
+                        })()}
+                    </div>
+                    <div class="header-actions">
+                        <button class="button toggle-question" data-question-id="${question.id}" title="Expandir/Colapsar">
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <button class="button export-question" data-question-id="${question.id}" title="Exportar Resultados">
+                            <i class="fas fa-download"></i>
+                        </button>
+                        <button class="button delete-question" data-question-id="${question.id}" title="Excluir Pergunta">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
                         </div>
                     </div>
                     
@@ -5038,25 +5449,75 @@ function renderQuestionsList() {
                         
                     
                     ${question.results.length > 0 ? `
-                        <div class="alert alert-info" style="margin-top: 10px;">
-                            <i class="fas fa-chart-bar"></i>
-                            <div>
-                                <strong>Resumo da Tabulação Manual:</strong><br>
+                        <div class="tabulacao-summary">
+                            <h4>
+                                <i class="fas fa-clipboard-check"></i>
+                                Resumo da Tabulação Manual
+                            </h4>
+                            
+                            <!-- Estatísticas em cards -->
+                            <div class="tabulacao-stats">
                                 ${(() => {
                                     const counts = countClassifications(question.id);
                                     const procedentePct = counts.total > 0 ? Math.round((counts.procedente / counts.total) * 100) : 0;
                                     const improcedentePct = counts.total > 0 ? Math.round((counts.improcedente / counts.total) * 100) : 0;
+                                    const pendentePct = counts.total > 0 ? Math.round((counts.pending / counts.total) * 100) : 0;
+                                    
                                     return `
-                                        ✅ <strong>${counts.procedente}</strong> Procedente(s) (SIM) - ${procedentePct}% | 
-                                        ❌ <strong>${counts.improcedente}</strong> Improcedente(s) (NÃO) - ${improcedentePct}% | 
-                                        ⏳ <strong>${counts.pending}</strong> Pendente(s)
+                                        <div class="tabulacao-stat-box procedente">
+                                            <div class="stat-number">✅ ${counts.procedente}</div>
+                                            <div class="stat-label">Procedente (SIM)</div>
+                                            <div class="stat-percent">${procedentePct}%</div>
+                                        </div>
+                                        
+                                        <div class="tabulacao-stat-box improcedente">
+                                            <div class="stat-number">❌ ${counts.improcedente}</div>
+                                            <div class="stat-label">Improcedente (NÃO)</div>
+                                            <div class="stat-percent">${improcedentePct}%</div>
+                                        </div>
+                                        
+                                        <div class="tabulacao-stat-box pendente">
+                                            <div class="stat-number">⏳ ${counts.pending}</div>
+                                            <div class="stat-label">Pendente</div>
+                                            <div class="stat-percent">${pendentePct}%</div>
+                                        </div>
                                     `;
                                 })()}
+                            </div>
+                            
+                            <!-- Barra de progresso visual -->
+                            <div class="progress-bar-container">
+                                <div class="progress-bar">
+                                    ${(() => {
+                                        const counts = countClassifications(question.id);
+                                        const procedentePct = counts.total > 0 ? (counts.procedente / counts.total) * 100 : 0;
+                                        const improcedentePct = counts.total > 0 ? (counts.improcedente / counts.total) * 100 : 0;
+                                        const pendentePct = counts.total > 0 ? (counts.pending / counts.total) * 100 : 0;
+                                        
+                                        let html = '';
+                                        if (procedentePct > 0) {
+                                            html += `<div class="progress-segment procedente" style="width: ${procedentePct}%">
+                                                ${procedentePct >= 10 ? Math.round(procedentePct) + '%' : ''}
+                                            </div>`;
+                                        }
+                                        if (improcedentePct > 0) {
+                                            html += `<div class="progress-segment improcedente" style="width: ${improcedentePct}%">
+                                                ${improcedentePct >= 10 ? Math.round(improcedentePct) + '%' : ''}
+                                            </div>`;
+                                        }
+                                        if (pendentePct > 0) {
+                                            html += `<div class="progress-segment pendente" style="width: ${pendentePct}%">
+                                                ${pendentePct >= 10 ? Math.round(pendentePct) + '%' : ''}
+                                            </div>`;
+                                        }
+                                        return html;
+                                    })()}
+                                </div>
                             </div>
                         </div>
                     ` : ''}
                     <div class="insights-results">
-                            <h4>Ocorrências Encontradas:</h4>
+                            <h4><i class="fas fa-list-ul"></i> Ocorrências Encontradas (${question.results.length})</h4>
                             ${question.results.map((result, index) => `
                                 <div class="search-result-item">
                                     <div class="result-meta">

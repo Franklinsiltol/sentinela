@@ -1,4 +1,11 @@
-<!DOCTYPE html>
+<!DO
+                        <td>
+                            <span class="badge ${item.Classificacao === 'Procedente' ? 'status-success' : 
+                                               item.Classificacao === 'Improcedente' ? 'status-error' : 
+                                               'status-warning'}">
+                                ${item.Classificacao || 'Não Classificado'}
+                            </span>
+                        </td>CTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
@@ -1922,6 +1929,32 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Card de Classificação -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-balance-scale"></i> Classificação
+                    </div>
+                </div>
+                <div class="card-content">
+                    <div class="stat-grid">
+                        <div class="stat-item">
+                            <div class="stat-value" id="statProcedentes">0</div>
+                            <div class="stat-label">Procedentes</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="statImprocedentes">0</div>
+                            <div class="stat-label">Improcedentes</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="statNaoClassificados">0</div>
+                            <div class="stat-label">Não Classificados</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
 

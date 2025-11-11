@@ -4939,8 +4939,10 @@ function renderQuestionsList() {
                     ${question.results.length > 0 ? `
                         <div class="insights-results">
                             <h4>Ocorrências Encontradas:</h4>
-                            ${question.results.map(result => `
-                                <div class="search-result-item">
+                            ${question.results.map((result, index) => {
+                                const resultId = `result-${questionIndex}-${index}`;
+                                return `
+                                <div class="search-result-item" data-result-id="${resultId}">
                                     <div class="result-meta">
                                         <strong>Agente:</strong> ${result.item.Agente} | 
                                         <strong>Data:</strong> ${result.item.Data} ${result.item.Hora || ''}
@@ -4952,8 +4954,12 @@ function renderQuestionsList() {
                                         <span class="status-indicator status-${result.item.Sentimento === 'Positivo' ? 'success' : result.item.Sentimento === 'Negativo' ? 'error' : 'warning'}"></span>
                                         Sentimento: ${result.item.Sentimento} (Pontuação: ${result.item.Pontuacao || 'N/A'})
                                     </div>
+                                    <div class="classification-buttons-container" id="classification-buttons-${resultId}">
+                                        <!-- Botões serão inseridos aqui por addClassificationButtonsToResult() -->
+                                    </div>
                                 </div>
-                            `).join('')}
+                            `;
+                            }).join('')}
                         </div>
                     ` : ''}
                 </div>

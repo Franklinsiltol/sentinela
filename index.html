@@ -1330,57 +1330,6 @@
                     </div>
                     <button class="button button-primary" id="applyFilter">
                         <i class="fas fa-filter"></i>
-     ow: 0 0 0 2px rgba(0,0,0,0.2);
-        }
-        
-        .classify-btn:not(.selected) {
-            opacity: 0.6;
-        }
-        
-        .classification-status {
-            margin-left: 10px;
-            padding: 4px 10px;
-            border-radius: 4px;
-            font-size: 0.85em;
-            font-weight: bold;
-        }
-        
-        .classification-status.procedente {
-            background-color: #d4edda;
-            color: #155724;
-        }
-        
-        .classification-status.improcedente {
-            background-color: #f8d7da;
-            color: #721c24;
-        }
-
-</style>
-</head>
-<body>
-    <div class="container">
-        <!-- Sidebar -->
-        <div class="sidebar" id="sidebar">
-            <button class="sidebar-toggle" id="sidebarToggle">
-                <i class="fas fa-bars"></i>
-            </button>
-            
-            <div class="sidebar-content">
-                <div class="section">
-                    <h3 class="section-title">
-                        <i class="fas fa-tachometer-alt"></i>
-                        <span>Dashboard</span>
-                    </h3>
-                    <div class="input-group">
-                        <label>Data Inicial</label>
-                        <input type="date" id="startDate">
-                    </div>
-                    <div class="input-group">
-                        <label>Data Final</label>
-                        <input type="date" id="endDate">
-                    </div>
-                    <button class="button button-primary" id="applyFilter">
-                        <i class="fas fa-filter"></i>
                         <span>Aplicar Filtro</span>
                     </button>
                 </div>
@@ -1973,32 +1922,6 @@
                     </div>
                 </div>
             </div>
-
-            <!-- Card de Classificação -->
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-title">
-                        <i class="fas fa-balance-scale"></i> Classificação
-                    </div>
-                </div>
-                <div class="card-content">
-                    <div class="stat-grid">
-                        <div class="stat-item">
-                            <div class="stat-value" id="statProcedentes">0</div>
-                            <div class="stat-label">Procedentes</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-value" id="statImprocedentes">0</div>
-                            <div class="stat-label">Improcedentes</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-value" id="statNaoClassificados">0</div>
-                            <div class="stat-label">Não Classificados</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
         </div>
     </div>
 
@@ -4766,8 +4689,6 @@ function exportSearchResults() {
 // Estado para gerenciar as perguntas e respostas
 const insightsState = {
     questions: [],
-    
-    manualClassifications: {}, // Armazena classificações manuais por resultado
     searchIndex: null
 };
 
@@ -4968,16 +4889,6 @@ function renderQuestionsList() {
     const container = document.getElementById('questionsList');
     const noQuestionsMessage = document.getElementById('noQuestionsMessage');
     
-    
-    // Salvar o estado dos cards abertos antes de renderizar
-    const openCards = new Set();
-    document.querySelectorAll('.question-details:not(.hidden)').forEach(detail => {
-        const card = detail.closest('.question-card');
-        if (card) {
-            openCards.add(card.dataset.questionId);
-        }
-    });
-
     if (insightsState.questions.length === 0) {
         noQuestionsMessage.style.display = 'block';
         container.innerHTML = '';
@@ -4994,38 +4905,23 @@ function renderQuestionsList() {
         
         html += `
             <div class="card question-card" data-question-id="${question.id}">
-
-                    <div class="card-header">
-                        <div class="card-title">${question.text}</div>
-                        <div>
-                            <span class="badge ${confidenceColor}">${question.analysis.confidence}% confiança</span>
-                            <span class="badge">${question.analysis.totalMatches} ocorrências</span>
-                            ${(() => {
-                                const counts = countClassifications(question.id);
-                                return `
-                                    <span class="badge status-success" title="Procedentes (SIM)">
-                                        ✅ ${counts.procedente}
-                                    </span>
-                                    <span class="badge status-error" title="Improcedentes (NÃO)">
-                                        ❌ ${counts.improcedente}
-                                    </span>
-                                    <span class="badge status-warning" title="Pendentes">
-                                        ⏳ ${counts.pending}
-                                    </span>
-                                `;
-                            })()}
-                            <button class="button button-info toggle-question" data-question-id="${question.id}">
-                                <i class="fas fa-chevron-down"></i>
-                            </button>
-                            <button class="button button-danger delete-question" data-question-id="${question.id}">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                            <button class="button button-success export-question" data-question-id="${question.id}">
-                                <i class="fas fa-download"></i>
-                            </button>
-                        </div>
+                <div class="card-header">
+                    <div class="card-title">${question.text}</div>
+                    <div>
+                        <span class="badge ${confidenceColor}">${question.analysis.confidence}% confiança</span>
+                        <span class="badge">${question.analysis.totalMatches} ocorrências</span>
+                        <button class="button button-info toggle-question" data-question-id="${question.id}">
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <button class="button button-danger delete-question" data-question-id="${question.id}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                        <button class="button button-success export-question" data-question-id="${question.id}">
+                            <i class="fas fa-download"></i>
+                        </button>
                     </div>
-                <div class="question-details ${openCards.has(question.id.toString()) ? "" : "hidden"}">
+                </div>
+                <div class="question-details hidden">
                     <div class="alert alert-${question.analysis.totalMatches > 0 ? 'info' : 'warning'}">
                         <i class="fas fa-${question.analysis.totalMatches > 0 ? 'check-circle' : 'exclamation-triangle'}"></i>
                         <div>${question.analysis.message}</div>
@@ -5041,29 +4937,9 @@ function renderQuestionsList() {
                     ` : ''}
                     
                     ${question.results.length > 0 ? `
-                        
-                    
-                    ${question.results.length > 0 ? `
-                        <div class="alert alert-info" style="margin-top: 10px;">
-                            <i class="fas fa-chart-bar"></i>
-                            <div>
-                                <strong>Resumo da Tabulação Manual:</strong><br>
-                                ${(() => {
-                                    const counts = countClassifications(question.id);
-                                    const procedentePct = counts.total > 0 ? Math.round((counts.procedente / counts.total) * 100) : 0;
-                                    const improcedentePct = counts.total > 0 ? Math.round((counts.improcedente / counts.total) * 100) : 0;
-                                    return `
-                                        ✅ <strong>${counts.procedente}</strong> Procedente(s) (SIM) - ${procedentePct}% | 
-                                        ❌ <strong>${counts.improcedente}</strong> Improcedente(s) (NÃO) - ${improcedentePct}% | 
-                                        ⏳ <strong>${counts.pending}</strong> Pendente(s)
-                                    `;
-                                })()}
-                            </div>
-                        </div>
-                    ` : ''}
-                    <div class="insights-results">
+                        <div class="insights-results">
                             <h4>Ocorrências Encontradas:</h4>
-                            ${question.results.map((result, index) => `
+                            ${question.results.map(result => `
                                 <div class="search-result-item">
                                     <div class="result-meta">
                                         <strong>Agente:</strong> ${result.item.Agente} | 
@@ -5076,103 +4952,65 @@ function renderQuestionsList() {
                                         <span class="status-indicator status-${result.item.Sentimento === 'Positivo' ? 'success' : result.item.Sentimento === 'Negativo' ? 'error' : 'warning'}"></span>
                                         Sentimento: ${result.item.Sentimento} (Pontuação: ${result.item.Pontuacao || 'N/A'})
                                     </div>
-                                    <div class="result-classification">
-                                        <strong>Tabulação:</strong>
-                                        <button class="button button-success classify-btn ${getResultClassification(question.id, index) === 'Procedente' ? 'selected' : ''}" 
-                                                onclick="classifyResult(${question.id}, ${index}, 'Procedente')">
-                                            <i class="fas fa-check"></i> Procedente (SIM)
-                                        </button>
-                                        <button class="button button-danger classify-btn ${getResultClassification(question.id, index) === 'Improcedente' ? 'selected' : ''}"
-                                                onclick="classifyResult(${question.id}, ${index}, 'Improcedente')">
-                                            <i class="fas fa-times"></i> Improcedente (NÃO)
-                                        </button>
-                                        ${getResultClassification(question.id, index) ? 
-                                            `<span class="classification-status ${getResultClassification(question.id, index).toLowerCase()}">
-                                                ${getResultClassification(question.id, index) === 'Procedente' ? '✅ SIM' : '❌ NÃO'}
-                                            </span>` : 
-                                            '<span class="classification-status" style="color: #666;">⏳ Pendente</span>'}
-                                    </div>
-                                
-                                    
-                                    <div class="classification-buttons" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #eee; display: flex; gap: 10px;">
-                                        <button class="classify-btn procedente" 
-                                                onclick="classifyResult('${question.id}', ${index}, 'Procedente'); event.stopPropagation();"
-                                                style="flex: 1; padding: 8px 16px; border: 2px solid #4CAF50; border-radius: 8px; background: white; cursor: pointer; color: #4CAF50;">
-                                            ✅ Procedente
-                                        </button>
-                                        <button class="classify-btn improcedente" 
-                                                onclick="classifyResult('${question.id}', ${index}, 'Improcedente'); event.stopPropagation();"
-                                                style="flex: 1; padding: 8px 16px; border: 2px solid #f44336; border-radius: 8px; background: white; cursor: pointer; color: #f44336;">
-                                            ❌ Improcedente
-                                        </button>
-                                    </div>
-                                    </div>
-                            `).joino
-    const key = `${questionId}_${resultIndex}`;
-    
-    // Salvar classificação
-    insightsState.manualClassifications[key] = classification;
-    
-    // Atualizar APENAS o resultado específico, não toda a lista
-    const questionCard = document.querySelector(`[data-question-id="${questionId}"]`);
-    if (questionCard) {
-        const resultsContainer = questionCard.querySelector('.results-list');
-        if (resultsContainer) {
-            const resultItems = resultsContainer.querySelectorAll('.result-item');
-            const targetItem = resultItems[resultIndex];
-            
-            if (targetItem) {
-                // Remover classes antigas
-                targetItem.classList.remove('classified-procedente', 'classified-improcedente');
-                
-                // Adicionar nova classe
-                targetItem.classList.add(classification === 'Procedente' ? 'classified-procedente' : 'classified-improcedente');
-                
-                // Atualizar botões
-                const buttons = targetItem.querySelectorAll('.classify-btn');
-                buttons.forEach(btn => {
-                    btn.classList.remove('active');
-                    if (btn.textContent.includes(classification)) {
-                        btn.classList.add('active');
-                    }
-                });
-            }
-        }
-    }
-    
-    // Mostrar feedback
-    const emoji = classification === 'Procedente' ? '✅' : '❌';
-    showAlert(`${emoji} Resultado marcado como ${classification}`, 'success');
-}
-
-// Obter classificação de um resultado
-function getResultClassification(questionId, resultIndex) {
-    const key = `${questionId}_${resultIndex}`;
-    return insightsState.manualClassifications[key] || null;
-}
-
-// Contar classificações de uma pergunta
-function countClassifications(questionId) {
-    const question = insightsState.questions.find(q => q.id == questionId);
-    if (!question) return { procedente: 0, improcedente: 0, total: 0 };
-    
-    let procedente = 0;
-    let improcedente = 0;
-    
-    question.results.forEach((result, index) => {
-        const classification = getResultClassification(questionId, index);
-        if (classification === 'Procedente') procedente++;
-        if (classification === 'Improcedente') improcedente++;
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
     });
     
-    return {
-        procedente,
-        improcedente,
-        total: question.results.length,
-        pending: question.results.length - procedente - improcedente
-    };
+    container.innerHTML = html;
+    
+    // Adicionar event listeners para os botões das perguntas
+    document.querySelectorAll('.toggle-question').forEach(button => {
+        button.addEventListener('click', function() {
+            const questionId = this.getAttribute('data-question-id');
+            toggleQuestionDetails(questionId);
+        });
+    });
+    
+    document.querySelectorAll('.delete-question').forEach(button => {
+        button.addEventListener('click', function() {
+            const questionId = this.getAttribute('data-question-id');
+            deleteQuestion(questionId);
+        });
+    });
+    
+    document.querySelectorAll('.export-question').forEach(button => {
+        button.addEventListener('click', function() {
+            const questionId = this.getAttribute('data-question-id');
+            exportQuestionResults(questionId);
+        });
+    });
 }
 
+// Alternar visibilidade dos detalhes da pergunta
+function toggleQuestionDetails(questionId) {
+    const questionCard = document.querySelector(`.question-card[data-question-id="${questionId}"]`);
+    const details = questionCard.querySelector('.question-details');
+    const toggleButton = questionCard.querySelector('.toggle-question i');
+    
+    details.classList.toggle('hidden');
+    
+    if (details.classList.contains('hidden')) {
+        toggleButton.className = 'fas fa-chevron-down';
+    } else {
+        toggleButton.className = 'fas fa-chevron-up';
+    }
+}
+
+// Excluir uma pergunta
+function deleteQuestion(questionId) {
+    if (confirm('Tem certeza que deseja excluir esta pergunta e todos os seus resultados?')) {
+        insightsState.questions = insightsState.questions.filter(q => q.id != questionId);
+        renderQuestionsList();
+        showAlert('✅ Pergunta excluída com sucesso!', 'success');
+    }
+}
+
+// Exportar resultados de uma pergunta específica
 function exportQuestionResults(questionId) {
     const question = insightsState.questions.find(q => q.id == questionId);
     
@@ -5187,12 +5025,10 @@ function exportQuestionResults(questionId) {
         ['Total de Ocorrências', question.analysis.totalMatches],
         ['Confiança da Análise', question.analysis.confidence + '%'],
         [], // Linha em branco
-        ['Agente', 'Data', 'Hora', 'Email', 'Texto', 'Sentimento', 'Pontuação', 'Palavras-chave Encontradas', 'Classificação Manual']
+        ['Agente', 'Data', 'Hora', 'Email', 'Texto', 'Sentimento', 'Pontuação', 'Palavras-chave Encontradas']
     ];
-
     
-    question.results.forEach((result, index) => {
-        const manualClassification = getResultClassification(questionId, index);
+    question.results.forEach(result => {
         csvData.push([
             result.item.Agente,
             result.item.Data,
@@ -5201,8 +5037,7 @@ function exportQuestionResults(questionId) {
             result.item.Texto,
             result.item.Sentimento,
             result.item.Pontuacao || '',
-            result.keywords.join(', '),
-            manualClassification || 'Pendente'
+            result.keywords.join(', ')
         ]);
     });
     
@@ -5246,7 +5081,7 @@ function exportAllInsights() {
         csvData.push([]);
         
         if (question.results.length > 0) {
-            csvData.push(['Agente', 'Data', 'Hora', 'Email', 'Texto', 'Sentimento', 'Pontuação', 'Palavras-chave Encontradas', 'Classificação Manual']);
+            csvData.push(['Agente', 'Data', 'Hora', 'Email', 'Texto', 'Sentimento', 'Pontuação', 'Palavras-chave Encontradas']);
             
             question.results.forEach(result => {
                 csvData.push([
@@ -5371,9 +5206,219 @@ document.head.appendChild(styleSheet);
             }
         });
     </script>
-</body>
-</html>
-nt.querySelector('.classification-section');
+
+<script>
+
+// ============================================= 
+// SISTEMA DE CLASSIFICAÇÃO DE INSIGHTS - SENTINELA
+// Desenvolvido para análise procedente/improcedente
+// IndexedDB com persistência local
+// ============================================= 
+
+// Configuração do IndexedDB
+const INSIGHTS_DB_CONFIG = {
+    name: 'SentinelaInsightsDB',
+    version: 1,
+    storeName: 'classifications'
+};
+
+let insightsDB = null;
+let insightQuestions = [];
+
+// ===== INICIALIZAÇÃO DO INDEXEDDB =====
+async function initInsightsDB() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(INSIGHTS_DB_CONFIG.name, INSIGHTS_DB_CONFIG.version);
+        
+        request.onerror = () => {
+            console.error('❌ Erro ao abrir IndexedDB:', request.error);
+            reject(request.error);
+        };
+        
+        request.onsuccess = () => {
+            insightsDB = request.result;
+            console.log('✅ IndexedDB inicializado com sucesso');
+            resolve(insightsDB);
+        };
+        
+        request.onupgradeneeded = (event) => {
+            const db = event.target.result;
+            
+            // Criar object store se não existir
+            if (!db.objectStoreNames.contains(INSIGHTS_DB_CONFIG.storeName)) {
+                const objectStore = db.createObjectStore(INSIGHTS_DB_CONFIG.storeName, { 
+                    keyPath: 'id', 
+                    autoIncrement: true 
+                });
+                
+                // Criar índices para busca eficiente
+                objectStore.createIndex('questionId', 'questionId', { unique: false });
+                objectStore.createIndex('resultIndex', 'resultIndex', { unique: false });
+                objectStore.createIndex('classification', 'classification', { unique: false });
+                objectStore.createIndex('timestamp', 'timestamp', { unique: false });
+                objectStore.createIndex('composite', ['questionId', 'resultIndex'], { unique: false });
+                
+                console.log('📊 Object Store "classifications" criado com sucesso');
+            }
+        };
+    });
+}
+
+// ===== OPERAÇÕES DE CRUD =====
+
+// Salvar ou atualizar classificação
+async function saveInsightClassification(questionId, resultIndex, classification, resultData) {
+    return new Promise((resolve, reject) => {
+        const transaction = insightsDB.transaction([INSIGHTS_DB_CONFIG.storeName], 'readwrite');
+        const objectStore = transaction.objectStore(INSIGHTS_DB_CONFIG.storeName);
+        
+        const data = {
+            questionId: String(questionId),
+            resultIndex: Number(resultIndex),
+            classification: classification,
+            timestamp: new Date().toISOString(),
+            resultData: {
+                text: resultData.text || '',
+                agent: resultData.agent || '',
+                date: resultData.date || '',
+                sentiment: resultData.sentiment || ''
+            }
+        };
+        
+        // Buscar se já existe classificação para este item
+        const index = objectStore.index('composite');
+        const searchRequest = index.get([String(questionId), Number(resultIndex)]);
+        
+        searchRequest.onsuccess = () => {
+            const existing = searchRequest.result;
+            
+            if (existing) {
+                // Atualizar existente
+                data.id = existing.id;
+                const updateRequest = objectStore.put(data);
+                updateRequest.onsuccess = () => {
+                    console.log('✅ Classificação atualizada:', data);
+                    resolve(data);
+                };
+                updateRequest.onerror = () => reject(updateRequest.error);
+            } else {
+                // Criar novo
+                const addRequest = objectStore.add(data);
+                addRequest.onsuccess = () => {
+                    console.log('✅ Nova classificação salva:', data);
+                    resolve(data);
+                };
+                addRequest.onerror = () => reject(addRequest.error);
+            }
+        };
+        
+        searchRequest.onerror = () => reject(searchRequest.error);
+    });
+}
+
+// Obter todas as classificações de uma pergunta
+async function getQuestionClassifications(questionId) {
+    return new Promise((resolve, reject) => {
+        const transaction = insightsDB.transaction([INSIGHTS_DB_CONFIG.storeName], 'readonly');
+        const objectStore = transaction.objectStore(INSIGHTS_DB_CONFIG.storeName);
+        const index = objectStore.index('questionId');
+        const request = index.getAll(IDBKeyRange.only(String(questionId)));
+        
+        request.onsuccess = () => {
+            resolve(request.result || []);
+        };
+        request.onerror = () => reject(request.error);
+    });
+}
+
+// Obter estatísticas de classificação
+async function getClassificationStatistics(questionId) {
+    const classifications = await getQuestionClassifications(questionId);
+    
+    const stats = {
+        total: classifications.length,
+        procedente: classifications.filter(c => c.classification === 'procedente').length,
+        improcedente: classifications.filter(c => c.classification === 'improcedente').length,
+        pendente: 0
+    };
+    
+    stats.percentage = stats.total > 0 
+        ? Math.round((stats.total / stats.total) * 100) 
+        : 0;
+    
+    return stats;
+}
+
+// Limpar classificações de uma pergunta específica
+async function clearQuestionClassificationsData(questionId) {
+    return new Promise((resolve, reject) => {
+        const transaction = insightsDB.transaction([INSIGHTS_DB_CONFIG.storeName], 'readwrite');
+        const objectStore = transaction.objectStore(INSIGHTS_DB_CONFIG.storeName);
+        const index = objectStore.index('questionId');
+        const request = index.openCursor(IDBKeyRange.only(String(questionId)));
+        
+        request.onsuccess = (event) => {
+            const cursor = event.target.result;
+            if (cursor) {
+                cursor.delete();
+                cursor.continue();
+            } else {
+                console.log(`🗑️ Classificações da pergunta ${questionId} removidas`);
+                resolve();
+            }
+        };
+        
+        request.onerror = () => reject(request.error);
+    });
+}
+
+// Limpar TODAS as classificações
+async function clearAllClassificationsData() {
+    return new Promise((resolve, reject) => {
+        const transaction = insightsDB.transaction([INSIGHTS_DB_CONFIG.storeName], 'readwrite');
+        const objectStore = transaction.objectStore(INSIGHTS_DB_CONFIG.storeName);
+        const request = objectStore.clear();
+        
+        request.onsuccess = () => {
+            console.log('🗑️ TODAS as classificações foram removidas');
+            resolve();
+        };
+        request.onerror = () => reject(request.error);
+    });
+}
+
+// Remover classificação individual
+async function removeClassification(questionId, resultIndex) {
+    return new Promise((resolve, reject) => {
+        const transaction = insightsDB.transaction([INSIGHTS_DB_CONFIG.storeName], 'readwrite');
+        const objectStore = transaction.objectStore(INSIGHTS_DB_CONFIG.storeName);
+        const index = objectStore.index('composite');
+        const request = index.getKey([String(questionId), Number(resultIndex)]);
+        
+        request.onsuccess = () => {
+            const key = request.result;
+            if (key) {
+                const deleteRequest = objectStore.delete(key);
+                deleteRequest.onsuccess = () => {
+                    console.log(`🗑️ Classificação removida: Q${questionId}-R${resultIndex}`);
+                    resolve();
+                };
+                deleteRequest.onerror = () => reject(deleteRequest.error);
+            } else {
+                resolve(); // Não existe, já está "removida"
+            }
+        };
+        
+        request.onerror = () => reject(request.error);
+    });
+}
+
+// ===== INTERFACE E MANIPULAÇÃO DOM =====
+
+// Adicionar botões de classificação a um item de resultado
+function addClassificationButtonsToResult(resultElement, questionId, resultIndex, resultData) {
+    // Remover seção existente se houver
+    const existing = resultElement.querySelector('.classification-section');
     if (existing) existing.remove();
     
     const classificationSection = document.createElement('div');

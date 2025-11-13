@@ -905,6 +905,7 @@
         .question-actions {
             display: flex;
             gap: 8px;
+            align-items: center;
         }
 
         .question-details {
@@ -4677,13 +4678,9 @@ function exportSearchResults() {
 }
 </script>
 
-    <script>
-        // =============================================
-        // SISTEMA DE INSIGHTS INTELIGENTES
-        // =============================================
-
+<script>
 // =============================================
-// SISTEMA DE INSIGHTS INTELIGENTES
+// SISTEMA DE INSIGHTS INTELIGENTES - ATUALIZADO
 // =============================================
 
 // Estado para gerenciar as perguntas e respostas
@@ -4692,9 +4689,36 @@ const insightsState = {
     searchIndex: null
 };
 
+// Dicionário de sinônimos para busca inteligente
+const SINONIMOS = {
+    'recebeu': ['recebido', 'recebi', 'chegou', 'chegado', 'obteve', 'obtido', 'conseguiu', 'conseguido'],
+    'link': ['url', 'endereço', 'endereco', 'site', 'página', 'pagina', 'hiperlink'],
+    'problema': ['problemas', 'dificuldade', 'dificuldades', 'erro', 'erros', 'defeito', 'defeitos', 'falha', 'falhas'],
+    'cartão': ['cartao', 'cartões', 'cartoes', 'card', 'cards', 'crédito', 'credito'],
+    'conta': ['contas', 'conta bancária', 'conta bancaria', 'conta corrente'],
+    'pagamento': ['pagamentos', 'pagar', 'pago', 'paga', 'valor', 'dinheiro', 'transação', 'transacao'],
+    'suporte': ['atendimento', 'ajuda', 'assistência', 'assistencia', 'socorro', 'suportes'],
+    'senha': ['password', 'acesso', 'login', 'credencial'],
+    'app': ['aplicativo', 'aplicação', 'aplicacao', 'mobile', 'celular'],
+    'site': ['website', 'página', 'pagina', 'portal', 'plataforma'],
+    'compra': ['compras', 'adquirir', 'adquirido', 'comprado', 'comprada', 'aquisição', 'aquisição'],
+    'entrega': ['entregue', 'entregado', 'envio', 'enviado', 'frete', 'shipping'],
+    'devolução': ['devolucao', 'devolvido', 'reembolso', 'devolver', 'retorno'],
+    'troca': ['trocado', 'trocada', 'substituição', 'substituicao', 'permuta'],
+    'cancelamento': ['cancelado', 'cancelada', 'cancelar', 'cancelados'],
+    'atraso': ['atrasado', 'atrasada', 'demora', 'demorado', 'demorada'],
+    'quebra': ['quebrado', 'quebrada', 'danificado', 'danificada', 'defeituoso', 'defeituosa'],
+    'lento': ['lentidão', 'lentidao', 'devagar', 'demorando', 'congelado'],
+    'não funciona': ['não está funcionando', 'nao funciona', 'parou', 'travado', 'com defeito'],
+    'reclamação': ['reclamacao', 'reclamações', 'reclamacoes', 'insatisfação', 'insatisfacao', 'problema'],
+    'elogio': ['elogios', 'parabéns', 'parabens', 'gostei', 'satisfeito', 'satisfeita'],
+    'dúvida': ['duvida', 'dúvidas', 'duvidas', 'pergunta', 'perguntas', 'questionamento']
+};
+
 // Inicializar o sistema de insights
 function initializeInsights() {
     setupInsightsEventListeners();
+    updateInsightsUI();
 }
 
 // Configurar event listeners para a seção de insights
@@ -4704,6 +4728,16 @@ function setupInsightsEventListeners() {
         if (e.key === 'Enter') addNewQuestion();
     });
     document.getElementById('exportAllInsights').addEventListener('click', exportAllInsights);
+}
+
+// Atualizar UI da seção insights
+function updateInsightsUI() {
+    const noQuestionsMessage = document.getElementById('noQuestionsMessage');
+    if (insightsState.questions.length === 0) {
+        noQuestionsMessage.style.display = 'block';
+    } else {
+        noQuestionsMessage.style.display = 'none';
+    }
 }
 
 // Adicionar uma nova pergunta
@@ -4721,7 +4755,8 @@ function addNewQuestion() {
         id: Date.now(),
         text: questionText,
         timestamp: new Date().toISOString(),
-        results: []
+        results: [],
+        isExpanded: true // Nova propriedade para controlar estado de expansão
     };
     
     // Processar a pergunta e buscar respostas
@@ -4751,7 +4786,7 @@ function processQuestion(question) {
         return;
     }
     
-    // Extrair palavras-chave da pergunta
+    // Extrair palavras-chave da pergunta com sinônimos
     const keywords = extractKeywordsFromQuestion(question.text);
     
     if (keywords.length === 0) {
@@ -4779,7 +4814,7 @@ function processQuestion(question) {
     };
 }
 
-// Extrair palavras-chave relevantes de uma pergunta
+// Extrair palavras-chave relevantes de uma pergunta com expansão de sinônimos
 function extractKeywordsFromQuestion(question) {
     // Tokenizar a pergunta
     const tokens = appState.textAnalyzer.tokenize(question);
@@ -4796,7 +4831,28 @@ function extractKeywordsFromQuestion(question) {
         return true;
     });
     
-    return relevantWords;
+    // Expandir com sinônimos
+    const expandedKeywords = new Set();
+    
+    relevantWords.forEach(word => {
+        expandedKeywords.add(word);
+        
+        // Adicionar sinônimos se existirem
+        const sinonimos = SINONIMOS[word];
+        if (sinonimos) {
+            sinonimos.forEach(sinonimo => expandedKeywords.add(sinonimo));
+        }
+        
+        // Buscar por palavras que contenham esta palavra como raiz
+        Object.keys(SINONIMOS).forEach(key => {
+            if (key.includes(word) || word.includes(key)) {
+                expandedKeywords.add(key);
+                SINONIMOS[key].forEach(s => expandedKeywords.add(s));
+            }
+        });
+    });
+    
+    return Array.from(expandedKeywords);
 }
 
 // Buscar insights baseados em palavras-chave
@@ -4826,7 +4882,9 @@ function searchForInsights(keywords) {
             if (existingIndex >= 0) {
                 // Atualizar score existente
                 allMatches[existingIndex].relevanceScore += relevanceScore;
-                allMatches[existingIndex].keywords.push(keyword);
+                if (!allMatches[existingIndex].keywords.includes(keyword)) {
+                    allMatches[existingIndex].keywords.push(keyword);
+                }
             } else {
                 // Adicionar novo resultado
                 allMatches.push({
@@ -4887,15 +4945,12 @@ function calculateRelevanceScore(result, keyword) {
 // Renderizar a lista de perguntas e respostas
 function renderQuestionsList() {
     const container = document.getElementById('questionsList');
-    const noQuestionsMessage = document.getElementById('noQuestionsMessage');
     
     if (insightsState.questions.length === 0) {
-        noQuestionsMessage.style.display = 'block';
         container.innerHTML = '';
+        updateInsightsUI();
         return;
     }
-    
-    noQuestionsMessage.style.display = 'none';
     
     let html = '';
     
@@ -4905,13 +4960,13 @@ function renderQuestionsList() {
         
         html += `
             <div class="card question-card" data-question-id="${question.id}">
-                <div class="card-header">
-                    <div class="card-title">${question.text}</div>
-                    <div>
+                <div class="question-header">
+                    <div class="question-text">${question.text}</div>
+                    <div class="question-actions">
                         <span class="badge ${confidenceColor}">${question.analysis.confidence}% confiança</span>
-                        <span class="badge">${question.analysis.totalMatches} ocorrências</span>
+                        <span class="badge badge-info">${question.analysis.totalMatches} ocorrências</span>
                         <button class="button button-info toggle-question" data-question-id="${question.id}">
-                            <i class="fas fa-chevron-down"></i>
+                            <i class="fas fa-${question.isExpanded ? 'chevron-up' : 'chevron-down'}"></i>
                         </button>
                         <button class="button button-danger delete-question" data-question-id="${question.id}">
                             <i class="fas fa-trash"></i>
@@ -4921,7 +4976,7 @@ function renderQuestionsList() {
                         </button>
                     </div>
                 </div>
-                <div class="question-details hidden">
+                <div class="question-details ${question.isExpanded ? '' : 'hidden'}">
                     <div class="alert alert-${question.analysis.totalMatches > 0 ? 'info' : 'warning'}">
                         <i class="fas fa-${question.analysis.totalMatches > 0 ? 'check-circle' : 'exclamation-triangle'}"></i>
                         <div>${question.analysis.message}</div>
@@ -4939,8 +4994,8 @@ function renderQuestionsList() {
                     ${question.results.length > 0 ? `
                         <div class="insights-results">
                             <h4>Ocorrências Encontradas:</h4>
-                            ${question.results.map(result => `
-                                <div class="search-result-item">
+                            ${question.results.map((result, index) => `
+                                <div class="insight-item" data-result-index="${index}">
                                     <div class="result-meta">
                                         <strong>Agente:</strong> ${result.item.Agente} | 
                                         <strong>Data:</strong> ${result.item.Data} ${result.item.Hora || ''}
@@ -4962,6 +5017,7 @@ function renderQuestionsList() {
     });
     
     container.innerHTML = html;
+    updateInsightsUI();
     
     // Adicionar event listeners para os botões das perguntas
     document.querySelectorAll('.toggle-question').forEach(button => {
@@ -4984,10 +5040,20 @@ function renderQuestionsList() {
             exportQuestionResults(questionId);
         });
     });
+    
+    // Inicializar sistema de classificação para os resultados
+    initializeClassificationSystem();
 }
 
 // Alternar visibilidade dos detalhes da pergunta
 function toggleQuestionDetails(questionId) {
+    const question = insightsState.questions.find(q => q.id == questionId);
+    if (!question) return;
+    
+    // Atualizar estado
+    question.isExpanded = !question.isExpanded;
+    
+    // Atualizar UI
     const questionCard = document.querySelector(`.question-card[data-question-id="${questionId}"]`);
     const details = questionCard.querySelector('.question-details');
     const toggleButton = questionCard.querySelector('.toggle-question i');
@@ -5010,7 +5076,7 @@ function deleteQuestion(questionId) {
     }
 }
 
-// Exportar resultados de uma pergunta específica
+// Exportar resultados de uma pergunta específica para Excel
 function exportQuestionResults(questionId) {
     const question = insightsState.questions.find(q => q.id == questionId);
     
@@ -5019,105 +5085,143 @@ function exportQuestionResults(questionId) {
         return;
     }
     
-    const csvData = [
-        ['Pergunta', question.text],
-        ['Data da Análise', new Date(question.timestamp).toLocaleString('pt-BR')],
-        ['Total de Ocorrências', question.analysis.totalMatches],
-        ['Confiança da Análise', question.analysis.confidence + '%'],
-        [], // Linha em branco
-        ['Agente', 'Data', 'Hora', 'Email', 'Texto', 'Sentimento', 'Pontuação', 'Palavras-chave Encontradas']
-    ];
-    
-    question.results.forEach(result => {
-        csvData.push([
-            result.item.Agente,
-            result.item.Data,
-            result.item.Hora || '',
-            result.item.Email || '',
-            result.item.Texto,
-            result.item.Sentimento,
-            result.item.Pontuacao || '',
-            result.keywords.join(', ')
-        ]);
-    });
-    
-    const csvContent = csvData.map(row => 
-        row.map(field => `"${(field || '').toString().replace(/"/g, '""')}"`).join(',')
-    ).join('\n');
-    
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `insight-${question.text.substring(0, 30).replace(/[^a-z0-9]/gi, '_')}-${new Date().toISOString().split('T')[0]}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    
-    showAlert('✅ Resultados da pergunta exportados com sucesso!', 'success');
+    try {
+        // Preparar dados para Excel
+        const data = [
+            ['Pergunta', question.text],
+            ['Data da Análise', new Date(question.timestamp).toLocaleString('pt-BR')],
+            ['Total de Ocorrências', question.analysis.totalMatches],
+            ['Confiança da Análise', question.analysis.confidence + '%'],
+            ['Palavras-chave Analisadas', question.analysis.keywords ? question.analysis.keywords.join(', ') : 'N/A'],
+            [], // Linha em branco
+            ['Agente', 'Data', 'Hora', 'Email', 'Texto', 'Sentimento', 'Pontuação', 'Palavras-chave Encontradas', 'Relevância']
+        ];
+        
+        question.results.forEach(result => {
+            data.push([
+                result.item.Agente,
+                result.item.Data,
+                result.item.Hora || '',
+                result.item.Email || '',
+                result.item.Texto,
+                result.item.Sentimento,
+                result.item.Pontuacao || '',
+                result.keywords.join(', '),
+                Math.round(result.relevanceScore) + '%'
+            ]);
+        });
+        
+        // Criar workbook
+        const ws = XLSX.utils.aoa_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Insights');
+        
+        // Ajustar largura das colunas
+        const colWidths = [
+            { wch: 20 }, // Agente
+            { wch: 12 }, // Data
+            { wch: 10 }, // Hora
+            { wch: 25 }, // Email
+            { wch: 50 }, // Texto
+            { wch: 12 }, // Sentimento
+            { wch: 10 }, // Pontuação
+            { wch: 30 }, // Palavras-chave
+            { wch: 12 }  // Relevância
+        ];
+        ws['!cols'] = colWidths;
+        
+        // Gerar arquivo
+        const timestamp = new Date().toISOString().split('T')[0];
+        const filename = `Insight_${question.text.substring(0, 30).replace(/[^a-z0-9]/gi, '_')}_${timestamp}.xlsx`;
+        XLSX.writeFile(wb, filename);
+        
+        showAlert('✅ Resultados da pergunta exportados com sucesso!', 'success');
+        
+    } catch (error) {
+        console.error('Erro ao exportar para Excel:', error);
+        showAlert('❌ Erro ao exportar resultados', 'error');
+    }
 }
 
-// Exportar todos os insights
+// Exportar todos os insights para Excel
 function exportAllInsights() {
     if (insightsState.questions.length === 0) {
         showAlert('⚠️ Nenhuma pergunta para exportar', 'warning');
         return;
     }
     
-    let csvData = [
-        ['Relatório de Insights - Sentinela'],
-        ['Data de geração', new Date().toLocaleString('pt-BR')],
-        ['Total de perguntas analisadas', insightsState.questions.length],
-        [] // Linha em branco
-    ];
-    
-    insightsState.questions.forEach(question => {
-        csvData.push(['PERGUNTA:', question.text]);
-        csvData.push(['Data da análise:', new Date(question.timestamp).toLocaleString('pt-BR')]);
-        csvData.push(['Ocorrências encontradas:', question.analysis.totalMatches]);
-        csvData.push(['Confiança da análise:', question.analysis.confidence + '%']);
-        csvData.push(['Palavras-chave analisadas:', question.analysis.keywords ? question.analysis.keywords.join(', ') : 'N/A']);
-        csvData.push([]);
+    try {
+        // Preparar dados para Excel
+        let data = [
+            ['Relatório de Insights - Sentinela'],
+            ['Data de geração', new Date().toLocaleString('pt-BR')],
+            ['Total de perguntas analisadas', insightsState.questions.length],
+            [] // Linha em branco
+        ];
         
-        if (question.results.length > 0) {
-            csvData.push(['Agente', 'Data', 'Hora', 'Email', 'Texto', 'Sentimento', 'Pontuação', 'Palavras-chave Encontradas']);
+        insightsState.questions.forEach(question => {
+            data.push(['PERGUNTA:', question.text]);
+            data.push(['Data da análise:', new Date(question.timestamp).toLocaleString('pt-BR')]);
+            data.push(['Ocorrências encontradas:', question.analysis.totalMatches]);
+            data.push(['Confiança da análise:', question.analysis.confidence + '%']);
+            data.push(['Palavras-chave analisadas:', question.analysis.keywords ? question.analysis.keywords.join(', ') : 'N/A']);
+            data.push([]);
             
-            question.results.forEach(result => {
-                csvData.push([
-                    result.item.Agente,
-                    result.item.Data,
-                    result.item.Hora || '',
-                    result.item.Email || '',
-                    result.item.Texto,
-                    result.item.Sentimento,
-                    result.item.Pontuacao || '',
-                    result.keywords.join(', ')
-                ]);
-            });
-        } else {
-            csvData.push(['Nenhuma ocorrência encontrada para esta pergunta.']);
-        }
+            if (question.results.length > 0) {
+                data.push(['Agente', 'Data', 'Hora', 'Email', 'Texto', 'Sentimento', 'Pontuação', 'Palavras-chave Encontradas', 'Relevância']);
+                
+                question.results.forEach(result => {
+                    data.push([
+                        result.item.Agente,
+                        result.item.Data,
+                        result.item.Hora || '',
+                        result.item.Email || '',
+                        result.item.Texto,
+                        result.item.Sentimento,
+                        result.item.Pontuacao || '',
+                        result.keywords.join(', '),
+                        Math.round(result.relevanceScore) + '%'
+                    ]);
+                });
+            } else {
+                data.push(['Nenhuma ocorrência encontrada para esta pergunta.']);
+            }
+            
+            data.push([]);
+            data.push([]);
+        });
         
-        csvData.push([]);
-        csvData.push([]);
-    });
-    
-    const csvContent = csvData.map(row => 
-        row.map(field => `"${(field || '').toString().replace(/"/g, '""')}"`).join(',')
-    ).join('\n');
-    
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `insights-completos-${new Date().toISOString().split('T')[0]}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    
-    showAlert('✅ Todos os insights exportados com sucesso!', 'success');
+        // Criar workbook
+        const ws = XLSX.utils.aoa_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Insights Completos');
+        
+        // Ajustar largura das colunas
+        const colWidths = [
+            { wch: 50 }, // Pergunta
+            { wch: 20 }, // Agente
+            { wch: 12 }, // Data
+            { wch: 10 }, // Hora
+            { wch: 25 }, // Email
+            { wch: 50 }, // Texto
+            { wch: 12 }, // Sentimento
+            { wch: 10 }, // Pontuação
+            { wch: 30 }, // Palavras-chave
+            { wch: 12 }  // Relevância
+        ];
+        ws['!cols'] = colWidths;
+        
+        // Gerar arquivo
+        const timestamp = new Date().toISOString().split('T')[0];
+        const filename = `Insights_Completos_${timestamp}.xlsx`;
+        XLSX.writeFile(wb, filename);
+        
+        showAlert('✅ Todos os insights exportados com sucesso!', 'success');
+        
+    } catch (error) {
+        console.error('Erro ao exportar para Excel:', error);
+        showAlert('❌ Erro ao exportar insights', 'error');
+    }
 }
 
 // Destacar palavras-chave no texto
@@ -5132,87 +5236,91 @@ function highlightKeywords(text, keywords) {
     return highlightedText;
 }
 
-// Adicionar estilos CSS para a nova seção
-const insightsStyles = `
-    .question-card {
-        margin-bottom: 20px;
-        border-left: 4px solid var(--info-color);
-    }
-    
-    .question-details {
-        padding-top: 15px;
-        border-top: 1px solid var(--medium-gray);
-    }
-    
-    .keyword-tags {
-        margin-bottom: 15px;
-    }
-    
-    .keyword-tag {
-        display: inline-block;
-        background: var(--light-gray);
-        padding: 4px 8px;
-        margin: 2px 4px 2px 0;
-        border-radius: 12px;
-        font-size: 0.8rem;
-    }
-    
-    .insights-results {
-        max-height: 500px;
-        overflow-y: auto;
-    }
-    
-    .result-meta {
-        font-size: 0.85rem;
-        color: var(--dark-gray);
-        margin-bottom: 5px;
-    }
-    
-    .result-sentiment {
-        font-size: 0.85rem;
-        margin-top: 5px;
-    }
-    
-    .badge {
-        display: inline-block;
-        padding: 4px 8px;
-        border-radius: 12px;
-        font-size: 0.8rem;
-        font-weight: 500;
-        margin-right: 5px;
-    }
-    
-    mark.search-highlight {
-        background-color: #ffeb3b;
-        padding: 1px 2px;
-        border-radius: 2px;
-    }
-`;
-
-// Adicionar os estilos ao documento
-const styleSheet = document.createElement('style');
-styleSheet.textContent = insightsStyles;
-document.head.appendChild(styleSheet);
-
-        // Inicializar Insights quando a aba for ativada
-        document.addEventListener('DOMContentLoaded', function() {
-            const insightsTab = document.querySelector('[data-tab="insights"]');
-            if (insightsTab) {
-                insightsTab.addEventListener('click', function() {
-                    if (typeof initializeInsights === 'function') {
-                        initializeInsights();
+// Inicializar sistema de classificação
+function initializeClassificationSystem() {
+    // Verificar se já existe o sistema de classificação
+    if (typeof initInsightsDB === 'function') {
+        initInsightsDB().then(() => {
+            console.log('✅ Sistema de Classificação inicializado para Insights');
+            
+            // Adicionar botões de classificação a cada resultado
+            insightsState.questions.forEach(question => {
+                const questionId = question.id;
+                const resultElements = document.querySelectorAll(`.question-card[data-question-id="${questionId}"] .insight-item`);
+                
+                resultElements.forEach((element, index) => {
+                    const resultData = question.results[index];
+                    if (resultData) {
+                        addClassificationButtonsToResult(element, questionId, index, {
+                            text: resultData.item.Texto || '',
+                            agent: resultData.item.Agente || '',
+                            date: resultData.item.Data || '',
+                            sentiment: resultData.item.Sentimento || ''
+                        });
                     }
                 });
-            }
+            });
+        }).catch(error => {
+            console.error('❌ Erro ao inicializar sistema de classificação:', error);
         });
-    </script>
+    }
+}
+
+// Adicionar botões de classificação a um resultado (função auxiliar)
+function addClassificationButtonsToResult(resultElement, questionId, resultIndex, resultData) {
+    // Remover seção existente se houver
+    const existing = resultElement.querySelector('.classification-section');
+    if (existing) existing.remove();
+    
+    const classificationSection = document.createElement('div');
+    classificationSection.className = 'classification-section';
+    
+    const buttonsDiv = document.createElement('div');
+    buttonsDiv.className = 'classification-buttons';
+    
+    // Botão Procedente
+    const btnProcedente = document.createElement('button');
+    btnProcedente.className = 'btn-classify btn-procedente';
+    btnProcedente.innerHTML = '✓ Procedente';
+    btnProcedente.onclick = async (e) => {
+        e.stopPropagation(); // Impedir que o evento propague e cause recolhimento
+        if (typeof classifyResult === 'function') {
+            await classifyResult(questionId, resultIndex, 'procedente', resultData, resultElement);
+        }
+    };
+    
+    // Botão Improcedente
+    const btnImprocedente = document.createElement('button');
+    btnImprocedente.className = 'btn-classify btn-improcedente';
+    btnImprocedente.innerHTML = '✗ Improcedente';
+    btnImprocedente.onclick = async (e) => {
+        e.stopPropagation(); // Impedir que o evento propague e cause recolhimento
+        if (typeof classifyResult === 'function') {
+            await classifyResult(questionId, resultIndex, 'improcedente', resultData, resultElement);
+        }
+    };
+    
+    buttonsDiv.appendChild(btnProcedente);
+    buttonsDiv.appendChild(btnImprocedente);
+    
+    classificationSection.appendChild(buttonsDiv);
+    resultElement.appendChild(classificationSection);
+}
+
+// Inicializar Insights quando a aba for ativada
+document.addEventListener('DOMContentLoaded', function() {
+    const insightsTab = document.querySelector('[data-tab="insights"]');
+    if (insightsTab) {
+        insightsTab.addEventListener('click', function() {
+            initializeInsights();
+        });
+    }
+});
+</script>
 
 <script>
-
 // ============================================= 
 // SISTEMA DE CLASSIFICAÇÃO DE INSIGHTS - SENTINELA
-// Desenvolvido para análise procedente/improcedente
-// IndexedDB com persistência local
 // ============================================= 
 
 // Configuração do IndexedDB
@@ -5223,7 +5331,6 @@ const INSIGHTS_DB_CONFIG = {
 };
 
 let insightsDB = null;
-let insightQuestions = [];
 
 // ===== INICIALIZAÇÃO DO INDEXEDDB =====
 async function initInsightsDB() {
@@ -5415,50 +5522,6 @@ async function removeClassification(questionId, resultIndex) {
 
 // ===== INTERFACE E MANIPULAÇÃO DOM =====
 
-// Adicionar botões de classificação a um item de resultado
-function addClassificationButtonsToResult(resultElement, questionId, resultIndex, resultData) {
-    // Remover seção existente se houver
-    const existing = resultElement.querySelector('.classification-section');
-    if (existing) existing.remove();
-    
-    const classificationSection = document.createElement('div');
-    classificationSection.className = 'classification-section';
-    
-    const buttonsDiv = document.createElement('div');
-    buttonsDiv.className = 'classification-buttons';
-    
-    // Botão Procedente
-    const btnProcedente = document.createElement('button');
-    btnProcedente.className = 'btn-classify btn-procedente';
-    btnProcedente.innerHTML = '✓ Procedente';
-    btnProcedente.onclick = async () => {
-        await classifyResult(questionId, resultIndex, 'procedente', resultData, resultElement);
-    };
-    
-    // Botão Improcedente
-    const btnImprocedente = document.createElement('button');
-    btnImprocedente.className = 'btn-classify btn-improcedente';
-    btnImprocedente.innerHTML = '✗ Improcedente';
-    btnImprocedente.onclick = async () => {
-        await classifyResult(questionId, resultIndex, 'improcedente', resultData, resultElement);
-    };
-    
-    // Botão Limpar
-    const btnLimpar = document.createElement('button');
-    btnLimpar.className = 'btn-classify btn-limpar-classificacao';
-    btnLimpar.innerHTML = '⟲ Limpar';
-    btnLimpar.onclick = async () => {
-        await clearResultClassification(questionId, resultIndex, resultElement);
-    };
-    
-    buttonsDiv.appendChild(btnProcedente);
-    buttonsDiv.appendChild(btnImprocedente);
-    buttonsDiv.appendChild(btnLimpar);
-    
-    classificationSection.appendChild(buttonsDiv);
-    resultElement.appendChild(classificationSection);
-}
-
 // Classificar um resultado
 async function classifyResult(questionId, resultIndex, classification, resultData, resultElement) {
     try {
@@ -5573,155 +5636,6 @@ async function updateQuestionCardCounters(questionId) {
     }
 }
 
-// Restaurar classificações salvas ao exibir resultados
-async function restoreClassificationsForResults(questionId, resultElements, resultsData) {
-    const classifications = await getQuestionClassifications(questionId);
-    
-    resultElements.forEach((element, index) => {
-        const resultData = resultsData[index] || {};
-        
-        // Adicionar botões
-        addClassificationButtonsToResult(element, questionId, index, resultData);
-        
-        // Restaurar classificação se existir
-        const savedClassification = classifications.find(c => c.resultIndex === index);
-        if (savedClassification) {
-            element.classList.add(`classified-${savedClassification.classification}`);
-            
-            const badge = document.createElement('span');
-            badge.className = `classification-badge badge-${savedClassification.classification}-item`;
-            badge.innerHTML = savedClassification.classification === 'procedente' 
-                ? '✓ Procedente' 
-                : '✗ Improcedente';
-            
-            const metaSection = element.querySelector('.result-meta');
-            if (metaSection) {
-                metaSection.appendChild(badge);
-            }
-        }
-    });
-    
-    // Atualizar contadores
-    await updateQuestionCardCounters(questionId);
-}
-
-// ===== CONTROLES DE ARMAZENAMENTO =====
-
-function createStorageControls() {
-    const controlsDiv = document.createElement('div');
-    controlsDiv.className = 'storage-controls';
-    controlsDiv.id = 'insights-storage-controls';
-    
-    const infoSpan = document.createElement('span');
-    infoSpan.className = 'storage-info';
-    infoSpan.innerHTML = '💾 As classificações são salvas automaticamente no navegador';
-    
-    const btnClearAll = document.createElement('button');
-    btnClearAll.className = 'btn-clear-storage';
-    btnClearAll.innerHTML = '🗑️ Limpar Todas Classificações';
-    btnClearAll.onclick = async () => {
-        if (confirm('⚠️ Tem certeza que deseja limpar TODAS as classificações? Esta ação não pode ser desfeita.')) {
-            try {
-                await clearAllClassificationsData();
-                showInsightNotification('Todas as classificações foram removidas', 'success');
-                setTimeout(() => location.reload(), 1500);
-            } catch (error) {
-                console.error('Erro ao limpar:', error);
-                showInsightNotification('Erro ao limpar classificações', 'error');
-            }
-        }
-    };
-    
-    const btnExport = document.createElement('button');
-    btnExport.className = 'btn-export-classifications';
-    btnExport.innerHTML = '📥 Exportar com Classificações';
-    btnExport.onclick = exportInsightsWithClassifications;
-    
-    controlsDiv.appendChild(infoSpan);
-    controlsDiv.appendChild(btnClearAll);
-    controlsDiv.appendChild(btnExport);
-    
-    return controlsDiv;
-}
-
-// ===== EXPORTAÇÃO PARA EXCEL =====
-
-async function exportInsightsWithClassifications() {
-    try {
-        if (typeof XLSX === 'undefined') {
-            showInsightNotification('Biblioteca XLSX não carregada. Por favor, recarregue a página.', 'error');
-            return;
-        }
-        
-        const allData = [];
-        
-        // Coletar dados de todas as perguntas
-        const questions = document.querySelectorAll('.question-card');
-        
-        for (const questionCard of questions) {
-            const questionId = questionCard.getAttribute('data-question-id');
-            if (!questionId) continue;
-            
-            const questionText = questionCard.querySelector('.question-text')?.textContent || 'N/A';
-            const classifications = await getQuestionClassifications(questionId);
-            const results = questionCard.querySelectorAll('.insight-item');
-            
-            results.forEach((resultElement, index) => {
-                const classification = classifications.find(c => c.resultIndex === index);
-                
-                const agent = resultElement.querySelector('.result-meta')?.textContent.match(/Agente: ([^|]+)/)?.[1]?.trim() || 'N/A';
-                const date = resultElement.querySelector('.result-meta')?.textContent.match(/Data: ([^|]+)/)?.[1]?.trim() || 'N/A';
-                const text = resultElement.querySelector('.result-text')?.textContent || '';
-                const sentiment = resultElement.querySelector('.result-sentiment')?.textContent || 'neutro';
-                
-                allData.push({
-                    'Pergunta': questionText,
-                    'Agente': agent,
-                    'Data': date,
-                    'Texto': text,
-                    'Sentimento': sentiment,
-                    'Classificação': classification ? classification.classification.toUpperCase() : 'PENDENTE',
-                    'Data da Classificação': classification ? new Date(classification.timestamp).toLocaleString('pt-BR') : '',
-                    'Análise Humana': classification ? 'SIM' : 'NÃO'
-                });
-            });
-        }
-        
-        if (allData.length === 0) {
-            showInsightNotification('Nenhum dado para exportar', 'warning');
-            return;
-        }
-        
-        // Criar workbook
-        const ws = XLSX.utils.json_to_sheet(allData);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Insights Classificados');
-        
-        // Ajustar largura das colunas
-        ws['!cols'] = [
-            { wch: 50 }, // Pergunta
-            { wch: 20 }, // Agente
-            { wch: 15 }, // Data
-            { wch: 60 }, // Texto
-            { wch: 12 }, // Sentimento
-            { wch: 18 }, // Classificação
-            { wch: 22 }, // Data da Classificação
-            { wch: 15 }  // Análise Humana
-        ];
-        
-        // Gerar arquivo
-        const timestamp = new Date().toISOString().split('T')[0];
-        const filename = `Sentinela_Insights_Classificados_${timestamp}.xlsx`;
-        XLSX.writeFile(wb, filename);
-        
-        showInsightNotification(`Relatório exportado: ${filename}`, 'success');
-        
-    } catch (error) {
-        console.error('❌ Erro ao exportar:', error);
-        showInsightNotification('Erro ao exportar relatório', 'error');
-    }
-}
-
 // ===== NOTIFICAÇÕES =====
 
 function showInsightNotification(message, type = 'info') {
@@ -5752,52 +5666,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Inicializar DB
         await initInsightsDB();
         console.log('✅ Sistema de Classificação de Insights ativado');
-        
-        // Adicionar controles de armazenamento
-        const insightsTab = document.querySelector('[data-tab-content="insights"]');
-        if (insightsTab) {
-            const existingControls = document.getElementById('insights-storage-controls');
-            if (!existingControls) {
-                const controls = createStorageControls();
-                insightsTab.insertBefore(controls, insightsTab.firstChild);
-            }
-        }
-        
-        // Observar mudanças na seção de insights para adicionar botões dinamicamente
-        const observer = new MutationObserver(async (mutations) => {
-            for (const mutation of mutations) {
-                if (mutation.addedNodes.length > 0) {
-                    const insightItems = document.querySelectorAll('.insight-item:not([data-classification-ready])');
-                    if (insightItems.length > 0) {
-                        // Tentar identificar a pergunta atual
-                        const activeQuestion = document.querySelector('.question-card.active');
-                        if (activeQuestion) {
-                            const questionId = activeQuestion.getAttribute('data-question-id');
-                            if (questionId) {
-                                const resultsData = Array.from(insightItems).map(item => ({
-                                    text: item.querySelector('.result-text')?.textContent || '',
-                                    agent: item.querySelector('.result-meta')?.textContent.match(/Agente: ([^|]+)/)?.[1]?.trim() || '',
-                                    date: item.querySelector('.result-meta')?.textContent.match(/Data: ([^|]+)/)?.[1]?.trim() || '',
-                                    sentiment: item.querySelector('.result-sentiment')?.textContent || ''
-                                }));
-                                
-                                await restoreClassificationsForResults(questionId, insightItems, resultsData);
-                                
-                                insightItems.forEach(item => {
-                                    item.setAttribute('data-classification-ready', 'true');
-                                });
-                            }
-                        }
-                    }
-                }
-            }
-        });
-        
-        // Observar a seção de insights
-        const insightsResults = document.querySelector('.insights-results') || document.querySelector('[data-tab-content="insights"]');
-        if (insightsResults) {
-            observer.observe(insightsResults, { childList: true, subtree: true });
-        }
         
     } catch (error) {
         console.error('❌ Erro ao inicializar sistema de classificação:', error);
